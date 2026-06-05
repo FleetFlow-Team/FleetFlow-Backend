@@ -4,6 +4,7 @@
  */
 package model;
 
+import java.math.BigDecimal;
 import java.sql.Timestamp;
 import model.base.BaseEntity;
 import model.base.IAuditableEntity;
@@ -13,8 +14,47 @@ import model.base.IAuditableEntity;
  * @author User
  */
 public class Customer extends BaseEntity implements IAuditableEntity {
+    private String address;
+    private BigDecimal debtBalance;
+    private Long accountId;
     private Timestamp createdAt;
     private Timestamp updatedAt;
+    
+    //constructor
+    
+    public Customer(String address, BigDecimal debtBalance, Long accountId, Timestamp createdAt, Timestamp updatedAt) {
+        this.address = address;
+        this.debtBalance = debtBalance;
+        this.accountId = accountId;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public BigDecimal getDebtBalance() {
+        return debtBalance;
+    }
+
+    public void setDebtBalance(BigDecimal debtBalance) {
+        this.debtBalance = debtBalance;
+    }
+
+    public Long getAccountId() {
+        return accountId;
+    }
+
+    public void setAccountId(Long accountId) {
+        this.accountId = accountId;
+    }
+
+    
     @Override
     public Timestamp getCreatedAt() {
         return createdAt;
