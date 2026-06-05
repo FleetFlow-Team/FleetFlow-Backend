@@ -8,6 +8,6 @@ package dao;
  *
  * @author User
  */
-public class DriverDAO {
+public class AccountDAO {
     
 }
