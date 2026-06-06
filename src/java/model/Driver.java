@@ -26,6 +26,9 @@ public class Driver extends BaseEntity implements IAuditableEntity{
     
     //constructor
     
+    public Driver() {
+    }
+
     public Driver(Long accountId, String approvalStatus, String availabilityStatus, Timestamp termsAcceptedAt, BigDecimal averageRating, BigDecimal walletBalance, Timestamp createdAt, Timestamp updatedAt) {
         this.approvalStatus = approvalStatus;
         this.availabilityStatus = availabilityStatus;

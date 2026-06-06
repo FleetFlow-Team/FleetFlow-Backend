@@ -22,6 +22,9 @@ public class Customer extends BaseEntity implements IAuditableEntity {
     
     //constructor
     
+    public Customer() {
+    }
+
     public Customer(String address, BigDecimal debtBalance, Long accountId, Timestamp createdAt, Timestamp updatedAt) {
         this.address = address;
         this.debtBalance = debtBalance;

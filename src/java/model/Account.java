@@ -25,6 +25,9 @@ public class Account extends BaseEntity implements IAuditableEntity {
     private Timestamp updatedAt;
     //constructor
 
+    public Account() {
+    }
+
     public Account(String roleName, String email, String hashPassword, String fullName, String phoneNumber, String status, Timestamp createdAt, Timestamp updatedAt) {
         this.roleName = roleName;
         this.email = email;

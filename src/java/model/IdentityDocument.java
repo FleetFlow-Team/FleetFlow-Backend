@@ -14,6 +14,11 @@ public class IdentityDocument extends BaseEntity {
     private Timestamp uploadedAt;
     private Timestamp verifiedAt;
 
+    //constructor
+    public IdentityDocument()
+    {
+        
+    }
     public IdentityDocument(Long ownerAccountId, String ownerType, String docType,
                             String nationalId, String secureFileUrl, String status,
                             Long verifiedBy, Timestamp uploadedAt, Timestamp verifiedAt) {
