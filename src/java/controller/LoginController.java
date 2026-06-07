@@ -20,7 +20,7 @@ import javax.servlet.http.HttpServletResponse;
  *
  * @author User
  */
-@WebServlet("/api/v1/auth/login")
+@WebServlet("/api/v1/login")
 public class LoginController extends HttpServlet {
 
     /**
