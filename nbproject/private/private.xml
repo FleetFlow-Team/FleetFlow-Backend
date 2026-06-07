@@ -3,14 +3,8 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/C:/isp392/FleetFlow/src/java/controller/MainController.java</file>
-            <file>file:/C:/isp392/FleetFlow/src/java/utils/DbUtils.java</file>
-            <file>file:/C:/isp392/FleetFlow/web/login.jsp</file>
-            <file>file:/C:/isp392/FleetFlow/web/index.jsp</file>
-            <file>file:/C:/isp392/FleetFlow/src/java/dao/DriverDAO.java</file>
-            <file>file:/C:/isp392/FleetFlow/web/e403.jsp</file>
-            <file>file:/C:/isp392/FleetFlow/src/java/utils/JPAUtil.java</file>
-            <file>file:/C:/isp392/FleetFlow/src/java/model/Driver.java</file>
+            <file>file:/D:/Github_Projects/FleetFlow-Backend/src/java/controller/AccountController.java</file>
+            <file>file:/D:/Github_Projects/FleetFlow-Backend/src/java/controller/DriverController.java</file>
         </group>
     </open-files>
 </project-private>
