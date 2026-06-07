@@ -8,21 +8,33 @@ package controller;
  *
  * @author nguye
  */
+import dao.AccountDAO;
+import model.Account;
 import java.io.IOException;
-import java.io.PrintWriter;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
+import javax.servlet.http.HttpSession;
 /**
  *
  * @author User
  */
 @WebServlet("/api/v1/login")
 public class LoginController extends HttpServlet {
-
+    private static final String LOGIN_PAGE = "login.jsp";
+    private static final String ADMIN_PAGE = "admin.jsp";
+    private static final String CUSTOMER_PAGE = "index.jsp";
+    private static final String DRIVER_PAGE = "driver.jsp";
+    
+    private static final String ROLE_ADMIN = "ADMIN";
+    private static final String ROLE_CUSTOMER = "CUSTOMER";
+    private static final String ROLE_DRIVER = "DRIVER";
+    
+    private static final String INCORRECT_MESSAGE = "Incorrect email or password";
+    private static final String LOCKED_MESSAGE = "Your account is currently locked !";
+    private static final String NOT_SUPPORT_MESSAGE = "Your role is not supported !";
     /**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
      * methods.
@@ -35,18 +47,42 @@ public class LoginController extends HttpServlet {
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
-        try (PrintWriter out = response.getWriter()) {
-            /* TODO output your page here. You may use following sample code. */
-            out.println("<!DOCTYPE html>");
-            out.println("<html>");
-            out.println("<head>");
-            out.println("<title>Servlet LoginController</title>");            
-            out.println("</head>");
-            out.println("<body>");
-            out.println("<h1>Servlet LoginController at " + request.getContextPath() + "</h1>");
-            out.println("<h2>Path cấu hình: /api/v1/auth/login</h2>");
-            out.println("</body>");
-            out.println("</html>");
+String url = LOGIN_PAGE;
+        try {
+            String email = request.getParameter("email");
+            String password = request.getParameter("password");
+            
+            AccountDAO dao = new AccountDAO();
+            Account loginUser = dao.checkLogin(email, password);
+            
+            // Xác thực thông tin tài khoản
+            if (loginUser != null) {
+                if ("LOCKED".equalsIgnoreCase(loginUser.getStatus())) {
+                    request.setAttribute("ERROR_MESSAGE", LOCKED_MESSAGE);
+                } else {
+                    HttpSession session = request.getSession();
+                    session.setAttribute("LOGIN_USER", loginUser);
+                    
+                    // Phân quyền điều hướng trang dựa trên Role hệ thống đặt xe
+                    String roleName = loginUser.getRoleName();
+                    if (ROLE_ADMIN.equalsIgnoreCase(roleName)) {
+                        url = ADMIN_PAGE;
+                    } else if (ROLE_CUSTOMER.equalsIgnoreCase(roleName)) {
+                        url = CUSTOMER_PAGE;
+                    } else if (ROLE_DRIVER.equalsIgnoreCase(roleName)) {
+                        url = DRIVER_PAGE;
+                    } else {
+                        request.setAttribute("ERROR_MESSAGE", NOT_SUPPORT_MESSAGE);
+                    }
+                }
+            } else {
+                request.setAttribute("ERROR_MESSAGE", INCORRECT_MESSAGE);
+            }
+            
+        } catch (Exception e) {
+            log("Error at LoginController: " + e.toString());
+        } finally {
+            request.getRequestDispatcher(url).forward(request, response);
         }
     }
 
