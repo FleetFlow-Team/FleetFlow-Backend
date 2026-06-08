@@ -21,49 +21,37 @@ import javax.servlet.http.HttpSession;
  *
  * @author User
  */
-@WebServlet("/api/v1/login")
+@WebServlet(name = "LoginController", urlPatterns = {"/LoginController"})
 public class LoginController extends HttpServlet {
-    private static final String LOGIN_PAGE = "login.jsp";
-    private static final String ADMIN_PAGE = "admin.jsp";
-    private static final String CUSTOMER_PAGE = "index.jsp";
-    private static final String DRIVER_PAGE = "driver.jsp";
+
+    private static final String LOGIN_PAGE = "/login.jsp";
+    private static final String ADMIN_PAGE = "/admin.jsp";
+    private static final String CUSTOMER_PAGE = "/index.jsp";
+    private static final String DRIVER_PAGE = "/driver.jsp";
     
     private static final String ROLE_ADMIN = "ADMIN";
     private static final String ROLE_CUSTOMER = "CUSTOMER";
     private static final String ROLE_DRIVER = "DRIVER";
-    
-    private static final String INCORRECT_MESSAGE = "Incorrect email or password";
-    private static final String LOCKED_MESSAGE = "Your account is currently locked !";
-    private static final String NOT_SUPPORT_MESSAGE = "Your role is not supported !";
-    /**
-     * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
-     * methods.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
+
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
-String url = LOGIN_PAGE;
+        String url = LOGIN_PAGE;
         try {
+            // Đọc trực tiếp tham số từ form gửi lên
             String email = request.getParameter("email");
             String password = request.getParameter("password");
             
             AccountDAO dao = new AccountDAO();
             Account loginUser = dao.checkLogin(email, password);
             
-            // Xác thực thông tin tài khoản
             if (loginUser != null) {
                 if ("LOCKED".equalsIgnoreCase(loginUser.getStatus())) {
-                    request.setAttribute("ERROR_MESSAGE", LOCKED_MESSAGE);
+                    request.setAttribute("ERROR_MESSAGE", "Login failed: Your account is currently LOCKED!");
                 } else {
                     HttpSession session = request.getSession();
                     session.setAttribute("LOGIN_USER", loginUser);
                     
-                    // Phân quyền điều hướng trang dựa trên Role hệ thống đặt xe
                     String roleName = loginUser.getRoleName();
                     if (ROLE_ADMIN.equalsIgnoreCase(roleName)) {
                         url = ADMIN_PAGE;
@@ -72,16 +60,17 @@ String url = LOGIN_PAGE;
                     } else if (ROLE_DRIVER.equalsIgnoreCase(roleName)) {
                         url = DRIVER_PAGE;
                     } else {
-                        request.setAttribute("ERROR_MESSAGE", NOT_SUPPORT_MESSAGE);
+                        request.setAttribute("ERROR_MESSAGE", "Access denied: The role [" + roleName + "] is not supported.");
                     }
                 }
             } else {
-                request.setAttribute("ERROR_MESSAGE", INCORRECT_MESSAGE);
+                request.setAttribute("ERROR_MESSAGE", "Login failed: Incorrect email or password.");
             }
             
         } catch (Exception e) {
             log("Error at LoginController: " + e.toString());
         } finally {
+            // Tự quyết định forward về trang đích luôn, không trả quyền về MainController nữa
             request.getRequestDispatcher(url).forward(request, response);
         }
     }
