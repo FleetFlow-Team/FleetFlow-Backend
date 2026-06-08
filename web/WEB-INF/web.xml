@@ -28,6 +28,10 @@
         <servlet-name>MapsController</servlet-name>
         <servlet-class>controller.MapsController</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>AIController</servlet-name>
+        <servlet-class>controller.AIController</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -55,6 +59,10 @@
     <servlet-mapping>
         <servlet-name>MapsController</servlet-name>
         <url-pattern>/MapsController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>AIController</servlet-name>
+        <url-pattern>/AIController</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>
