@@ -1,29 +1,25 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package dao;
-import utils.DbUtils;
-import model.Account;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-/**
- *
- * @author User
- */
+import java.sql.Timestamp;
+import model.Account;
+import utils.DbUtils;
+
 public class AccountDAO {
-    // Câu lệnh truy vấn khớp chính xác 100% tên bảng và tên cột trong file SQL của bạn
-    private static final String LOGIN = "SELECT RoleName, Email, PasswordHash, FullName, PhoneNumber, Status, CreatedAt, UpdatedAt "
-                                      + "FROM Account WHERE Email=? AND PasswordHash=?";
+
+    private static final String LOGIN = "SELECT RoleName, FullName, PhoneNumber, Status, CreatedAt, UpdatedAt FROM Account WHERE Email=? AND PasswordHash=?";
+    private static final String CHECK_EMAIL = "SELECT Email FROM Account WHERE Email = ?";
+    private static final String REGISTER = "INSERT INTO Account (RoleName, Email, PasswordHash, FullName, PhoneNumber, Status, CreatedAt, UpdatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    private static final String SAVE_TOKEN = "UPDATE Account SET ResetToken = ?, UpdatedAt = ? WHERE Email = ?";
 
     public Account checkLogin(String email, String password) throws SQLException {
         Account account = null;
         Connection conn = null;
         PreparedStatement ptm = null;
         ResultSet rs = null;
-        
         try {
             conn = DbUtils.getConnection();
             if (conn != null) {
@@ -31,28 +27,106 @@ public class AccountDAO {
                 ptm.setString(1, email);
                 ptm.setString(2, password);
                 rs = ptm.executeQuery();
-                
                 if (rs.next()) {
                     String roleName = rs.getString("RoleName");
                     String fullName = rs.getString("FullName");
                     String phoneNumber = rs.getString("PhoneNumber");
                     String status = rs.getString("Status");
-                    java.sql.Timestamp createdAt = rs.getTimestamp("CreatedAt");
-                    java.sql.Timestamp updatedAt = rs.getTimestamp("UpdatedAt");
+                    Timestamp createdAt = rs.getTimestamp("CreatedAt");
+                    Timestamp updatedAt = rs.getTimestamp("UpdatedAt");
                     
-                    // Khởi tạo đối tượng Account dựa trên cấu trúc Constructor trong Model của bạn
-                    // Mật khẩu che đi bằng "***" để bảo mật khi lưu vào Session
                     account = new Account(roleName, email, "***", fullName, phoneNumber, status, createdAt, updatedAt);
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new SQLException("Error at checkLogin: " + e.getMessage());
         } finally {
-            // Đóng tài nguyên nghiêm ngặt đúng format mẫu của bạn
             if (rs != null) rs.close();
             if (ptm != null) ptm.close();
             if (conn != null) conn.close();
         }
         return account;
+    }
+
+    public boolean checkEmailExist(String email) throws SQLException {
+        boolean isExist = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+        try {
+            conn = DbUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(CHECK_EMAIL);
+                ptm.setString(1, email);
+                rs = ptm.executeQuery();
+                if (rs.next()) {
+                    isExist = true;
+                }
+            }
+        } catch (Exception e) {
+            throw new SQLException("Error at checkEmailExist: " + e.getMessage());
+        } finally {
+            if (rs != null) rs.close();
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+        return isExist;
+    }
+
+    public boolean registerAccount(Account acc) throws SQLException {
+        boolean isCreated = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        try {
+            conn = DbUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(REGISTER);
+                ptm.setString(1, acc.getRoleName() != null ? acc.getRoleName() : "Customer");
+                ptm.setString(2, acc.getEmail());
+                ptm.setString(3, acc.getHashPassword()); 
+                ptm.setString(4, acc.getFullName());
+                ptm.setString(5, acc.getPhoneNumber());
+                ptm.setString(6, acc.getStatus() != null ? acc.getStatus() : "Active");
+                ptm.setTimestamp(7, new Timestamp(System.currentTimeMillis()));
+                ptm.setTimestamp(8, new Timestamp(System.currentTimeMillis()));
+
+                int row = ptm.executeUpdate();
+                if (row > 0) {
+                    isCreated = true;
+                }
+            }
+        } catch (Exception e) {
+            throw new SQLException("Database Insertion Error: " + e.getMessage());
+        } finally {
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+        return isCreated;
+    }
+
+    public boolean saveResetToken(String email, String token) throws SQLException {
+        boolean isSaved = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        try {
+            conn = DbUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(SAVE_TOKEN);
+                ptm.setString(1, token);
+                ptm.setTimestamp(2, new Timestamp(System.currentTimeMillis()));
+                ptm.setString(3, email);
+
+                int row = ptm.executeUpdate();
+                if (row > 0) {
+                    isSaved = true;
+                }
+            }
+        } catch (Exception e) {
+            throw new SQLException("Database Update Token Error: " + e.getMessage());
+        } finally {
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+        return isSaved;
     }
 }
