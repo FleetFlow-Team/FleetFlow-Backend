@@ -32,6 +32,10 @@
         <servlet-name>AIController</servlet-name>
         <servlet-class>controller.AIController</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>BookingController</servlet-name>
+        <servlet-class>controller.BookingController</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -63,6 +67,10 @@
     <servlet-mapping>
         <servlet-name>AIController</servlet-name>
         <url-pattern>/AIController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>BookingController</servlet-name>
+        <url-pattern>/BookingController</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>
