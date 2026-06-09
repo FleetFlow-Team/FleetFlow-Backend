@@ -15,11 +15,6 @@ public class MapsController extends HttpServlet {
 
     private final MapsService mapsService = new MapsService();
 
-    /**
-     * POST /api/v1/maps/distance
-     * Body params: pickupLat, pickupLng, dropoffLat, dropoffLng
-     * Trả về khoảng cách và validate BR-01
-     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -28,13 +23,18 @@ public class MapsController extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
-        String pathInfo = request.getPathInfo(); // /distance hoặc /geocode
+        String pathInfo = request.getPathInfo();
 
         try {
             if ("/distance".equals(pathInfo)) {
                 handleDistance(request, response, out);
+
             } else if ("/geocode".equals(pathInfo)) {
                 handleGeocode(request, response, out);
+
+            } else if ("/route".equals(pathInfo)) {
+                handleRoute(request, response, out);
+
             } else {
                 response.setStatus(404);
                 out.print("{\"error\": \"Endpoint không tồn tại\"}");
@@ -52,8 +52,8 @@ public class MapsController extends HttpServlet {
      * Params: pickupLat, pickupLng, dropoffLat, dropoffLng
      */
     private void handleDistance(HttpServletRequest request,
-                                 HttpServletResponse response,
-                                 PrintWriter out) throws Exception {
+                                HttpServletResponse response,
+                                PrintWriter out) throws Exception {
         double pickupLat  = Double.parseDouble(request.getParameter("pickupLat"));
         double pickupLng  = Double.parseDouble(request.getParameter("pickupLng"));
         double dropoffLat = Double.parseDouble(request.getParameter("dropoffLat"));
@@ -63,12 +63,9 @@ public class MapsController extends HttpServlet {
             double distanceKm = mapsService.validateAndGetDistance(
                 pickupLat, pickupLng, dropoffLat, dropoffLng
             );
-
-            // Hợp lệ — trả về khoảng cách
             out.print("{\"valid\": true, \"distanceKm\": " + distanceKm + "}");
 
         } catch (IllegalArgumentException e) {
-            // Khoảng cách < 20km — BR-01
             response.setStatus(400);
             out.print("{\"valid\": false, \"error\": \"" + e.getMessage() + "\"}");
         }
@@ -91,5 +88,23 @@ public class MapsController extends HttpServlet {
 
         double[] coords = mapsService.geocode(address);
         out.print("{\"lat\": " + coords[0] + ", \"lng\": " + coords[1] + "}");
+    }
+
+    /**
+     * GET /api/v1/maps/route
+     * Params: fromLat, fromLng, toLat, toLng
+     * Response: encoded polyline + distance + duration + instructions
+     * Frontend dùng VietMap SDK decode polyline để vẽ đường
+     */
+    private void handleRoute(HttpServletRequest request,
+                             HttpServletResponse response,
+                             PrintWriter out) throws Exception {
+        double fromLat = Double.parseDouble(request.getParameter("fromLat"));
+        double fromLng = Double.parseDouble(request.getParameter("fromLng"));
+        double toLat   = Double.parseDouble(request.getParameter("toLat"));
+        double toLng   = Double.parseDouble(request.getParameter("toLng"));
+
+        JsonObject route = mapsService.getRoute(fromLat, fromLng, toLat, toLng);
+        out.print(route.toString());
     }
 }

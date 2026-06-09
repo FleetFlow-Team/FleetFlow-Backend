@@ -31,7 +31,6 @@ public class MapsService {
         String response = sendGetRequest(urlStr);
         JsonObject json = JsonParser.parseString(response).getAsJsonObject();
 
-        // distances[0][0] = khoảng cách từ source 0 đến destination 0 (mét)
         JsonArray distances = json.getAsJsonArray("distances");
         double distanceMeters = distances.get(0).getAsJsonArray().get(0).getAsDouble();
         double distanceKm = distanceMeters / 1000.0;
@@ -60,7 +59,6 @@ public class MapsService {
     /**
      * Geocode: convert địa chỉ text → tọa độ
      * Response format: GeoJSON FeatureCollection
-     * coordinates = [longitude, latitude] (thứ tự lng trước, lat sau)
      */
     public double[] geocode(String address) throws Exception {
         String encodedAddress = java.net.URLEncoder.encode(address, "UTF-8");
@@ -72,7 +70,6 @@ public class MapsService {
         String response = sendGetRequest(urlStr);
         JsonObject root = JsonParser.parseString(response).getAsJsonObject();
 
-        // Lấy data.features[0].geometry.coordinates
         JsonObject data = root.getAsJsonObject("data");
         JsonArray features = data.getAsJsonArray("features");
 
@@ -89,6 +86,54 @@ public class MapsService {
         double lat = coordinates.get(1).getAsDouble();
 
         return new double[]{lat, lng};
+    }
+
+    /**
+     * Route: lấy đường đi giữa 2 điểm
+     * Trả về encoded polyline string để frontend vẽ lên bản đồ
+     * Frontend dùng VietMap SDK để decode polyline này
+     *
+     * @return JsonObject chứa points (encoded polyline), distance (m), time (ms), instructions
+     */
+    public JsonObject getRoute(double fromLat, double fromLng,
+                               double toLat, double toLng) throws Exception {
+        // points_encoded=true để nhận polyline nén (nhẹ hơn)
+        // vehicle=car vì FleetFlow là xe ô tô
+        String urlStr = "https://maps.vietmap.vn/api/route"
+                + "?api-version=1.1"
+                + "&apikey=" + API_KEY
+                + "&point=" + fromLat + "," + fromLng
+                + "&point=" + toLat + "," + toLng
+                + "&points_encoded=true"
+                + "&vehicle=car";
+
+        String response = sendGetRequest(urlStr);
+        JsonObject json = JsonParser.parseString(response).getAsJsonObject();
+
+        // Lấy path đầu tiên (tối ưu nhất)
+        JsonArray paths = json.getAsJsonArray("paths");
+        if (paths == null || paths.size() == 0) {
+            throw new Exception("VietMap Route API không trả về kết quả");
+        }
+
+        JsonObject bestPath = paths.get(0).getAsJsonObject();
+
+        // Build response gọn cho frontend
+        JsonObject result = new JsonObject();
+        result.addProperty("points", bestPath.get("points").getAsString()); // encoded polyline
+        result.addProperty("distanceMeters", bestPath.get("distance").getAsDouble());
+        result.addProperty("distanceKm",
+            Math.round(bestPath.get("distance").getAsDouble() / 100.0) / 10.0);
+        result.addProperty("durationMs", bestPath.get("time").getAsLong());
+        result.addProperty("durationMinutes",
+            bestPath.get("time").getAsLong() / 60000);
+
+        // Thêm instructions (hướng dẫn từng đoạn đường)
+        if (bestPath.has("instructions")) {
+            result.add("instructions", bestPath.getAsJsonArray("instructions"));
+        }
+
+        return result;
     }
 
     /**
