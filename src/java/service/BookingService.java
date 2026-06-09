@@ -13,12 +13,11 @@ public class BookingService {
 
     /**
      * Tạo booking mới — full flow:
-     * 1. Geocode địa chỉ → tọa độ (nếu chưa có tọa độ)
-     * 2. Validate khoảng cách >= 20km (BR-01)
-     * 3. Validate thời gian đặt trước >= 120 phút (BR-02)
-     * 4. Insert Booking + BookingDetail vào DB
-     *
-     * @return BookingID vừa tạo
+     * 1. Validate khoảng cách >= 20km (BR-01)
+     * 2. Validate thời gian đặt trước >= 120 phút (BR-02)
+     * 3. Validate xe AVAILABLE (BR-22)
+     * 4. Validate không trùng lịch xe (BR-27)
+     * 5. Insert Booking + BookingDetail vào DB
      */
     public long createBooking(
             long customerId,
@@ -52,6 +51,23 @@ public class BookingService {
             );
         }
 
+        // ---- BR-22: Validate xe có AVAILABLE không ----
+        boolean isAvailable = bookingDAO.isVehicleAvailable(vehicleId);
+        if (!isAvailable) {
+            throw new IllegalArgumentException(
+                "Xe này hiện không sẵn sàng (đang bảo dưỡng hoặc không hoạt động)."
+            );
+        }
+
+        // ---- BR-27: Validate không trùng lịch ----
+        boolean hasConflict = bookingDAO.isVehicleScheduleConflict(vehicleId, departureTime);
+        if (hasConflict) {
+            throw new IllegalArgumentException(
+                "Xe này đã có lịch chạy gần giờ bạn chọn. "
+                + "Vui lòng chọn thời gian khác hoặc xe khác (cần cách chuyến cũ ít nhất 60 phút)."
+            );
+        }
+
         // ---- Tạo Booking object ----
         Booking booking = new Booking();
         booking.setCustomerId(customerId);
@@ -70,17 +86,16 @@ public class BookingService {
         detail.setDropoffAddress(dropoffAddress);
         detail.setDropoffLat(BigDecimal.valueOf(dropoffLat));
         detail.setDropoffLng(BigDecimal.valueOf(dropoffLng));
+        detail.setDistanceKm(BigDecimal.valueOf(distanceKm));  // lưu khoảng cách
         detail.setDepartureTime(departureTime);
         detail.setReturnTime(returnTime);
 
         // ---- Insert vào DB ----
-        long bookingId = bookingDAO.createBooking(booking, detail);
-        return bookingId;
+        return bookingDAO.createBooking(booking, detail);
     }
 
     /**
      * Geocode địa chỉ text → tọa độ
-     * Dùng khi frontend chỉ có địa chỉ text, chưa có tọa độ
      */
     public double[] geocodeAddress(String address) throws Exception {
         return mapsService.geocode(address);
@@ -102,7 +117,6 @@ public class BookingService {
 
     /**
      * Cập nhật trạng thái booking
-     * Các trạng thái: PENDING → APPROVED → IN_PROGRESS → COMPLETED / CANCELLED
      */
     public void updateBookingStatus(long bookingId, String status) throws Exception {
         bookingDAO.updateStatus(bookingId, status);
