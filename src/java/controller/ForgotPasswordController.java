@@ -38,32 +38,34 @@ public class ForgotPasswordController extends HttpServlet {
                 boolean isExist = dao.checkEmailExist(email);
 
                 if (isExist) {
-                    String resetToken = UUID.randomUUID().toString();
-                    dao.saveResetToken(email, resetToken);
-
-                    String resetLink = "http://127.0.0.1:5500/reset-password.html?token=" + resetToken;
-
-                    // Chuẩn bị dữ liệu trả về ngay cho Frontend
-                    apiResponse.put("success", true);
-                    apiResponse.put("message", "Yêu cầu đặt lại mật khẩu đã được ghi nhận.");
-                    apiResponse.put("resetLinkForTest", resetLink); // Tiện test dưới Console
-
-                    // Bắn lệnh gửi mail chạy ngầm ở luồng khác, Servlet chạy tuột xuống dưới luôn không cần đợi
-                    String subject = "[FleetFlow] Đặt Lại Mật Khẩu";
-                    String content = "<h3>Yêu cầu thay đổi mật khẩu</h3>"
-                            + "<p>Vui lòng click vào đường dẫn sau để tiến hành thay đổi mật khẩu của bạn:</p>"
-                            + "<a href='" + resetLink + "' style='padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;'>Đặt lại mật khẩu</a>"
-                            + "<p>Nếu bạn không gửi yêu cầu này, vui lòng bỏ qua email.</p>";
+                    // Tạo mật khẩu tạm ngẫu nhiên 8 ký tự
+                    String temporaryPassword = UUID.randomUUID().toString().substring(0, 8);
                     
-                    EmailUtils.sendEmailAsync(email, subject, content);
+                    // Ghi đè vào cột PasswordHash cũ mà nhóm của bạn đã chốt cứng
+                    boolean isUpdated = dao.updatePassword(email, temporaryPassword);
 
+                    if (isUpdated) {
+                        apiResponse.put("success", true);
+                        apiResponse.put("message", "Mật khẩu tạm thời đã gửi vào hòm thư.");
+                        apiResponse.put("tempPasswordForTest", temporaryPassword); 
+
+                        // Tiến hành lấy ID -> Bắn thư ngầm -> Lưu vết lịch sử bảng EmailLog
+                        int accountId = dao.getAccountIdByEmail(email);
+                        String mailSubject = "[FleetFlow] Cấp Lại Mật Khẩu Tạm Thời";
+                        String mailContent = EmailUtils.buildForgotPasswordTemplate(temporaryPassword);
+                        
+                        EmailUtils.sendEmailAndLogAsync(accountId, email, mailSubject, mailContent);
+                    } else {
+                        apiResponse.put("success", false);
+                        apiResponse.put("message", "Lỗi hệ thống không thể đổi mật khẩu.");
+                    }
                 } else {
                     apiResponse.put("success", false);
-                    apiResponse.put("message", "Email không tồn tại trong hệ thống.");
+                    apiResponse.put("message", "Email không tồn tại.");
                 }
             } else {
                 apiResponse.put("success", false);
-                apiResponse.put("message", "Vui lòng nhập Email.");
+                apiResponse.put("message", "Vui lòng nhập thông tin Email.");
             }
         } catch (Exception e) {
             apiResponse.put("success", false);
