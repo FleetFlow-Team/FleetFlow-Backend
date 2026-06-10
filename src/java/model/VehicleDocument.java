@@ -4,7 +4,7 @@ import java.sql.Date;
 import model.base.BaseEntity;
  
 public class VehicleDocument extends BaseEntity {
-    private Long vehicleId;
+    private int vehicleId;
     private String docType;
     private String secureFileUrl;
     private Date issueDate;
@@ -12,7 +12,7 @@ public class VehicleDocument extends BaseEntity {
  
     public VehicleDocument() {}
  
-    public VehicleDocument(Long vehicleId, String docType, String secureFileUrl,
+    public VehicleDocument(int vehicleId, String docType, String secureFileUrl,
                            Date issueDate, Date expiryDate) {
         this.vehicleId = vehicleId;
         this.docType = docType;
@@ -21,8 +21,8 @@ public class VehicleDocument extends BaseEntity {
         this.expiryDate = expiryDate;
     }
  
-    public Long getVehicleId() { return vehicleId; }
-    public void setVehicleId(Long vehicleId) { this.vehicleId = vehicleId; }
+    public int getVehicleId() { return vehicleId; }
+    public void setVehicleId(int vehicleId) { this.vehicleId = vehicleId; }
  
     public String getDocType() { return docType; }
     public void setDocType(String docType) { this.docType = docType; }

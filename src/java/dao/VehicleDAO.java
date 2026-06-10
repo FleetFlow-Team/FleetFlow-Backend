@@ -49,7 +49,7 @@ public class VehicleDAO {
 
             VehicleAIData vehicle = new VehicleAIData();
 
-            vehicle.setVehicleId(rs.getLong("VehicleID"));
+            vehicle.setVehicleId(rs.getInt("VehicleID"));
             vehicle.setBrand(rs.getString("Brand"));
             vehicle.setModel(rs.getString("Model"));
             vehicle.setVehicleType(rs.getString("TypeName"));

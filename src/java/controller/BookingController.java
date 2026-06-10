@@ -40,7 +40,7 @@ public class BookingController extends HttpServlet {
                 return;
             }
 
-            long bookingId = Long.parseLong(pathInfo.replace("/", ""));
+            int bookingId = Integer.parseInt(pathInfo.replace("/", ""));
             Booking booking = bookingService.getBookingById(bookingId);
 
             if (booking == null) {
@@ -129,8 +129,8 @@ public class BookingController extends HttpServlet {
             JsonObject body = JsonParser.parseString(sb.toString()).getAsJsonObject();
 
             // Parse các field bắt buộc
-            long customerId   = body.get("customerId").getAsLong();
-            long vehicleId    = body.get("vehicleId").getAsLong();
+            int customerId = body.get("customerId").getAsInt();
+            int vehicleId = body.get("vehicleId").getAsInt();
             String bookingType   = body.get("bookingType").getAsString();
             String tripDirection = body.get("tripDirection").getAsString();
             String pickupAddress  = body.get("pickupAddress").getAsString();
@@ -142,9 +142,9 @@ public class BookingController extends HttpServlet {
             String departureTimeStr = body.get("departureTime").getAsString();
 
             // Parse optional fields
-            Long voucherId = null;
+            Integer voucherId = null;
             if (body.has("voucherId") && !body.get("voucherId").isJsonNull()) {
-                voucherId = body.get("voucherId").getAsLong();
+                voucherId = body.get("voucherId").getAsInt();
             }
 
             Timestamp returnTime = null;
@@ -206,7 +206,7 @@ public class BookingController extends HttpServlet {
 
             // Path: /{id}/status
             String[] parts = pathInfo.split("/");
-            long bookingId = Long.parseLong(parts[1]);
+            int bookingId = Integer.parseInt(parts[1]);
 
             BufferedReader reader = request.getReader();
             StringBuilder sb = new StringBuilder();

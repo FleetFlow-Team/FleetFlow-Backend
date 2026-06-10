@@ -4,13 +4,13 @@ import java.sql.Timestamp;
 import model.base.BaseEntity;
 
 public class IdentityDocument extends BaseEntity {
-    private Long ownerAccountId;
+    private int ownerAccountId;
     private String ownerType;
     private String docType;
     private String nationalId;
     private String secureFileUrl;
     private String status;
-    private Long verifiedBy;
+    private int verifiedBy;
     private Timestamp uploadedAt;
     private Timestamp verifiedAt;
 
@@ -19,9 +19,9 @@ public class IdentityDocument extends BaseEntity {
     {
         
     }
-    public IdentityDocument(Long ownerAccountId, String ownerType, String docType,
+    public IdentityDocument(int ownerAccountId, String ownerType, String docType,
                             String nationalId, String secureFileUrl, String status,
-                            Long verifiedBy, Timestamp uploadedAt, Timestamp verifiedAt) {
+                            int verifiedBy, Timestamp uploadedAt, Timestamp verifiedAt) {
         this.ownerAccountId = ownerAccountId;
         this.ownerType = ownerType;
         this.docType = docType;
@@ -33,8 +33,8 @@ public class IdentityDocument extends BaseEntity {
         this.verifiedAt = verifiedAt;
     }
 
-    public Long getOwnerAccountId() { return ownerAccountId; }
-    public void setOwnerAccountId(Long ownerAccountId) { this.ownerAccountId = ownerAccountId; }
+    public int getOwnerAccountId() { return ownerAccountId; }
+    public void setOwnerAccountId(int ownerAccountId) { this.ownerAccountId = ownerAccountId; }
 
     public String getOwnerType() { return ownerType; }
     public void setOwnerType(String ownerType) { this.ownerType = ownerType; }
@@ -51,8 +51,8 @@ public class IdentityDocument extends BaseEntity {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
-    public Long getVerifiedBy() { return verifiedBy; }
-    public void setVerifiedBy(Long verifiedBy) { this.verifiedBy = verifiedBy; }
+    public int getVerifiedBy() { return verifiedBy; }
+    public void setVerifiedBy(int verifiedBy) { this.verifiedBy = verifiedBy; }
 
     public Timestamp getUploadedAt() { return uploadedAt; }
     public void setUploadedAt(Timestamp uploadedAt) { this.uploadedAt = uploadedAt; }

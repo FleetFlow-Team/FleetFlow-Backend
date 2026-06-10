@@ -4,9 +4,9 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
  
 public class DriverEarning {
-    private Long id;
-    private Long driverId;
-    private Long bookingId;
+    private int id;
+    private int driverId;
+    private int bookingId;
     private String earningType;   // TRIP, CANCELLATION_BONUS
     private BigDecimal fareShare;
     private BigDecimal surchargeShare;
@@ -17,7 +17,7 @@ public class DriverEarning {
  
     public DriverEarning() {}
  
-    public DriverEarning(Long driverId, Long bookingId, String earningType,
+    public DriverEarning(int driverId, int bookingId, String earningType,
                          BigDecimal fareShare, BigDecimal surchargeShare,
                          BigDecimal cancellationCompensation, BigDecimal companyCommission,
                          BigDecimal netAmount, Timestamp createdAt) {
@@ -32,14 +32,14 @@ public class DriverEarning {
         this.createdAt = createdAt;
     }
  
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
  
-    public Long getDriverId() { return driverId; }
-    public void setDriverId(Long driverId) { this.driverId = driverId; }
+    public int getDriverId() { return driverId; }
+    public void setDriverId(int driverId) { this.driverId = driverId; }
  
-    public Long getBookingId() { return bookingId; }
-    public void setBookingId(Long bookingId) { this.bookingId = bookingId; }
+    public int getBookingId() { return bookingId; }
+    public void setBookingId(int bookingId) { this.bookingId = bookingId; }
  
     public String getEarningType() { return earningType; }
     public void setEarningType(String earningType) { this.earningType = earningType; }

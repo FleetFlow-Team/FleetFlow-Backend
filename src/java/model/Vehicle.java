@@ -6,7 +6,7 @@ import model.base.IAuditableEntity;
 
 public class Vehicle extends BaseEntity implements IAuditableEntity {
 
-    private Long vehicleTypeId;
+    private int vehicleTypeId;
     private String licensePlate;
     private String chassisNumber;
     private String engineNumber;
@@ -15,7 +15,7 @@ public class Vehicle extends BaseEntity implements IAuditableEntity {
     private Integer seatCount;
     private String status;
     private Integer accumulatedKm;
-    private Long createdBy;
+    private int createdBy;
     private Timestamp createdAt;
     private Timestamp updatedAt;
     private String description;
@@ -23,9 +23,9 @@ public class Vehicle extends BaseEntity implements IAuditableEntity {
     public Vehicle() {
     }
 
-    public Vehicle(Long vehicleTypeId, String licensePlate, String chassisNumber,
+    public Vehicle(int vehicleTypeId, String licensePlate, String chassisNumber,
             String engineNumber, String brand, String model, Integer seatCount,
-            String status, Integer accumulatedKm, Long createdBy, Timestamp createdAt, String description) {
+            String status, Integer accumulatedKm, int createdBy, Timestamp createdAt, String description) {
         this.vehicleTypeId = vehicleTypeId;
         this.licensePlate = licensePlate;
         this.chassisNumber = chassisNumber;
@@ -40,11 +40,11 @@ public class Vehicle extends BaseEntity implements IAuditableEntity {
         this.description = description;
     }
 
-    public Long getVehicleTypeId() {
+    public int getVehicleTypeId() {
         return vehicleTypeId;
     }
 
-    public void setVehicleTypeId(Long vehicleTypeId) {
+    public void setVehicleTypeId(int vehicleTypeId) {
         this.vehicleTypeId = vehicleTypeId;
     }
 
@@ -112,11 +112,11 @@ public class Vehicle extends BaseEntity implements IAuditableEntity {
         this.accumulatedKm = accumulatedKm;
     }
 
-    public Long getCreatedBy() {
+    public int getCreatedBy() {
         return createdBy;
     }
 
-    public void setCreatedBy(Long createdBy) {
+    public void setCreatedBy(int createdBy) {
         this.createdBy = createdBy;
     }
 

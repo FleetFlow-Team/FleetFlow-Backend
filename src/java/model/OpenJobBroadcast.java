@@ -4,8 +4,8 @@ import java.sql.Timestamp;
 import model.base.BaseEntity;
  
 public class OpenJobBroadcast extends BaseEntity {
-    private Long bookingId;
-    private Long claimedByDriverId;
+    private int bookingId;
+    private int claimedByDriverId;
     private String status;
     private Timestamp broadcastAt;
     private Timestamp expiresAt;
@@ -13,7 +13,7 @@ public class OpenJobBroadcast extends BaseEntity {
  
     public OpenJobBroadcast() {}
  
-    public OpenJobBroadcast(Long bookingId, String status,
+    public OpenJobBroadcast(int bookingId, String status,
                             Timestamp broadcastAt, Timestamp expiresAt) {
         this.bookingId = bookingId;
         this.status = status;
@@ -21,11 +21,11 @@ public class OpenJobBroadcast extends BaseEntity {
         this.expiresAt = expiresAt;
     }
  
-    public Long getBookingId() { return bookingId; }
-    public void setBookingId(Long bookingId) { this.bookingId = bookingId; }
+    public int getBookingId() { return bookingId; }
+    public void setBookingId(int bookingId) { this.bookingId = bookingId; }
  
-    public Long getClaimedByDriverId() { return claimedByDriverId; }
-    public void setClaimedByDriverId(Long claimedByDriverId) { this.claimedByDriverId = claimedByDriverId; }
+    public int getClaimedByDriverId() { return claimedByDriverId; }
+    public void setClaimedByDriverId(int claimedByDriverId) { this.claimedByDriverId = claimedByDriverId; }
  
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

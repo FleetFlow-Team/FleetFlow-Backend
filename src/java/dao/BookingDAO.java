@@ -28,11 +28,11 @@ public class BookingDAO {
                     + "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
             stmtBooking = conn.prepareStatement(sqlBooking, Statement.RETURN_GENERATED_KEYS);
-            stmtBooking.setLong(1, booking.getCustomerId());
-            stmtBooking.setLong(2, booking.getVehicleId());
+            stmtBooking.setInt(1, booking.getCustomerId());
+            stmtBooking.setInt(2, booking.getVehicleId());
 
-            if (booking.getVoucherId() != null) {
-                stmtBooking.setLong(3, booking.getVoucherId());
+            if (booking.getVoucherId() != 0) {
+                stmtBooking.setInt(3, booking.getVoucherId());
             } else {
                 stmtBooking.setNull(3, Types.BIGINT);
             }
@@ -47,7 +47,7 @@ public class BookingDAO {
             if (!rs.next()) {
                 throw new Exception("Không lấy được BookingID sau khi insert");
             }
-            long bookingId = rs.getLong(1);
+            int bookingId = rs.getInt(1);
 
             // 2. Insert BookingDetail (có DistanceKm)
             String sqlDetail = "INSERT INTO BookingDetail "
@@ -57,7 +57,7 @@ public class BookingDAO {
                     + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
             stmtDetail = conn.prepareStatement(sqlDetail);
-            stmtDetail.setLong(1, bookingId);
+            stmtDetail.setInt(1, bookingId);
             stmtDetail.setString(2, detail.getPickupAddress());
             stmtDetail.setBigDecimal(3, detail.getPickupLat());
             stmtDetail.setBigDecimal(4, detail.getPickupLng());
@@ -96,12 +96,12 @@ public class BookingDAO {
     /**
      * Tìm Booking theo ID
      */
-    public Booking findById(long bookingId) throws Exception {
+    public Booking findById(int bookingId) throws Exception {
         String sql = "SELECT * FROM Booking WHERE BookingID = ?";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setLong(1, bookingId);
+            stmt.setInt(1, bookingId);
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) return mapBooking(rs);
@@ -112,12 +112,12 @@ public class BookingDAO {
     /**
      * Lấy BookingDetail theo BookingID
      */
-    public BookingDetail findDetailByBookingId(long bookingId) throws Exception {
+    public BookingDetail findDetailByBookingId(int bookingId) throws Exception {
         String sql = "SELECT * FROM BookingDetail WHERE BookingID = ?";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setLong(1, bookingId);
+            stmt.setInt(1, bookingId);
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) return mapBookingDetail(rs);
@@ -128,12 +128,12 @@ public class BookingDAO {
     /**
      * Check xe có đang AVAILABLE không (BR-22)
      */
-    public boolean isVehicleAvailable(long vehicleId) throws Exception {
+    public boolean isVehicleAvailable(int vehicleId) throws Exception {
         String sql = "SELECT Status FROM Vehicle WHERE VehicleID = ?";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setLong(1, vehicleId);
+            stmt.setInt(1, vehicleId);
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
@@ -147,7 +147,7 @@ public class BookingDAO {
      * Check xe có bị trùng lịch không (BR-27)
      * Xe phải cách chuyến cũ ít nhất 60 phút
      */
-    public boolean isVehicleScheduleConflict(long vehicleId, Timestamp departureTime) throws Exception {
+    public boolean isVehicleScheduleConflict(int vehicleId, Timestamp departureTime) throws Exception {
         String sql = "SELECT bd.DepartureTime, bd.ReturnTime "
                 + "FROM Booking b "
                 + "JOIN BookingDetail bd ON b.BookingID = bd.BookingID "
@@ -158,7 +158,7 @@ public class BookingDAO {
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setLong(1, vehicleId);
+            stmt.setInt(1, vehicleId);
             ResultSet rs = stmt.executeQuery();
 
             long newDeparture = departureTime.getTime();
@@ -185,13 +185,13 @@ public class BookingDAO {
     /**
      * Cập nhật trạng thái Booking
      */
-    public void updateStatus(long bookingId, String status) throws Exception {
+    public void updateStatus(int bookingId, String status) throws Exception {
         String sql = "UPDATE Booking SET Status = ? WHERE BookingID = ?";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, status);
-            stmt.setLong(2, bookingId);
+            stmt.setInt(2, bookingId);
             stmt.executeUpdate();
         }
     }
@@ -200,12 +200,12 @@ public class BookingDAO {
 
     private Booking mapBooking(ResultSet rs) throws SQLException {
         Booking b = new Booking();
-        b.setId(rs.getLong("BookingID"));
-        b.setCustomerId(rs.getLong("CustomerID"));
-        b.setVehicleId(rs.getLong("VehicleID"));
+        b.setId((long) rs.getInt("BookingID"));
+        b.setCustomerId(rs.getInt("CustomerID"));
+        b.setVehicleId(rs.getInt("VehicleID"));
 
-        long voucherId = rs.getLong("VoucherID");
-        if (!rs.wasNull()) b.setVoucherId(voucherId);
+        long voucherId = rs.getInt("VoucherID");
+        if (!rs.wasNull()) b.setVoucherId((int) voucherId);
 
         b.setBookingType(rs.getString("BookingType"));
         b.setTripDirection(rs.getString("TripDirection"));
@@ -216,8 +216,8 @@ public class BookingDAO {
 
     private BookingDetail mapBookingDetail(ResultSet rs) throws SQLException {
         BookingDetail d = new BookingDetail();
-        d.setId(rs.getLong("DetailID"));
-        d.setBookingId(rs.getLong("BookingID"));
+        d.setId((long) rs.getInt("DetailID"));
+        d.setBookingId(rs.getInt("BookingID"));
         d.setPickupAddress(rs.getString("PickupAddress"));
         d.setPickupLat(rs.getBigDecimal("PickupLat"));
         d.setPickupLng(rs.getBigDecimal("PickupLng"));

@@ -20,9 +20,9 @@ public class BookingService {
      * 5. Insert Booking + BookingDetail vào DB
      */
     public long createBooking(
-            long customerId,
-            long vehicleId,
-            Long voucherId,
+            int customerId,
+            int vehicleId,
+            Integer voucherId,
             String bookingType,
             String tripDirection,
             String pickupAddress,
@@ -72,7 +72,7 @@ public class BookingService {
         Booking booking = new Booking();
         booking.setCustomerId(customerId);
         booking.setVehicleId(vehicleId);
-        booking.setVoucherId(voucherId);
+        if (voucherId != null) { booking.setVoucherId(voucherId); }
         booking.setBookingType(bookingType);
         booking.setTripDirection(tripDirection);
         booking.setStatus("PENDING");
@@ -104,21 +104,21 @@ public class BookingService {
     /**
      * Lấy thông tin booking theo ID
      */
-    public Booking getBookingById(long bookingId) throws Exception {
+    public Booking getBookingById(int bookingId) throws Exception {
         return bookingDAO.findById(bookingId);
     }
 
     /**
      * Lấy BookingDetail theo BookingID
      */
-    public BookingDetail getBookingDetail(long bookingId) throws Exception {
+    public BookingDetail getBookingDetail(int bookingId) throws Exception {
         return bookingDAO.findDetailByBookingId(bookingId);
     }
 
     /**
      * Cập nhật trạng thái booking
      */
-    public void updateBookingStatus(long bookingId, String status) throws Exception {
+    public void updateBookingStatus(int bookingId, String status) throws Exception {
         bookingDAO.updateStatus(bookingId, status);
     }
 }

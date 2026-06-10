@@ -16,7 +16,7 @@ import model.base.IAuditableEntity;
 public class Customer extends BaseEntity implements IAuditableEntity {
     private String address;
     private BigDecimal debtBalance;
-    private Long accountId;
+    private int accountId;
     private Timestamp createdAt;
     private Timestamp updatedAt;
     
@@ -25,7 +25,7 @@ public class Customer extends BaseEntity implements IAuditableEntity {
     public Customer() {
     }
 
-    public Customer(String address, BigDecimal debtBalance, Long accountId, Timestamp createdAt, Timestamp updatedAt) {
+    public Customer(String address, BigDecimal debtBalance, int accountId, Timestamp createdAt, Timestamp updatedAt) {
         this.address = address;
         this.debtBalance = debtBalance;
         this.accountId = accountId;
@@ -49,11 +49,11 @@ public class Customer extends BaseEntity implements IAuditableEntity {
         this.debtBalance = debtBalance;
     }
 
-    public Long getAccountId() {
+    public int getAccountId() {
         return accountId;
     }
 
-    public void setAccountId(Long accountId) {
+    public void setAccountId(int accountId) {
         this.accountId = accountId;
     }
 

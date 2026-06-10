@@ -9,7 +9,7 @@ package model;
  * @author User
  */
 public class VehicleAIData {
-    private Long vehicleId;
+    private int vehicleId;
     private String brand;
     private String model;
     private String vehicleType;
@@ -20,11 +20,11 @@ public class VehicleAIData {
     public VehicleAIData() {
     }
 
-    public Long getVehicleId() {
+    public int getVehicleId() {
         return vehicleId;
     }
 
-    public void setVehicleId(Long vehicleId) {
+    public void setVehicleId(int vehicleId) {
         this.vehicleId = vehicleId;
     }
 

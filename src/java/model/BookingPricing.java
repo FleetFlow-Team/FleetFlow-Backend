@@ -5,22 +5,22 @@ import java.sql.Timestamp;
 import model.base.BaseEntity;
  
 public class BookingPricing extends BaseEntity {
-    private Long bookingId;
-    private Long driverId;
-    private Long ruleId;
+    private int bookingId;
+    private int driverId;
+    private int ruleId;
     private BigDecimal baseFare;
     private BigDecimal weekendSurcharge;
     private BigDecimal discountAmount;
     private BigDecimal estimatedTotal;
-    private Long approvedBy;
+    private int approvedBy;
     private Timestamp approvedAt;
  
     public BookingPricing() {}
  
-    public BookingPricing(Long bookingId, Long driverId, Long ruleId,
+    public BookingPricing(int bookingId, int driverId, int ruleId,
                           BigDecimal baseFare, BigDecimal weekendSurcharge,
                           BigDecimal discountAmount, BigDecimal estimatedTotal,
-                          Long approvedBy, Timestamp approvedAt) {
+                          int approvedBy, Timestamp approvedAt) {
         this.bookingId = bookingId;
         this.driverId = driverId;
         this.ruleId = ruleId;
@@ -32,14 +32,14 @@ public class BookingPricing extends BaseEntity {
         this.approvedAt = approvedAt;
     }
  
-    public Long getBookingId() { return bookingId; }
-    public void setBookingId(Long bookingId) { this.bookingId = bookingId; }
+    public int getBookingId() { return bookingId; }
+    public void setBookingId(int bookingId) { this.bookingId = bookingId; }
  
-    public Long getDriverId() { return driverId; }
-    public void setDriverId(Long driverId) { this.driverId = driverId; }
+    public int getDriverId() { return driverId; }
+    public void setDriverId(int driverId) { this.driverId = driverId; }
  
-    public Long getRuleId() { return ruleId; }
-    public void setRuleId(Long ruleId) { this.ruleId = ruleId; }
+    public int getRuleId() { return ruleId; }
+    public void setRuleId(int ruleId) { this.ruleId = ruleId; }
  
     public BigDecimal getBaseFare() { return baseFare; }
     public void setBaseFare(BigDecimal baseFare) { this.baseFare = baseFare; }
@@ -53,8 +53,8 @@ public class BookingPricing extends BaseEntity {
     public BigDecimal getEstimatedTotal() { return estimatedTotal; }
     public void setEstimatedTotal(BigDecimal estimatedTotal) { this.estimatedTotal = estimatedTotal; }
  
-    public Long getApprovedBy() { return approvedBy; }
-    public void setApprovedBy(Long approvedBy) { this.approvedBy = approvedBy; }
+    public int getApprovedBy() { return approvedBy; }
+    public void setApprovedBy(int approvedBy) { this.approvedBy = approvedBy; }
  
     public Timestamp getApprovedAt() { return approvedAt; }
     public void setApprovedAt(Timestamp approvedAt) { this.approvedAt = approvedAt; }

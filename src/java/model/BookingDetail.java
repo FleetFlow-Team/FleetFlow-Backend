@@ -6,7 +6,7 @@ import model.base.BaseEntity;
 
 public class BookingDetail extends BaseEntity {
 
-    private Long bookingId;
+    private int bookingId;
     private String pickupAddress;
     private BigDecimal pickupLat;
     private BigDecimal pickupLng;
@@ -20,7 +20,7 @@ public class BookingDetail extends BaseEntity {
     public BookingDetail() {
     }
 
-    public BookingDetail(Long bookingId, String pickupAddress, BigDecimal pickupLat,
+    public BookingDetail(int bookingId, String pickupAddress, BigDecimal pickupLat,
             BigDecimal pickupLng, String dropoffAddress, BigDecimal dropoffLat,
             BigDecimal dropoffLng, Timestamp departureTime, Timestamp returnTime, BigDecimal distanceKm) {
         this.bookingId = bookingId;
@@ -35,11 +35,11 @@ public class BookingDetail extends BaseEntity {
         this.distanceKm = distanceKm;
     }
 
-    public Long getBookingId() {
+    public int getBookingId() {
         return bookingId;
     }
 
-    public void setBookingId(Long bookingId) {
+    public void setBookingId(int bookingId) {
         this.bookingId = bookingId;
     }
 

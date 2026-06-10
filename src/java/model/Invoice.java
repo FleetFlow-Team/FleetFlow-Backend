@@ -5,7 +5,7 @@ import java.sql.Timestamp;
 import model.base.BaseEntity;
  
 public class Invoice extends BaseEntity {
-    private Long bookingId;
+    private int bookingId;
     private BigDecimal baseFare;
     private BigDecimal weekendSurcharge;
     private BigDecimal tollSurchargeTotal;
@@ -16,7 +16,7 @@ public class Invoice extends BaseEntity {
  
     public Invoice() {}
  
-    public Invoice(Long bookingId, BigDecimal baseFare, BigDecimal weekendSurcharge,
+    public Invoice(int bookingId, BigDecimal baseFare, BigDecimal weekendSurcharge,
                    BigDecimal tollSurchargeTotal, BigDecimal discountAmount,
                    BigDecimal totalAmount, String status, Timestamp issuedAt) {
         this.bookingId = bookingId;
@@ -29,8 +29,8 @@ public class Invoice extends BaseEntity {
         this.issuedAt = issuedAt;
     }
  
-    public Long getBookingId() { return bookingId; }
-    public void setBookingId(Long bookingId) { this.bookingId = bookingId; }
+    public int getBookingId() { return bookingId; }
+    public void setBookingId(int bookingId) { this.bookingId = bookingId; }
  
     public BigDecimal getBaseFare() { return baseFare; }
     public void setBaseFare(BigDecimal baseFare) { this.baseFare = baseFare; }

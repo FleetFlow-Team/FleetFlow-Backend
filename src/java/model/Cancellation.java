@@ -5,7 +5,7 @@ import java.sql.Timestamp;
 import model.base.BaseEntity;
  
 public class Cancellation extends BaseEntity {
-    private Long bookingId;
+    private int bookingId;
     private Integer penaltyPercent;
     private BigDecimal penaltyAmount;
     private String penaltyStatus;
@@ -14,7 +14,7 @@ public class Cancellation extends BaseEntity {
  
     public Cancellation() {}
  
-    public Cancellation(Long bookingId, Integer penaltyPercent, BigDecimal penaltyAmount,
+    public Cancellation(int bookingId, Integer penaltyPercent, BigDecimal penaltyAmount,
                         String penaltyStatus, String reason, Timestamp cancelledAt) {
         this.bookingId = bookingId;
         this.penaltyPercent = penaltyPercent;
@@ -24,8 +24,8 @@ public class Cancellation extends BaseEntity {
         this.cancelledAt = cancelledAt;
     }
  
-    public Long getBookingId() { return bookingId; }
-    public void setBookingId(Long bookingId) { this.bookingId = bookingId; }
+    public int getBookingId() { return bookingId; }
+    public void setBookingId(int bookingId) { this.bookingId = bookingId; }
  
     public Integer getPenaltyPercent() { return penaltyPercent; }
     public void setPenaltyPercent(Integer penaltyPercent) { this.penaltyPercent = penaltyPercent; }

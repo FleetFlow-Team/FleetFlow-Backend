@@ -5,7 +5,7 @@ import java.sql.Timestamp;
 import model.base.BaseEntity;
  
 public class Payment extends BaseEntity {
-    private Long invoiceId;
+    private int invoiceId;
     private String paymentType;   // DEPOSIT, FINAL
     private String method;        // MOMO, CASH, BANK_TRANSFER
     private BigDecimal amount;
@@ -15,7 +15,7 @@ public class Payment extends BaseEntity {
  
     public Payment() {}
  
-    public Payment(Long invoiceId, String paymentType, String method,
+    public Payment(int invoiceId, String paymentType, String method,
                    BigDecimal amount, String status,
                    String transactionRef, Timestamp paidAt) {
         this.invoiceId = invoiceId;
@@ -27,8 +27,8 @@ public class Payment extends BaseEntity {
         this.paidAt = paidAt;
     }
  
-    public Long getInvoiceId() { return invoiceId; }
-    public void setInvoiceId(Long invoiceId) { this.invoiceId = invoiceId; }
+    public int getInvoiceId() { return invoiceId; }
+    public void setInvoiceId(int invoiceId) { this.invoiceId = invoiceId; }
  
     public String getPaymentType() { return paymentType; }
     public void setPaymentType(String paymentType) { this.paymentType = paymentType; }

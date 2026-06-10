@@ -3,19 +3,19 @@ package model;
 import java.sql.Timestamp;
  
 public class MarketingCampaign {
-    private Long id;
+    private int id;
     private String name;
     private String triggerCondition;
     private String emailTemplate;
     private String status;
     private Timestamp lastRunAt;
-    private Long createdBy;
+    private int createdBy;
     private Timestamp createdAt;
  
     public MarketingCampaign() {}
  
     public MarketingCampaign(String name, String triggerCondition, String emailTemplate,
-                             String status, Long createdBy, Timestamp createdAt) {
+                             String status, int createdBy, Timestamp createdAt) {
         this.name = name;
         this.triggerCondition = triggerCondition;
         this.emailTemplate = emailTemplate;
@@ -24,8 +24,8 @@ public class MarketingCampaign {
         this.createdAt = createdAt;
     }
  
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
  
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
@@ -42,8 +42,8 @@ public class MarketingCampaign {
     public Timestamp getLastRunAt() { return lastRunAt; }
     public void setLastRunAt(Timestamp lastRunAt) { this.lastRunAt = lastRunAt; }
  
-    public Long getCreatedBy() { return createdBy; }
-    public void setCreatedBy(Long createdBy) { this.createdBy = createdBy; }
+    public int getCreatedBy() { return createdBy; }
+    public void setCreatedBy(int createdBy) { this.createdBy = createdBy; }
  
     public Timestamp getCreatedAt() { return createdAt; }
     public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }

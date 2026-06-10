@@ -15,7 +15,7 @@ import model.base.IAuditableEntity;
  */
 public class Driver extends BaseEntity implements IAuditableEntity{
     private String approvalStatus;
-    private Long accountId;
+    private int accountId;
     private String availabilityStatus;
     private Timestamp termsAcceptedAt;
     private BigDecimal averageRating;
@@ -29,7 +29,7 @@ public class Driver extends BaseEntity implements IAuditableEntity{
     public Driver() {
     }
 
-    public Driver(Long accountId, String approvalStatus, String availabilityStatus, Timestamp termsAcceptedAt, BigDecimal averageRating, BigDecimal walletBalance, Timestamp createdAt, Timestamp updatedAt) {
+    public Driver(int accountId, String approvalStatus, String availabilityStatus, Timestamp termsAcceptedAt, BigDecimal averageRating, BigDecimal walletBalance, Timestamp createdAt, Timestamp updatedAt) {
         this.approvalStatus = approvalStatus;
         this.availabilityStatus = availabilityStatus;
         this.termsAcceptedAt = termsAcceptedAt;
@@ -47,6 +47,15 @@ public class Driver extends BaseEntity implements IAuditableEntity{
     public void setApprovalStatus(String approvalStatus) {
         this.approvalStatus = approvalStatus;
     }
+
+    public int getAccountId() {
+        return accountId;
+    }
+
+    public void setAccountId(int accountId) {
+        this.accountId = accountId;
+    }
+    
 
     public String getAvailabilityStatus() {
         return availabilityStatus;
