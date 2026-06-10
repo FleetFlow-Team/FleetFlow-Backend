@@ -137,7 +137,7 @@ public class BookingDAO {
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                return "AVAILABLE".equals(rs.getString("Status"));
+                return "AVAILABLE".equalsIgnoreCase(rs.getString("Status"));
             }
             return false;
         }
