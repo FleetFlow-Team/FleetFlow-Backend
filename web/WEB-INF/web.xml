@@ -24,6 +24,14 @@
         <servlet-name>VehicleController</servlet-name>
         <servlet-class>controller.VehicleController</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>RegisterController</servlet-name>
+        <servlet-class>controller.RegisterController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>ForgotPasswordController</servlet-name>
+        <servlet-class>controller.ForgotPasswordController</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -47,6 +55,14 @@
     <servlet-mapping>
         <servlet-name>VehicleController</servlet-name>
         <url-pattern>/VehicleController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>RegisterController</servlet-name>
+        <url-pattern>/RegisterController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>ForgotPasswordController</servlet-name>
+        <url-pattern>/ForgotPasswordController</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>
