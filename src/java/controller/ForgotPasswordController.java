@@ -43,23 +43,27 @@ public class ForgotPasswordController extends HttpServlet {
 
                     String resetLink = "http://127.0.0.1:5500/reset-password.html?token=" + resetToken;
 
-                    // Mẹo chống treo: Trả kết quả link test trực tiếp, khóa lệnh gửi mail thật nếu SMTP chưa bật
+                    // Chuẩn bị dữ liệu trả về ngay cho Frontend
                     apiResponse.put("success", true);
-                    apiResponse.put("message", "Token generated successfully.");
-                    apiResponse.put("resetLinkForTest", resetLink);
+                    apiResponse.put("message", "Yêu cầu đặt lại mật khẩu đã được ghi nhận.");
+                    apiResponse.put("resetLinkForTest", resetLink); // Tiện test dưới Console
 
-                    // Khởi động gửi mail thật:
+                    // Bắn lệnh gửi mail chạy ngầm ở luồng khác, Servlet chạy tuột xuống dưới luôn không cần đợi
                     String subject = "[FleetFlow] Đặt Lại Mật Khẩu";
-                    String content = "<p>Bấm vào link để đổi mật khẩu: <a href='" + resetLink + "'>Link</a></p>";
-                    EmailUtils.sendEmail(email, subject, content);
+                    String content = "<h3>Yêu cầu thay đổi mật khẩu</h3>"
+                            + "<p>Vui lòng click vào đường dẫn sau để tiến hành thay đổi mật khẩu của bạn:</p>"
+                            + "<a href='" + resetLink + "' style='padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;'>Đặt lại mật khẩu</a>"
+                            + "<p>Nếu bạn không gửi yêu cầu này, vui lòng bỏ qua email.</p>";
+                    
+                    EmailUtils.sendEmailAsync(email, subject, content);
 
                 } else {
                     apiResponse.put("success", false);
-                    apiResponse.put("message", "Email not found.");
+                    apiResponse.put("message", "Email không tồn tại trong hệ thống.");
                 }
             } else {
                 apiResponse.put("success", false);
-                apiResponse.put("message", "Please enter email.");
+                apiResponse.put("message", "Vui lòng nhập Email.");
             }
         } catch (Exception e) {
             apiResponse.put("success", false);

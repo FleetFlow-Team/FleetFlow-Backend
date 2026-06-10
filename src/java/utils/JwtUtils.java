@@ -13,8 +13,8 @@ public class JwtUtils {
     private static final String SECRET_STRING = "FleetFlowProjectSuperSecretKey2026SecureBridgesString";
     private static final Key KEY = Keys.hmacShaKeyFor(SECRET_STRING.getBytes());
 
-    private static final long ACCESS_TOKEN_EXPIRATION = 864000000L;  // 1 ngày
-    private static final long REFRESH_TOKEN_EXPIRATION = 604800000L; // 7 ngày
+private static final long ACCESS_TOKEN_EXPIRATION = 900000L;    // 15 phút (900.000 ms)
+private static final long REFRESH_TOKEN_EXPIRATION = 604800000L; // 7 ngày (604.800.000 ms)
 
     public static String generateAccessToken(String email, String roleName) {
         return Jwts.builder()

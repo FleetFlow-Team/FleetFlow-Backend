@@ -46,21 +46,25 @@ public class RegisterController extends HttpServlet {
 
                 if (!isExist) {
                     Timestamp now = new Timestamp(System.currentTimeMillis());
+                    // Đăng ký mặc định để trạng thái Active (Hoặc Pending tùy logic kích hoạt của bạn)
                     Account newAcc = new Account("Customer", email, password, fullName, phoneNumber, "Active", now, now);
                     
                     try {
                         boolean isCreated = dao.registerAccount(newAcc);
                         if (isCreated) {
-                            String subject = "[FleetFlow] Đăng Ký Tài Khoản Thành Công";
-                            String content = "<h2>Chào mừng đến với FleetFlow!</h2><p>Tài khoản của bạn đã được khởi tạo thành công.</p>";
-                            
-                            boolean mailSent = EmailUtils.sendEmail(email, subject, content);
-
                             apiResponse.put("success", true);
-                            apiResponse.put("message", mailSent ? "Account saved to DB and email sent!" : "Account saved to DB! (Mail delayed).");
+                            apiResponse.put("message", "Đăng ký tài khoản thành công!");
+
+                            // Gửi mail thông báo chạy ngầm độc lập
+                            String subject = "[FleetFlow] Đăng Ký Tài Khoản Thành Công";
+                            String content = "<h2>Chào mừng " + fullName + " đến với FleetFlow!</h2>"
+                                    + "<p>Tài khoản của bạn đã được khởi tạo thành công trên hệ thống của chúng tôi.</p>"
+                                    + "<p><b>Tên đăng nhập:</b> " + email + "</p>";
+                            
+                            EmailUtils.sendEmailAsync(email, subject, content);
                         } else {
                             apiResponse.put("success", false);
-                            apiResponse.put("message", "Database rejected insertion.");
+                            apiResponse.put("message", "Hệ thống từ chối lưu trữ dữ liệu.");
                         }
                     } catch (SQLException sqlEx) {
                         apiResponse.put("success", false);
@@ -68,11 +72,11 @@ public class RegisterController extends HttpServlet {
                     }
                 } else {
                     apiResponse.put("success", false);
-                    apiResponse.put("message", "This email is already taken.");
+                    apiResponse.put("message", "Email này đã được sử dụng.");
                 }
             } else {
                 apiResponse.put("success", false);
-                apiResponse.put("message", "Parameters are required.");
+                apiResponse.put("message", "Vui lòng nhập đầy đủ các trường bắt buộc (Email/Password).");
             }
         } catch (Exception e) {
             apiResponse.put("success", false);
