@@ -5,14 +5,14 @@ import java.sql.Timestamp;
  
 public class TripGpsLog {
     private Long id;
-    private Long bookingId;
+    private int bookingId;
     private BigDecimal latitude;
     private BigDecimal longitude;
     private Timestamp recordedAt;
  
     public TripGpsLog() {}
  
-    public TripGpsLog(Long bookingId, BigDecimal latitude,
+    public TripGpsLog(int bookingId, BigDecimal latitude,
                       BigDecimal longitude, Timestamp recordedAt) {
         this.bookingId = bookingId;
         this.latitude = latitude;
@@ -23,8 +23,8 @@ public class TripGpsLog {
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
  
-    public Long getBookingId() { return bookingId; }
-    public void setBookingId(Long bookingId) { this.bookingId = bookingId; }
+    public int getBookingId() { return bookingId; }
+    public void setBookingId(int bookingId) { this.bookingId = bookingId; }
  
     public BigDecimal getLatitude() { return latitude; }
     public void setLatitude(BigDecimal latitude) { this.latitude = latitude; }

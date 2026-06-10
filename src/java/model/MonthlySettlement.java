@@ -4,8 +4,8 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
  
 public class MonthlySettlement {
-    private Long id;
-    private Long driverId;
+    private int id;
+    private int driverId;
     private Integer settlementMonth;
     private Integer settlementYear;
     private BigDecimal onlineTripsTotal;
@@ -17,7 +17,7 @@ public class MonthlySettlement {
  
     public MonthlySettlement() {}
  
-    public MonthlySettlement(Long driverId, Integer settlementMonth, Integer settlementYear,
+    public MonthlySettlement(int driverId, Integer settlementMonth, Integer settlementYear,
                              BigDecimal onlineTripsTotal, BigDecimal cashTripsDebt,
                              BigDecimal penaltyBonus, BigDecimal netPayout, String status) {
         this.driverId = driverId;
@@ -30,11 +30,11 @@ public class MonthlySettlement {
         this.status = status;
     }
  
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
  
-    public Long getDriverId() { return driverId; }
-    public void setDriverId(Long driverId) { this.driverId = driverId; }
+    public int getDriverId() { return driverId; }
+    public void setDriverId(int driverId) { this.driverId = driverId; }
  
     public Integer getSettlementMonth() { return settlementMonth; }
     public void setSettlementMonth(Integer settlementMonth) { this.settlementMonth = settlementMonth; }

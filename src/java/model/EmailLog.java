@@ -3,16 +3,16 @@ package model;
 import java.sql.Timestamp;
  
 public class EmailLog {
-    private Long id;
-    private Long campaignId;
-    private Long recipientAccountId;
+    private int id;
+    private int campaignId;
+    private int recipientAccountId;
     private String subject;
     private String status;
     private Timestamp sentAt;
  
     public EmailLog() {}
  
-    public EmailLog(Long campaignId, Long recipientAccountId,
+    public EmailLog(int campaignId, int recipientAccountId,
                     String subject, String status, Timestamp sentAt) {
         this.campaignId = campaignId;
         this.recipientAccountId = recipientAccountId;
@@ -21,14 +21,14 @@ public class EmailLog {
         this.sentAt = sentAt;
     }
  
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
  
-    public Long getCampaignId() { return campaignId; }
-    public void setCampaignId(Long campaignId) { this.campaignId = campaignId; }
+    public int getCampaignId() { return campaignId; }
+    public void setCampaignId(int campaignId) { this.campaignId = campaignId; }
  
-    public Long getRecipientAccountId() { return recipientAccountId; }
-    public void setRecipientAccountId(Long recipientAccountId) { this.recipientAccountId = recipientAccountId; }
+    public int getRecipientAccountId() { return recipientAccountId; }
+    public void setRecipientAccountId(int recipientAccountId) { this.recipientAccountId = recipientAccountId; }
  
     public String getSubject() { return subject; }
     public void setSubject(String subject) { this.subject = subject; }

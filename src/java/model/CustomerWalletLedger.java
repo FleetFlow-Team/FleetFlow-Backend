@@ -4,17 +4,17 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
  
 public class CustomerWalletLedger {
-    private Long id;
-    private Long customerId;
+    private int id;
+    private int customerId;
     private BigDecimal amount;
     private String transactionType;   // PENALTY, PAYMENT, REFUND
-    private Long bookingId;
+    private int bookingId;
     private Timestamp createdAt;
  
     public CustomerWalletLedger() {}
  
-    public CustomerWalletLedger(Long customerId, BigDecimal amount,
-                                String transactionType, Long bookingId, Timestamp createdAt) {
+    public CustomerWalletLedger(int customerId, BigDecimal amount,
+                                String transactionType, int bookingId, Timestamp createdAt) {
         this.customerId = customerId;
         this.amount = amount;
         this.transactionType = transactionType;
@@ -22,11 +22,11 @@ public class CustomerWalletLedger {
         this.createdAt = createdAt;
     }
  
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
  
-    public Long getCustomerId() { return customerId; }
-    public void setCustomerId(Long customerId) { this.customerId = customerId; }
+    public int getCustomerId() { return customerId; }
+    public void setCustomerId(int customerId) { this.customerId = customerId; }
  
     public BigDecimal getAmount() { return amount; }
     public void setAmount(BigDecimal amount) { this.amount = amount; }
@@ -34,8 +34,8 @@ public class CustomerWalletLedger {
     public String getTransactionType() { return transactionType; }
     public void setTransactionType(String transactionType) { this.transactionType = transactionType; }
  
-    public Long getBookingId() { return bookingId; }
-    public void setBookingId(Long bookingId) { this.bookingId = bookingId; }
+    public int getBookingId() { return bookingId; }
+    public void setBookingId(int bookingId) { this.bookingId = bookingId; }
  
     public Timestamp getCreatedAt() { return createdAt; }
     public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }

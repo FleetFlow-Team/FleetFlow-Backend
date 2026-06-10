@@ -3,9 +3,9 @@ package model;
 import java.sql.Timestamp;
  
 public class Notification {
-    private Long id;
-    private Long recipientAccountId;
-    private Long bookingId;
+    private int id;
+    private int recipientAccountId;
+    private int bookingId;
     private String title;
     private String message;
     private String type;
@@ -15,7 +15,7 @@ public class Notification {
  
     public Notification() {}
  
-    public Notification(Long recipientAccountId, Long bookingId, String title,
+    public Notification(int recipientAccountId, int bookingId, String title,
                         String message, String type, String channel, Timestamp createdAt) {
         this.recipientAccountId = recipientAccountId;
         this.bookingId = bookingId;
@@ -27,14 +27,14 @@ public class Notification {
         this.createdAt = createdAt;
     }
  
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
  
-    public Long getRecipientAccountId() { return recipientAccountId; }
-    public void setRecipientAccountId(Long recipientAccountId) { this.recipientAccountId = recipientAccountId; }
+    public int getRecipientAccountId() { return recipientAccountId; }
+    public void setRecipientAccountId(int recipientAccountId) { this.recipientAccountId = recipientAccountId; }
  
-    public Long getBookingId() { return bookingId; }
-    public void setBookingId(Long bookingId) { this.bookingId = bookingId; }
+    public int getBookingId() { return bookingId; }
+    public void setBookingId(int bookingId) { this.bookingId = bookingId; }
  
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }

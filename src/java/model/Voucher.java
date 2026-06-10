@@ -5,26 +5,26 @@ import java.sql.Timestamp;
 import model.base.BaseEntity;
  
 public class Voucher extends BaseEntity {
-    private Long campaignId;
+    private int campaignId;
     private String code;
     private String discountType;        // PERCENT, FIXED
     private BigDecimal discountValue;
     private BigDecimal maxDiscountAmount;
     private BigDecimal minBookingValue;
-    private Long applicableVehicleTypeId;
+    private int applicableVehicleTypeId;
     private Integer maxUsagePerUser;
     private Timestamp validFrom;
     private Timestamp validTo;
     private String status;
-    private Long createdBy;
+    private int createdBy;
  
     public Voucher() {}
  
-    public Voucher(Long campaignId, String code, String discountType,
+    public Voucher(int campaignId, String code, String discountType,
                    BigDecimal discountValue, BigDecimal maxDiscountAmount,
-                   BigDecimal minBookingValue, Long applicableVehicleTypeId,
+                   BigDecimal minBookingValue, int applicableVehicleTypeId,
                    Integer maxUsagePerUser, Timestamp validFrom,
-                   Timestamp validTo, String status, Long createdBy) {
+                   Timestamp validTo, String status, int createdBy) {
         this.campaignId = campaignId;
         this.code = code;
         this.discountType = discountType;
@@ -39,8 +39,8 @@ public class Voucher extends BaseEntity {
         this.createdBy = createdBy;
     }
  
-    public Long getCampaignId() { return campaignId; }
-    public void setCampaignId(Long campaignId) { this.campaignId = campaignId; }
+    public int getCampaignId() { return campaignId; }
+    public void setCampaignId(int campaignId) { this.campaignId = campaignId; }
  
     public String getCode() { return code; }
     public void setCode(String code) { this.code = code; }
@@ -57,8 +57,8 @@ public class Voucher extends BaseEntity {
     public BigDecimal getMinBookingValue() { return minBookingValue; }
     public void setMinBookingValue(BigDecimal minBookingValue) { this.minBookingValue = minBookingValue; }
  
-    public Long getApplicableVehicleTypeId() { return applicableVehicleTypeId; }
-    public void setApplicableVehicleTypeId(Long id) { this.applicableVehicleTypeId = id; }
+    public int getApplicableVehicleTypeId() { return applicableVehicleTypeId; }
+    public void setApplicableVehicleTypeId(int id) { this.applicableVehicleTypeId = id; }
  
     public Integer getMaxUsagePerUser() { return maxUsagePerUser; }
     public void setMaxUsagePerUser(Integer maxUsagePerUser) { this.maxUsagePerUser = maxUsagePerUser; }
@@ -72,6 +72,6 @@ public class Voucher extends BaseEntity {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
  
-    public Long getCreatedBy() { return createdBy; }
-    public void setCreatedBy(Long createdBy) { this.createdBy = createdBy; }
+    public int getCreatedBy() { return createdBy; }
+    public void setCreatedBy(int createdBy) { this.createdBy = createdBy; }
 }
