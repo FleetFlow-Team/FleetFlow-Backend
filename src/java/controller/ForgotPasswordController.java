@@ -13,6 +13,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import utils.EmailUtils;
+import utils.PasswordUtils;
 
 @WebServlet("/api/v1/auth/forgot-password")
 public class ForgotPasswordController extends HttpServlet {
@@ -21,6 +22,8 @@ public class ForgotPasswordController extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         
+        request.setCharacterEncoding("UTF-8");
+
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         response.setHeader("Access-Control-Allow-Origin", "*");
@@ -38,18 +41,19 @@ public class ForgotPasswordController extends HttpServlet {
                 boolean isExist = dao.checkEmailExist(email);
 
                 if (isExist) {
-                    // Tạo mật khẩu tạm ngẫu nhiên 8 ký tự
+                    // 1. Tạo chuỗi mật khẩu tạm thời thô ngẫu nhiên
                     String temporaryPassword = UUID.randomUUID().toString().substring(0, 8);
                     
-                    // Ghi đè vào cột PasswordHash cũ mà nhóm của bạn đã chốt cứng
-                    boolean isUpdated = dao.updatePassword(email, temporaryPassword);
+                    // 2. 💡 MÃ HÓA BCRYPT: Băm mật khẩu tạm này thành dạng $2a$10$... trước khi lưu DB
+                    String hashedTempPassword = PasswordUtils.hashPassword(temporaryPassword);
+                    boolean isUpdated = dao.updatePassword(email, hashedTempPassword);
 
                     if (isUpdated) {
                         apiResponse.put("success", true);
                         apiResponse.put("message", "Mật khẩu tạm thời đã gửi vào hòm thư.");
-                        apiResponse.put("tempPasswordForTest", temporaryPassword); 
+                        apiResponse.put("tempPasswordForTest", temporaryPassword); // Giữ lại chuỗi thô để tiện test trên Postman
 
-                        // Tiến hành lấy ID -> Bắn thư ngầm -> Lưu vết lịch sử bảng EmailLog
+                        // 3. Gửi mã thô (temporaryPassword) vào email để người dùng có thể gõ đăng nhập
                         int accountId = dao.getAccountIdByEmail(email);
                         String mailSubject = "[FleetFlow] Cấp Lại Mật Khẩu Tạm Thời";
                         String mailContent = EmailUtils.buildForgotPasswordTemplate(temporaryPassword);

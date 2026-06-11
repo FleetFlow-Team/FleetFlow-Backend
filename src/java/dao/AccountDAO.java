@@ -18,7 +18,8 @@ public class AccountDAO {
     private static final String LOG_EMAIL = "INSERT INTO EmailLog (CampaignID, RecipientAccountID, Subject, Status, SentAt) VALUES (?, ?, ?, ?, ?)";
     private static final String GET_ACCOUNT_ID = "SELECT AccountID FROM Account WHERE Email = ?";
     private static final String CHANGE_PASSWORD = "UPDATE Account SET PasswordHash = ?, UpdatedAt = ? WHERE Email = ? AND PasswordHash = ?";
-   
+    private static final String HASH_PASSWORD = "SELECT * FROM Account WHERE Email = ?";
+
     public Account checkLogin(String email, String password) throws SQLException {
         Account account = null;
         Connection conn = null;
@@ -27,30 +28,46 @@ public class AccountDAO {
         try {
             conn = DbUtils.getConnection();
             if (conn != null) {
-                ptm = conn.prepareStatement(LOGIN);
+                // ❌ KHÔNG dùng hằng số LOGIN cũ (SELECT ... WHERE Email=? AND PasswordHash=?)
+                // ✅ PHẢI dùng LOGIN_CHECK để tìm tài khoản theo Email trước
+                ptm = conn.prepareStatement(HASH_PASSWORD);
                 ptm.setString(1, email);
-                ptm.setString(2, password);
                 rs = ptm.executeQuery();
-                
+
                 if (rs.next()) {
-                    String roleName = rs.getString("RoleName");
-                    String userEmail = rs.getString("Email");
-                    String fullName = rs.getString("FullName");
-                    String phoneNumber = rs.getString("PhoneNumber");
-                    String status = rs.getString("Status");
-                    Timestamp createdAt = rs.getTimestamp("CreatedAt");
-                    Timestamp updatedAt = rs.getTimestamp("UpdatedAt");
-                    
-                    account = new Account(roleName, userEmail, "***", fullName, phoneNumber, status, createdAt, updatedAt);
+                    // Lấy chuỗi đã mã hóa $2a$10$... đang lưu dưới DB ra
+                    String dbHashedPassword = rs.getString("PasswordHash");
+
+                    // 🔥 ĐÂY LÀ KHÚC CHỐT LOGIC: 
+                    // Lấy mật khẩu thô (password) user nhập đối chiếu với chuỗi băm (dbHashedPassword)
+                    if (utils.PasswordUtils.checkPassword(password, dbHashedPassword)) {
+
+                        // Nếu BCrypt báo khớp -> Khởi tạo đối tượng trả về cho phép Đăng nhập
+                        String roleName = rs.getString("RoleName");
+                        String userEmail = rs.getString("Email");
+                        String fullName = rs.getString("FullName");
+                        String phoneNumber = rs.getString("PhoneNumber");
+                        String status = rs.getString("Status");
+                        Timestamp createdAt = rs.getTimestamp("CreatedAt");
+                        Timestamp updatedAt = rs.getTimestamp("UpdatedAt");
+
+                        account = new Account(roleName, userEmail, "***", fullName, phoneNumber, status, createdAt, updatedAt);
+                    }
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace(); 
+            e.printStackTrace();
             throw new SQLException("Error at checkLogin: " + e.getMessage());
         } finally {
-            if (rs != null) rs.close();
-            if (ptm != null) ptm.close();
-            if (conn != null) conn.close();
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
         }
         return account;
     }
@@ -73,9 +90,15 @@ public class AccountDAO {
         } catch (Exception e) {
             throw new SQLException("Error at checkEmailExist: " + e.getMessage());
         } finally {
-            if (rs != null) rs.close();
-            if (ptm != null) ptm.close();
-            if (conn != null) conn.close();
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
         }
         return isExist;
     }
@@ -90,7 +113,7 @@ public class AccountDAO {
                 ptm = conn.prepareStatement(REGISTER);
                 ptm.setString(1, acc.getRoleName() != null ? acc.getRoleName() : "Customer");
                 ptm.setString(2, acc.getEmail());
-                ptm.setString(3, acc.getHashPassword()); 
+                ptm.setString(3, acc.getHashPassword());
                 ptm.setString(4, acc.getFullName());
                 ptm.setString(5, acc.getPhoneNumber());
                 ptm.setString(6, acc.getStatus() != null ? acc.getStatus() : "Active");
@@ -105,8 +128,12 @@ public class AccountDAO {
         } catch (Exception e) {
             throw new SQLException("Database Insertion Error: " + e.getMessage());
         } finally {
-            if (ptm != null) ptm.close();
-            if (conn != null) conn.close();
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
         }
         return isCreated;
     }
@@ -119,7 +146,7 @@ public class AccountDAO {
             conn = DbUtils.getConnection();
             if (conn != null) {
                 ptm = conn.prepareStatement(UPDATE_PASSWORD);
-                ptm.setString(1, newPassword); 
+                ptm.setString(1, newPassword);
                 ptm.setTimestamp(2, new Timestamp(System.currentTimeMillis()));
                 ptm.setString(3, email);
 
@@ -131,8 +158,12 @@ public class AccountDAO {
         } catch (Exception e) {
             throw new SQLException("Database Update Password Error: " + e.getMessage());
         } finally {
-            if (ptm != null) ptm.close();
-            if (conn != null) conn.close();
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
         }
         return isUpdated;
     }
@@ -145,13 +176,21 @@ public class AccountDAO {
             conn = DbUtils.getConnection();
             if (conn != null) {
                 ptm = conn.prepareStatement(LOG_EMAIL);
-                
-                if (campaignID != null) ptm.setInt(1, campaignID); else ptm.setNull(1, java.sql.Types.INTEGER);
-                if (recipientAccountID != null) ptm.setInt(2, recipientAccountID); else ptm.setNull(2, java.sql.Types.INTEGER);
+
+                if (campaignID != null) {
+                    ptm.setInt(1, campaignID);
+                } else {
+                    ptm.setNull(1, java.sql.Types.INTEGER);
+                }
+                if (recipientAccountID != null) {
+                    ptm.setInt(2, recipientAccountID);
+                } else {
+                    ptm.setNull(2, java.sql.Types.INTEGER);
+                }
                 ptm.setString(3, subject);
                 ptm.setString(4, status);
                 ptm.setTimestamp(5, new Timestamp(System.currentTimeMillis()));
-                
+
                 int row = ptm.executeUpdate();
                 if (row > 0) {
                     isLogged = true;
@@ -160,8 +199,12 @@ public class AccountDAO {
         } catch (Exception e) {
             System.err.println("LOG_ERROR: [AccountDAO] Lỗi chèn lịch sử vào bảng EmailLog: " + e.getMessage());
         } finally {
-            if (ptm != null) ptm.close();
-            if (conn != null) conn.close();
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
         }
         return isLogged;
     }
@@ -184,36 +227,79 @@ public class AccountDAO {
         } catch (Exception e) {
             throw new SQLException("Error at getAccountIdByEmail: " + e.getMessage());
         } finally {
-            if (rs != null) rs.close();
-            if (ptm != null) ptm.close();
-            if (conn != null) conn.close();
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
         }
         return accountId;
     }
-    public boolean changePassword(String email, String oldPassword, String newPassword) throws SQLException {
-    boolean isChanged = false;
-    Connection conn = null;
-    PreparedStatement ptm = null;
-    try {
-        conn = DbUtils.getConnection();
-        if (conn != null) {
-            ptm = conn.prepareStatement(CHANGE_PASSWORD);
-            ptm.setString(1, newPassword); // Mật khẩu mới
-            ptm.setTimestamp(2, new java.sql.Timestamp(System.currentTimeMillis()));
-            ptm.setString(3, email);
-            ptm.setString(4, oldPassword); // Mật khẩu cũ (bắt buộc phải khớp thì SQL mới update)
 
-            int row = ptm.executeUpdate();
-            if (row > 0) {
-                isChanged = true;
+    public boolean changePassword(String email, String oldPassword, String newPassword) throws SQLException {
+        boolean isChanged = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        try {
+            conn = DbUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(CHANGE_PASSWORD);
+                ptm.setString(1, newPassword); // Mật khẩu mới
+                ptm.setTimestamp(2, new java.sql.Timestamp(System.currentTimeMillis()));
+                ptm.setString(3, email);
+                ptm.setString(4, oldPassword); // Mật khẩu cũ (bắt buộc phải khớp thì SQL mới update)
+
+                int row = ptm.executeUpdate();
+                if (row > 0) {
+                    isChanged = true;
+                }
+            }
+        } catch (Exception e) {
+            throw new SQLException("Database Change Password Error: " + e.getMessage());
+        } finally {
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
             }
         }
-    } catch (Exception e) {
-        throw new SQLException("Database Change Password Error: " + e.getMessage());
-    } finally {
-        if (ptm != null) ptm.close();
-        if (conn != null) conn.close();
+        return isChanged;
     }
-    return isChanged;
-}
+
+    public String getHashedPasswordByEmail(String email) throws SQLException {
+        String dbHashedPassword = null;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+        try {
+            conn = DbUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(HASH_PASSWORD); // Dùng lại form truy vấn theo Email có sẵn
+                ptm.setString(1, email);
+                rs = ptm.executeQuery();
+                if (rs.next()) {
+                    dbHashedPassword = rs.getString("PasswordHash");
+                }
+            }
+        } catch (Exception e) {
+            throw new SQLException("Error at getHashedPasswordByEmail: " + e.getMessage());
+        } finally {
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+        return dbHashedPassword;
+    }
+
 }
