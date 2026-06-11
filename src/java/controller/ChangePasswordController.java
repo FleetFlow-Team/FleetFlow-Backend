@@ -2,6 +2,7 @@ package controller;
 
 import com.google.gson.Gson;
 import dao.AccountDAO;
+import model.Account;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
@@ -12,6 +13,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import utils.EmailUtils;
+import utils.PasswordUtils;
 
 @WebServlet("/api/v1/auth/change-password")
 public class ChangePasswordController extends HttpServlet {
@@ -20,7 +22,6 @@ public class ChangePasswordController extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         
-        // Chặn lỗi vỡ font tiếng Việt
         request.setCharacterEncoding("UTF-8");
 
         response.setContentType("application/json");
@@ -32,7 +33,6 @@ public class ChangePasswordController extends HttpServlet {
         Map<String, Object> apiResponse = new HashMap<>();
 
         try {
-            // Lấy dữ liệu truyền lên từ client
             String email = request.getParameter("email");
             String oldPassword = request.getParameter("oldPassword");
             String newPassword = request.getParameter("newPassword");
@@ -43,44 +43,49 @@ public class ChangePasswordController extends HttpServlet {
             if (newPassword != null) newPassword = newPassword.trim();
             if (confirmPassword != null) confirmPassword = confirmPassword.trim();
 
-            // Validate đầu vào dữ liệu cơ bản
             if (email != null && !email.isEmpty() 
                     && oldPassword != null && !oldPassword.isEmpty() 
                     && newPassword != null && !newPassword.isEmpty()) {
 
-                // 1. Kiểm tra mật khẩu mới có trùng khớp với confirm mật khẩu không
                 if (newPassword.equals(confirmPassword)) {
                     
                     AccountDAO dao = new AccountDAO();
                     
-                    // 2. Gọi xuống DB thực thi lệnh thay đổi mật khẩu
-                    boolean isChanged = dao.changePassword(email, oldPassword, newPassword);
+                    // 1. Lấy chuỗi BCrypt hiện tại đang lưu dưới DB lên dựa vào Email
+                    String dbHashedPassword = dao.getHashedPasswordByEmail(email);
 
-                    if (isChanged) {
-                        apiResponse.put("success", true);
-                        apiResponse.put("message", "Thay đổi mật khẩu thành công!");
-
-                        // 3. Tự động lấy thông tin để bắn mail bảo mật luồng ngầm + Lưu vết EmailLog
-                        int accountId = dao.getAccountIdByEmail(email);
-                        String mailSubject = "[FleetFlow] Cảnh Báo Thay Đổi Mật Khẩu Tài Khoản";
+                    // 2. 💡 ĐỐI CHIẾU BCRYPT: So sánh mật khẩu cũ nhập vào với mã hóa dưới DB
+                    if (dbHashedPassword != null && PasswordUtils.checkPassword(oldPassword, dbHashedPassword)) {
                         
-                        // Để lấy fullName tạm thời tạo phom mail, ta trích xuất từ hàm getAccountId
-                        String mailContent = EmailUtils.buildChangePasswordTemplate("Thành Viên FleetFlow", email);
-                        
-                        // Kích hoạt luồng gửi mail ngầm (CampaignID lưu số 1 tương ứng quy ước mail hệ thống)
-                        EmailUtils.sendEmailAndLogAsync(accountId, email, mailSubject, mailContent);
+                        // 3. Nếu khớp -> Tiến hành băm mật khẩu MỚI và lưu đè xuống
+                        String newHashedPassword = PasswordUtils.hashPassword(newPassword);
+                        boolean isChanged = dao.updatePassword(email, newHashedPassword);
 
+                        if (isChanged) {
+                            apiResponse.put("success", true);
+                            apiResponse.put("message", "Thay đổi mật khẩu thành công!");
+
+                            // Bắn thư bảo mật chạy ngầm
+                            int accountId = dao.getAccountIdByEmail(email);
+                            String mailSubject = "[FleetFlow] Cảnh Báo Thay Đổi Mật Khẩu Tài Khoản";
+                            String mailContent = EmailUtils.buildChangePasswordTemplate("Thành Viên FleetFlow", email);
+                            
+                            EmailUtils.sendEmailAndLogAsync(accountId, email, mailSubject, mailContent);
+                        } else {
+                            apiResponse.put("success", false);
+                            apiResponse.put("message", "Lỗi cập nhật dữ liệu Database.");
+                        }
                     } else {
                         apiResponse.put("success", false);
-                        apiResponse.put("message", "Mật khẩu cũ không chính xác hoặc tài khoản không tồn tại.");
+                        apiResponse.put("message", "Mật khẩu cũ không chính xác.");
                     }
                 } else {
                     apiResponse.put("success", false);
-                    apiResponse.put("message", "Mật khẩu mới và mật khẩu xác nhận không trùng khớp.");
+                    apiResponse.put("message", "Mật khẩu mới và xác nhận không khớp.");
                 }
             } else {
                 apiResponse.put("success", false);
-                apiResponse.put("message", "Vui lòng nhập đầy đủ: Email, Mật khẩu cũ và Mật khẩu mới.");
+                apiResponse.put("message", "Vui lòng cung cấp đầy đủ thông tin mật khẩu.");
             }
         } catch (Exception e) {
             apiResponse.put("success", false);
