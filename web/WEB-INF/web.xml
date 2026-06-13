@@ -24,7 +24,6 @@
         <servlet-name>VehicleController</servlet-name>
         <servlet-class>controller.VehicleController</servlet-class>
     </servlet>
-
     <servlet>
         <servlet-name>ForgotPasswordController</servlet-name>
         <servlet-class>controller.ForgotPasswordController</servlet-class>
@@ -53,10 +52,25 @@
         <servlet-name>DispatcherRegisterController</servlet-name>
         <servlet-class>controller.DispatcherRegisterController</servlet-class>
     </servlet>
-
     <servlet>
         <servlet-name>AdminRegisterController</servlet-name>
         <servlet-class>controller.AdminRegisterController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>DriverTermsController</servlet-name>
+        <servlet-class>controller.DriverTermsController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>DriverProfileController</servlet-name>
+        <servlet-class>controller.DriverProfileController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>DriverProfileUpdateController</servlet-name>
+        <servlet-class>controller.DriverProfileUpdateController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>DriverBothDocsReuploadController</servlet-name>
+        <servlet-class>controller.DriverBothDocsReuploadController</servlet-class>
     </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
@@ -82,7 +96,6 @@
         <servlet-name>VehicleController</servlet-name>
         <url-pattern>/VehicleController</url-pattern>
     </servlet-mapping>
-
     <servlet-mapping>
         <servlet-name>ForgotPasswordController</servlet-name>
         <url-pattern>/ForgotPasswordController</url-pattern>
@@ -107,7 +120,6 @@
         <servlet-name>DriverRegisterController</servlet-name>
         <url-pattern>/DriverRegisterController</url-pattern>
     </servlet-mapping>
-
     <servlet-mapping>
         <servlet-name>DispatcherRegisterController</servlet-name>
         <url-pattern>/DispatcherRegisterController</url-pattern>
@@ -115,6 +127,22 @@
     <servlet-mapping>
         <servlet-name>AdminRegisterController</servlet-name>
         <url-pattern>/AdminRegisterController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>DriverTermsController</servlet-name>
+        <url-pattern>/DriverTermsController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>DriverProfileController</servlet-name>
+        <url-pattern>/DriverProfileController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>DriverProfileUpdateController</servlet-name>
+        <url-pattern>/DriverProfileUpdateController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>DriverBothDocsReuploadController</servlet-name>
+        <url-pattern>/DriverBothDocsReuploadController</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>30</session-timeout>
