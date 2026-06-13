@@ -51,16 +51,37 @@ public class DriverDocumentSubmitController extends HttpServlet {
 
             int accountId = Integer.parseInt(accountIdParam.trim());
 
-            // Bốc tách tệp tin ảnh từ form-data (Có thể một trong hai trường bị bỏ trống)
+            // Bốc tách tệp tin ảnh từ form-data
             Part cccdPart = request.getPart("identityCard");
             Part licensePart = request.getPart("driverLicense");
 
-            // 🚨 SỬA ĐỔI 1: Kiểm tra nếu cả 2 trường đều không truyền gì lên thì mới báo lỗi
+            // Kiểm tra nếu cả 2 trường đều không truyền gì lên thì mới báo lỗi
             if ((cccdPart == null || cccdPart.getSize() == 0) && (licensePart == null || licensePart.getSize() == 0)) {
                 apiResponse.put("success", false);
                 apiResponse.put("message", "Vui lòng đính kèm ít nhất ảnh CCCD hoặc Bằng lái xe để nộp hồ sơ.");
                 out.print(gson.toJson(apiResponse));
                 return;
+            }
+
+            AccountDAO dao = new AccountDAO();
+
+            // 🚀 BIẾN PHÁP CHẶN MỚI: Kiểm tra xem loại giấy tờ chuẩn bị nộp đã tồn tại chưa
+            if (cccdPart != null && cccdPart.getSize() > 0) {
+                if (dao.isDocTypeExist(accountId, "NationalID")) {
+                    apiResponse.put("success", false);
+                    apiResponse.put("message", "Bạn đã nộp ảnh CCCD (NationalID) trước đó rồi. Vui lòng đợi Admin phê duyệt, không được nộp đè.");
+                    out.print(gson.toJson(apiResponse));
+                    return;
+                }
+            }
+
+            if (licensePart != null && licensePart.getSize() > 0) {
+                if (dao.isDocTypeExist(accountId, "DriverLicense")) {
+                    apiResponse.put("success", false);
+                    apiResponse.put("message", "Bạn đã nộp ảnh Bằng lái (DriverLicense) trước đó rồi. Vui lòng đợi Admin phê duyệt, không được nộp đè.");
+                    out.print(gson.toJson(apiResponse));
+                    return;
+                }
             }
 
             // Thiết lập vị trí thư mục lưu tệp cục bộ trên Server
@@ -74,14 +95,14 @@ public class DriverDocumentSubmitController extends HttpServlet {
             String cccdUrl = null;
             String licenseUrl = null;
 
-            // Xử lý ghi file ảnh CCCD nếu có
+            // Xử lý ghi file ảnh CCCD nếu hợp lệ
             if (cccdPart != null && cccdPart.getSize() > 0) {
                 String cccdName = "submit_cccd_" + UUID.randomUUID().toString() + "_" + getFileName(cccdPart);
                 cccdPart.write(uploadFilePath + File.separator + cccdName);
                 cccdUrl = UPLOAD_DIR + "/" + cccdName;
             }
 
-            // Xử lý ghi file ảnh Bằng lái nếu có
+            // Xử lý ghi file ảnh Bằng lái nếu hợp lệ
             if (licensePart != null && licensePart.getSize() > 0) {
                 String licenseName = "submit_license_" + UUID.randomUUID().toString() + "_" + getFileName(licensePart);
                 licensePart.write(uploadFilePath + File.separator + licenseName);
@@ -89,13 +110,12 @@ public class DriverDocumentSubmitController extends HttpServlet {
             }
 
             // Thực hiện gọi hàm lưu trữ linh hoạt dưới DAO
-            AccountDAO dao = new AccountDAO();
             boolean isSuccess = dao.submitDriverDocuments(accountId, cccdUrl, licenseUrl);
 
             if (isSuccess) {
                 apiResponse.put("success", true);
                 
-                // 🚀 SỬA ĐỔI 2: Tự động kiểm tra xem tổng số giấy tờ dưới DB đã đủ 2 loại chưa
+                // Tự động kiểm tra xem tổng số giấy tờ dưới DB đã đủ 2 loại chưa
                 boolean isComplete = dao.isDriverDocumentsComplete(accountId);
                 
                 if (isComplete) {

@@ -41,7 +41,8 @@ public class AccountDAO {
             + "LEFT JOIN Driver d ON a.AccountID = d.AccountID "
             + "LEFT JOIN IdentityDocument i ON a.AccountID = i.OwnerAccountID "
             + "WHERE a.AccountID = ? AND a.RoleName = 'Driver'";
-    //XÓA TÀI KHOAN TEST
+    private static final String CHECK_DOC_TYPE_EXIST = "SELECT 1 FROM IdentityDocument WHERE OwnerAccountID = ? AND DocType = ?";
+//XÓA TÀI KHOAN TEST
     private static final String DELETE_IDENTITY_DOCS = "DELETE FROM IdentityDocument WHERE OwnerAccountID = ?";
     private static final String DELETE_DRIVER = "DELETE FROM Driver WHERE AccountID = ?";
     private static final String DELETE_CUSTOMER = "DELETE FROM Customer WHERE AccountID = ?";
@@ -805,5 +806,42 @@ public class AccountDAO {
             }
         }
         return isDeleted;
+    }
+
+    /**
+     * KIỂM TRA GIẤY TỜ ĐÃ TỒN TẠI: Check xem tài xế đã từng nộp loại giấy tờ
+     * này chưa
+     */
+    public boolean isDocTypeExist(int accountId, String docType) throws SQLException {
+        boolean isExist = false;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+        try {
+            conn = DbUtils.getConnection();
+            if (conn != null) {
+                ptm = conn.prepareStatement(CHECK_DOC_TYPE_EXIST);
+                ptm.setInt(1, accountId);
+                ptm.setString(2, docType); // "NationalID" hoặc "DriverLicense"
+                rs = ptm.executeQuery();
+                if (rs.next()) {
+                    isExist = true;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new SQLException("Error at isDocTypeExist: " + e.getMessage());
+        } finally {
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
+        }
+        return isExist;
     }
 }
