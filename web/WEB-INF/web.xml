@@ -41,37 +41,14 @@
         <servlet-class>controller.BookingController</servlet-class>
     </servlet>
     <servlet>
-        <servlet-name>CustomerRegisterController</servlet-name>
-        <servlet-class>controller.CustomerRegisterController</servlet-class>
+        <servlet-name>RegisterController</servlet-name>
+        <servlet-class>controller.RegisterController</servlet-class>
     </servlet>
-    <servlet>
-        <servlet-name>DriverRegisterController</servlet-name>
-        <servlet-class>controller.DriverRegisterController</servlet-class>
-    </servlet>
-    <servlet>
-        <servlet-name>DispatcherRegisterController</servlet-name>
-        <servlet-class>controller.DispatcherRegisterController</servlet-class>
-    </servlet>
-    <servlet>
-        <servlet-name>AdminRegisterController</servlet-name>
-        <servlet-class>controller.AdminRegisterController</servlet-class>
-    </servlet>
-    <servlet>
-        <servlet-name>DriverTermsController</servlet-name>
-        <servlet-class>controller.DriverTermsController</servlet-class>
-    </servlet>
-    <servlet>
-        <servlet-name>DriverProfileController</servlet-name>
-        <servlet-class>controller.DriverProfileController</servlet-class>
-    </servlet>
-    <servlet>
-        <servlet-name>DriverProfileUpdateController</servlet-name>
-        <servlet-class>controller.DriverProfileUpdateController</servlet-class>
-    </servlet>
-    <servlet>
-        <servlet-name>DriverBothDocsReuploadController</servlet-name>
-        <servlet-class>controller.DriverBothDocsReuploadController</servlet-class>
-    </servlet>
+   
+   
+ 
+
+  
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -113,37 +90,12 @@
         <url-pattern>/BookingController</url-pattern>
     </servlet-mapping>
     <servlet-mapping>
-        <servlet-name>CustomerRegisterController</servlet-name>
-        <url-pattern>/CustomerRegisterController</url-pattern>
+        <servlet-name>RegisterController</servlet-name>
+        <url-pattern>/RegisterController</url-pattern>
     </servlet-mapping>
-    <servlet-mapping>
-        <servlet-name>DriverRegisterController</servlet-name>
-        <url-pattern>/DriverRegisterController</url-pattern>
-    </servlet-mapping>
-    <servlet-mapping>
-        <servlet-name>DispatcherRegisterController</servlet-name>
-        <url-pattern>/DispatcherRegisterController</url-pattern>
-    </servlet-mapping>
-    <servlet-mapping>
-        <servlet-name>AdminRegisterController</servlet-name>
-        <url-pattern>/AdminRegisterController</url-pattern>
-    </servlet-mapping>
-    <servlet-mapping>
-        <servlet-name>DriverTermsController</servlet-name>
-        <url-pattern>/DriverTermsController</url-pattern>
-    </servlet-mapping>
-    <servlet-mapping>
-        <servlet-name>DriverProfileController</servlet-name>
-        <url-pattern>/DriverProfileController</url-pattern>
-    </servlet-mapping>
-    <servlet-mapping>
-        <servlet-name>DriverProfileUpdateController</servlet-name>
-        <url-pattern>/DriverProfileUpdateController</url-pattern>
-    </servlet-mapping>
-    <servlet-mapping>
-        <servlet-name>DriverBothDocsReuploadController</servlet-name>
-        <url-pattern>/DriverBothDocsReuploadController</url-pattern>
-    </servlet-mapping>
+
+ 
+
     <session-config>
         <session-timeout>30</session-timeout>
     </session-config>
