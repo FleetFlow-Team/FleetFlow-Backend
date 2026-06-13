@@ -19,6 +19,7 @@ public class AccountDAO {
     private static final String GET_ACCOUNT_ID = "SELECT AccountID FROM Account WHERE Email = ?";
     private static final String CHANGE_PASSWORD = "UPDATE Account SET PasswordHash = ?, UpdatedAt = ? WHERE Email = ? AND PasswordHash = ?";
     private static final String HASH_PASSWORD = "SELECT * FROM Account WHERE Email = ?";
+    private static final String INSERT_DOC = "INSERT INTO IdentityDocument (OwnerAccountID, OwnerType, DocType, NationalID, SecureFileUrl, Status, UploadedAt) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
     public Account checkLogin(String email, String password) throws SQLException {
         Account account = null;
@@ -28,30 +29,57 @@ public class AccountDAO {
         try {
             conn = DbUtils.getConnection();
             if (conn != null) {
-                // ❌ KHÔNG dùng hằng số LOGIN cũ (SELECT ... WHERE Email=? AND PasswordHash=?)
-                // ✅ PHẢI dùng LOGIN_CHECK để tìm tài khoản theo Email trước
-                ptm = conn.prepareStatement(HASH_PASSWORD);
+                // 📑 THỬ NGHIỆM THẾ HỆ CŨ: Chạy câu lệnh LOGIN gốc của bạn (Có 2 dấu hỏi)
+                ptm = conn.prepareStatement(LOGIN);
                 ptm.setString(1, email);
+                ptm.setString(2, password); // Truyền tham số số 2 bình thường, KHÔNG CÒN LỖI tham số số 2 nữa
                 rs = ptm.executeQuery();
 
                 if (rs.next()) {
-                    // Lấy chuỗi đã mã hóa $2a$10$... đang lưu dưới DB ra
-                    String dbHashedPassword = rs.getString("PasswordHash");
+                    // 👉 Nếu tìm thấy dòng dữ liệu: Đây là tài khoản DATA SAMPLE (Mật khẩu chữ thô)
+                    String roleName = rs.getString("RoleName");
+                    String userEmail = rs.getString("Email");
+                    String fullName = rs.getString("FullName");
+                    String phoneNumber = rs.getString("PhoneNumber");
+                    String status = rs.getString("Status");
+                    Timestamp createdAt = rs.getTimestamp("CreatedAt");
+                    Timestamp updatedAt = rs.getTimestamp("UpdatedAt");
 
-                    // 🔥 ĐÂY LÀ KHÚC CHỐT LOGIC: 
-                    // Lấy mật khẩu thô (password) user nhập đối chiếu với chuỗi băm (dbHashedPassword)
-                    if (utils.PasswordUtils.checkPassword(password, dbHashedPassword)) {
+                    account = new Account(roleName, userEmail, "***", fullName, phoneNumber, status, createdAt, updatedAt);
+                } else {
+                    // 🔄 CHUYỂN HƯỚNG THẾ HỆ MỚI: Nếu câu lệnh trên không ra kết quả, thử check theo luồng BCrypt
+                    // Đóng ResultSet và Statement cũ để giải phóng tài nguyên trước khi nạp lệnh mới
+                    if (rs != null) {
+                        rs.close();
+                    }
+                    if (ptm != null) {
+                        ptm.close();
+                    }
 
-                        // Nếu BCrypt báo khớp -> Khởi tạo đối tượng trả về cho phép Đăng nhập
-                        String roleName = rs.getString("RoleName");
-                        String userEmail = rs.getString("Email");
-                        String fullName = rs.getString("FullName");
-                        String phoneNumber = rs.getString("PhoneNumber");
-                        String status = rs.getString("Status");
-                        Timestamp createdAt = rs.getTimestamp("CreatedAt");
-                        Timestamp updatedAt = rs.getTimestamp("UpdatedAt");
+                    // Tạo một câu truy vấn nhanh chỉ lọc theo Email để bốc chuỗi băm BCrypt lên
+                    String backupQuery = "SELECT * FROM Account WHERE Email = ?";
+                    ptm = conn.prepareStatement(backupQuery);
+                    ptm.setString(1, email);
+                    rs = ptm.executeQuery();
 
-                        account = new Account(roleName, userEmail, "***", fullName, phoneNumber, status, createdAt, updatedAt);
+                    if (rs.next()) {
+                        String dbHashedPassword = rs.getString("PasswordHash");
+
+                        // Tiến hành đối chiếu kiểm tra qua thư viện BCrypt
+                        if (dbHashedPassword != null && dbHashedPassword.startsWith("$2a$")) {
+                            if (utils.PasswordUtils.checkPassword(password, dbHashedPassword)) {
+
+                                String roleName = rs.getString("RoleName");
+                                String userEmail = rs.getString("Email");
+                                String fullName = rs.getString("FullName");
+                                String phoneNumber = rs.getString("PhoneNumber");
+                                String status = rs.getString("Status");
+                                Timestamp createdAt = rs.getTimestamp("CreatedAt");
+                                Timestamp updatedAt = rs.getTimestamp("UpdatedAt");
+
+                                account = new Account(roleName, userEmail, "***", fullName, phoneNumber, status, createdAt, updatedAt);
+                            }
+                        }
                     }
                 }
             }
@@ -301,5 +329,104 @@ public class AccountDAO {
         }
         return dbHashedPassword;
     }
+    /**
+ * ĐĂNG KÝ TÀI XẾ: Chèn đồng thời Account và 2 tài liệu hồ sơ sử dụng cơ chế Transaction an toàn
+ */
+public boolean registerAccountWithDocs(Account acc, String cccdUrl, String licenseUrl) throws SQLException {
+    boolean isCreated = false;
+    Connection conn = null;
+    PreparedStatement ptmAcc = null;
+    PreparedStatement ptmDoc = null;
+    ResultSet rs = null;
+
+    try {
+        conn = DbUtils.getConnection();
+        if (conn != null) {
+            // 💡 BƯỚC CHỐT: Tắt cơ chế Auto-Commit để bắt đầu quản lý Transaction thủ công
+            conn.setAutoCommit(false);
+
+            // 1. Chèn dữ liệu cơ bản vào bảng Account và yêu cầu lấy về ID tự tăng vừa sinh ra
+            ptmAcc = conn.prepareStatement(REGISTER, java.sql.Statement.RETURN_GENERATED_KEYS);
+            ptmAcc.setString(1, acc.getRoleName());
+            ptmAcc.setString(2, acc.getEmail());
+            ptmAcc.setString(3, acc.getHashPassword());
+            ptmAcc.setString(4, acc.getFullName());
+            ptmAcc.setString(5, acc.getPhoneNumber());
+            ptmAcc.setString(6, "Active");
+            Timestamp now = new Timestamp(System.currentTimeMillis());
+            ptmAcc.setTimestamp(7, now);
+            ptmAcc.setTimestamp(8, now);
+
+            int affectedRows = ptmAcc.executeUpdate();
+            
+            if (affectedRows > 0) {
+                // Đọc khóa tự tăng AccountID từ bảng Account
+                rs = ptmAcc.getGeneratedKeys();
+                if (rs.next()) {
+                    int generatedAccountId = rs.getInt(1);
+
+                    // Khởi tạo PreparedStatement cho bảng tài liệu hồ sơ
+                    ptmDoc = conn.prepareStatement(INSERT_DOC);
+
+                    // 2. Thiết lập dòng dữ liệu thứ nhất: Ảnh CCCD (NationalID)
+                    ptmDoc.setInt(1, generatedAccountId);
+                    ptmDoc.setString(2, "Driver");
+                    ptmDoc.setString(3, "NationalID");
+                    ptmDoc.setNull(4, java.sql.Types.VARCHAR); // Để trống số định danh thô để Admin tự cập nhật khi duyệt
+                    ptmDoc.setString(5, cccdUrl);
+                    ptmDoc.setString(6, "Pending"); // Trạng thái chờ duyệt duyệt hồ sơ
+                    ptmDoc.setTimestamp(7, now);
+                    ptmDoc.addBatch(); // Xếp vào hàng đợi gom lệnh
+
+                    // 3. Thiết lập dòng dữ liệu thứ hai: Ảnh Bằng lái xe (DriverLicense)
+                    ptmDoc.setInt(1, generatedAccountId);
+                    ptmDoc.setString(2, "Driver");
+                    ptmDoc.setString(3, "DriverLicense");
+                    ptmDoc.setNull(4, java.sql.Types.VARCHAR);
+                    ptmDoc.setString(5, licenseUrl);
+                    ptmDoc.setString(6, "Pending");
+                    ptmDoc.setTimestamp(7, now);
+                    ptmDoc.addBatch(); // Xếp vào hàng đợi gom lệnh
+
+                    // Kích nổ lưu cả 2 tệp hồ sơ cùng lúc xuống cơ sở dữ liệu
+                    int[] docResults = ptmDoc.executeBatch();
+                    
+                    if (docResults.length == 2) {
+                        // ✅ Mọi luồng thông suốt -> Chốt hạ ghi vĩnh viễn vào ổ đĩa DB
+                        conn.commit();
+                        isCreated = true;
+                    } else {
+                        conn.rollback(); // Gặp lỗi nạp batch tài liệu -> Hoàn tác toàn bộ
+                    }
+                }
+            } else {
+                conn.rollback(); // Lỗi tạo Account -> Hoàn tác toàn bộ
+            }
+        }
+    } catch (Exception e) {
+        if (conn != null) {
+            try {
+                conn.rollback(); // Có bất kỳ Exception hệ thống nào xảy ra -> Hủy bỏ giao dịch lập tức
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+        }
+        e.printStackTrace();
+        throw new SQLException("Transaction Register Driver Error: " + e.getMessage());
+    } finally {
+        if (rs != null) rs.close();
+        if (ptmDoc != null) ptmDoc.close();
+        if (ptmAcc != null) ptmAcc.close();
+        if (conn != null) {
+            try {
+                conn.setAutoCommit(true); // Trả lại trạng thái vận hành mặc định cho luồng kết nối Pool
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+            conn.close();
+        }
+    }
+    return isCreated;
+}
 
 }
