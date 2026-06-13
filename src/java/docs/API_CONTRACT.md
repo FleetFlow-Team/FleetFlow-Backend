@@ -56,5 +56,233 @@ Response khi thành công (200):
   "instructions": [...]
 }
 
-Tile API Key (để hiển thị bản đồ): 16069deeb411f94746f9bd2eafb5f123aabbef05c2f21740
+Tile API Key (để hiển thị bản đồ): 16069deeb411f94746f9bd2eafb5f123aabbef05c2f21740 
 Docs VietMap SDK: https://maps.vietmap.vn/docs/sdk-web-gl/map/example-map/simple-map/
+# FleetFlow – API Contract
+
+> Base URL: `http://localhost:8080/fleetflow/api/v1`
+> Auth: `Authorization: Bearer <token>`
+
+---
+
+## AUTH
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+---
+
+## CUSTOMER
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+---
+
+## DRIVER
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+---
+
+## DISPATCHER
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+---
+
+## ADMIN
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+---
+
+## TECHNICIAN
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
+
+- Path:
+- Input:
+- Output:
