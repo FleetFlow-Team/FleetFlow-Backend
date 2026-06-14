@@ -33,12 +33,12 @@ public class AccountDAO {
     private static final String INSERT_IDENTITY_DOC = "INSERT INTO IdentityDocument (OwnerAccountID, OwnerType, DocType, NationalID, SecureFileUrl, Status, UploadedAt) VALUES (?, 'Driver', ?, NULL, ?, 'Pending', ?)";
     private static final String REUPLOAD_BOTH_DOCUMENTS = "UPDATE IdentityDocument SET SecureFileUrl = ?, Status = 'Pending', UploadedAt = ? WHERE OwnerAccountID = ? AND DocType = ?";
     // SỬA LẠI: Thêm điều kiện bắt buộc file ảnh phải tồn tại thực tế
-private static final String COUNT_DRIVER_DOCUMENTS = 
-    "SELECT COUNT(DISTINCT DocType) FROM IdentityDocument " +
-    "WHERE OwnerAccountID = ? AND DocType IN ('NationalID', 'DriverLicense') " +
-    "AND SecureFileUrl IS NOT NULL AND SecureFileUrl <> ''";
-    
-private static final String GET_DRIVER_PROFILE
+    private static final String COUNT_DRIVER_DOCUMENTS
+            = "SELECT COUNT(DISTINCT DocType) FROM IdentityDocument "
+            + "WHERE OwnerAccountID = ? AND DocType IN ('NationalID', 'DriverLicense') "
+            + "AND SecureFileUrl IS NOT NULL AND SecureFileUrl <> ''";
+
+    private static final String GET_DRIVER_PROFILE
             = "SELECT a.AccountID, a.Email, a.FullName, a.PhoneNumber, "
             + "       d.DriverID, d.ApprovalStatus, d.AvailabilityStatus, d.AverageRating, d.WalletBalance, d.terms_accepted, "
             + "       i.DocumentID, i.DocType, i.SecureFileUrl, i.Status AS DocStatus "
@@ -46,12 +46,29 @@ private static final String GET_DRIVER_PROFILE
             + "LEFT JOIN Driver d ON a.AccountID = d.AccountID "
             + "LEFT JOIN IdentityDocument i ON a.AccountID = i.OwnerAccountID "
             + "WHERE a.AccountID = ? AND a.RoleName = 'Driver'";
-    private static final String CHECK_DOC_TYPE_EXIST = "SELECT 1 FROM IdentityDocument WHERE OwnerAccountID = ? AND DocType = ?";
+
+    
+   private static final String CHECK_DOC_TYPE_EXIST = "SELECT 1 FROM IdentityDocument WHERE OwnerAccountID = ? AND DocType = ?";
+
+// 🚀 1. Lấy DriverID từ AccountID (Rất quan trọng vì bảng Earning dùng DriverID)
+private static final String GET_DRIVER_STATUS_AND_ID = 
+    "SELECT DriverID, ApprovalStatus, AvailabilityStatus FROM Driver WHERE AccountID = ?";
+
+// 🚀 2. Tính tổng thu nhập thực nhận (NetAmount) từ các cuốc chạy thành công (Trip)
+private static final String DRIVER_TOTAL_EARNINGS = 
+    "SELECT SUM(NetAmount) FROM DriverEarning WHERE DriverID = ? AND EarningType = 'Trip'";
+
+// 🚀 3. Đếm tổng số chuyến đi đã hoàn thành thành công
+private static final String DRIVER_COMPLETED_TRIPS = 
+    "SELECT COUNT(*) FROM DriverEarning WHERE DriverID = ? AND EarningType = 'Trip'";
+
+// 🚀 4. Tính tổng số tiền được đền bù khi khách hủy chuyến sát giờ (CancellationCompensation)
+private static final String DRIVER_CANCELLATION_COMPENSATION = 
+    "SELECT SUM(NetAmount) FROM DriverEarning WHERE DriverID = ? AND EarningType = 'CancellationCompensation'";
 
     // =========================================================================
     // ======================== PHÂN HỆ XỬ LÝ LOGIC NGHIỆP VỤ =========================
     // =========================================================================
-
     public Account checkLogin(String email, String password) throws SQLException {
         Account account = null;
         Connection conn = null;
@@ -155,7 +172,7 @@ private static final String GET_DRIVER_PROFILE
         return isExist;
     }
 
-    public boolean updatePassword(String email, String newPassword) throws SQLException {
+    public boolean updatePassword(String email, String newHashedPassword) throws SQLException {
         boolean isUpdated = false;
         Connection conn = null;
         PreparedStatement ptm = null;
@@ -163,7 +180,7 @@ private static final String GET_DRIVER_PROFILE
             conn = DbUtils.getConnection();
             if (conn != null) {
                 ptm = conn.prepareStatement(UPDATE_PASSWORD);
-                ptm.setString(1, newPassword);
+                ptm.setString(1, newHashedPassword);
                 ptm.setTimestamp(2, new Timestamp(System.currentTimeMillis()));
                 ptm.setString(3, email);
 
@@ -768,4 +785,77 @@ private static final String GET_DRIVER_PROFILE
         }
         return isExist;
     }
+
+public Map<String, Object> getDriverDashboardMetrics(int accountId) throws SQLException {
+    Map<String, Object> metrics = new HashMap<>();
+    Connection conn = null;
+    PreparedStatement ptm = null;
+    ResultSet rs = null;
+    
+    try {
+        conn = DbUtils.getConnection();
+        if (conn != null) {
+            int driverId = -1;
+
+            // BƯỚC 1: Lấy ID và các trạng thái của tài xế từ bảng Driver dựa vào AccountID
+            ptm = conn.prepareStatement(GET_DRIVER_STATUS_AND_ID);
+            ptm.setInt(1, accountId);
+            rs = ptm.executeQuery();
+            if (rs.next()) {
+                driverId = rs.getInt("DriverID");
+                // 🎯 Đẩy thêm trạng thái vào Map trả về cho Frontend
+                metrics.put("approvalStatus", rs.getString("ApprovalStatus"));     // Trạng thái duyệt hồ sơ
+                metrics.put("availabilityStatus", rs.getString("AvailabilityStatus")); // Trạng thái trực tuyến nhận chuyến
+            }
+            rs.close(); ptm.close();
+
+            // Nếu không tìm thấy thông tin tài xế
+            if (driverId == -1) {
+                return null; 
+            }
+
+            // BƯỚC 2: Bốc dữ liệu tài chính từ bảng DriverEarning
+            
+            // 2.1. Tính tổng tiền từ các chuyến đi thành công
+            ptm = conn.prepareStatement(DRIVER_TOTAL_EARNINGS);
+            ptm.setInt(1, driverId);
+            rs = ptm.executeQuery();
+            if (rs.next()) {
+                metrics.put("totalEarnings", rs.getDouble(1));
+            } else {
+                metrics.put("totalEarnings", 0.0);
+            }
+            rs.close(); ptm.close();
+
+            // 2.2. Đếm số chuyến chạy thành công
+            ptm = conn.prepareStatement(DRIVER_COMPLETED_TRIPS);
+            ptm.setInt(1, driverId);
+            rs = ptm.executeQuery();
+            if (rs.next()) {
+                metrics.put("completedTrips", rs.getInt(1));
+            } else {
+                metrics.put("completedTrips", 0);
+            }
+            rs.close(); ptm.close();
+
+            // 2.3. Tính tổng tiền đền bù hủy chuyến
+            ptm = conn.prepareStatement(DRIVER_CANCELLATION_COMPENSATION);
+            ptm.setInt(1, driverId);
+            rs = ptm.executeQuery();
+            if (rs.next()) {
+                metrics.put("cancellationCompensation", rs.getDouble(1));
+            } else {
+                metrics.put("cancellationCompensation", 0.0);
+            }
+        }
+    } catch (Exception e) {
+        e.printStackTrace();
+        throw new SQLException("Error at getDriverDashboardMetrics: " + e.getMessage());
+    } finally {
+        if (rs != null) rs.close();
+        if (ptm != null) ptm.close();
+        if (conn != null) conn.close();
+    }
+    return metrics;
+}
 }

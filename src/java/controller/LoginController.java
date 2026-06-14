@@ -10,12 +10,14 @@ import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Map;
 import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 @WebServlet("/api/v1/auth/login")
+@MultipartConfig
 public class LoginController extends HttpServlet {
 
     @Override
@@ -59,7 +61,7 @@ public class LoginController extends HttpServlet {
 
                 if (loginUser != null) {
                     apiResponse.put("success", true);
-                    apiResponse.put("message", "Login successful");
+                    apiResponse.put("message", "Login thành công");
 
                     // TRẢ THÔNG TIN USER NHƯ CŨ ĐANG CHẠY TỐT
                     Map<String, Object> userData = new HashMap<>();
