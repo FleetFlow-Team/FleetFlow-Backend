@@ -1,150 +1,64 @@
 package model;
 
-import java.sql.Timestamp;
-import model.base.BaseEntity;
-import model.base.IAuditableEntity;
+/**
+ * Model phục vụ BE-5 (danh sách xe đặt được) và BE-6 (chi tiết 1 xe).
+ * Gộp thông tin từ bảng Vehicle + VehicleType (TypeName) + danh sách Tag.
+ */
+public class Vehicle {
 
-public class Vehicle extends BaseEntity implements IAuditableEntity {
-
+    private int vehicleId;
     private int vehicleTypeId;
+    private String typeName;        // VehicleType.TypeName, vd "Xe 7 chỗ"
     private String licensePlate;
     private String chassisNumber;
     private String engineNumber;
     private String brand;
     private String model;
-    private Integer seatCount;
-    private String status;
-    private Integer accumulatedKm;
-    private int createdBy;
-    private Timestamp createdAt;
-    private Timestamp updatedAt;
+    private int seatCount;
+    private String status;          // Available / OnTrip / Maintenance / Unavailable
+    private Integer accumulatedKm;  // có thể NULL
     private String description;
+    private String tags;            // gộp tag: "Ghế da, Êm ái, Phù hợp gia đình"
 
     public Vehicle() {
     }
 
-    public Vehicle(int vehicleTypeId, String licensePlate, String chassisNumber,
-            String engineNumber, String brand, String model, Integer seatCount,
-            String status, Integer accumulatedKm, int createdBy, Timestamp createdAt, String description) {
-        this.vehicleTypeId = vehicleTypeId;
-        this.licensePlate = licensePlate;
-        this.chassisNumber = chassisNumber;
-        this.engineNumber = engineNumber;
-        this.brand = brand;
-        this.model = model;
-        this.seatCount = seatCount;
-        this.status = status;
-        this.accumulatedKm = accumulatedKm;
-        this.createdBy = createdBy;
-        this.createdAt = createdAt;
-        this.description = description;
-    }
+    public int getVehicleId() { return vehicleId; }
+    public void setVehicleId(int vehicleId) { this.vehicleId = vehicleId; }
 
-    public int getVehicleTypeId() {
-        return vehicleTypeId;
-    }
+    public int getVehicleTypeId() { return vehicleTypeId; }
+    public void setVehicleTypeId(int vehicleTypeId) { this.vehicleTypeId = vehicleTypeId; }
 
-    public void setVehicleTypeId(int vehicleTypeId) {
-        this.vehicleTypeId = vehicleTypeId;
-    }
+    public String getTypeName() { return typeName; }
+    public void setTypeName(String typeName) { this.typeName = typeName; }
 
-    public String getLicensePlate() {
-        return licensePlate;
-    }
+    public String getLicensePlate() { return licensePlate; }
+    public void setLicensePlate(String licensePlate) { this.licensePlate = licensePlate; }
 
-    public void setLicensePlate(String licensePlate) {
-        this.licensePlate = licensePlate;
-    }
+    public String getChassisNumber() { return chassisNumber; }
+    public void setChassisNumber(String chassisNumber) { this.chassisNumber = chassisNumber; }
 
-    public String getChassisNumber() {
-        return chassisNumber;
-    }
+    public String getEngineNumber() { return engineNumber; }
+    public void setEngineNumber(String engineNumber) { this.engineNumber = engineNumber; }
 
-    public void setChassisNumber(String chassisNumber) {
-        this.chassisNumber = chassisNumber;
-    }
+    public String getBrand() { return brand; }
+    public void setBrand(String brand) { this.brand = brand; }
 
-    public String getEngineNumber() {
-        return engineNumber;
-    }
+    public String getModel() { return model; }
+    public void setModel(String model) { this.model = model; }
 
-    public void setEngineNumber(String engineNumber) {
-        this.engineNumber = engineNumber;
-    }
+    public int getSeatCount() { return seatCount; }
+    public void setSeatCount(int seatCount) { this.seatCount = seatCount; }
 
-    public String getBrand() {
-        return brand;
-    }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
-    public void setBrand(String brand) {
-        this.brand = brand;
-    }
+    public Integer getAccumulatedKm() { return accumulatedKm; }
+    public void setAccumulatedKm(Integer accumulatedKm) { this.accumulatedKm = accumulatedKm; }
 
-    public String getModel() {
-        return model;
-    }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
-    public void setModel(String model) {
-        this.model = model;
-    }
-
-    public Integer getSeatCount() {
-        return seatCount;
-    }
-
-    public void setSeatCount(Integer seatCount) {
-        this.seatCount = seatCount;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public Integer getAccumulatedKm() {
-        return accumulatedKm;
-    }
-
-    public void setAccumulatedKm(Integer accumulatedKm) {
-        this.accumulatedKm = accumulatedKm;
-    }
-
-    public int getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(int createdBy) {
-        this.createdBy = createdBy;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    @Override
-    public Timestamp getCreatedAt() {
-        return createdAt;
-    }
-
-    @Override
-    public void setCreatedAt(Timestamp createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    @Override
-    public Timestamp getUpdatedAt() {
-        return updatedAt;
-    }
-
-    @Override
-    public void setUpdatedAt(Timestamp updatedAt) {
-        this.updatedAt = updatedAt;
-    }
+    public String getTags() { return tags; }
+    public void setTags(String tags) { this.tags = tags; }
 }

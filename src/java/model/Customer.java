@@ -1,81 +1,59 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package model;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
-import model.base.BaseEntity;
-import model.base.IAuditableEntity;
 
 /**
- *
- * @author User
+ * Hồ sơ khách hàng = Account (thông tin tài khoản) + Customer (thông tin khách).
+ * Dùng cho BE-3 (xem) và trả lại sau BE-4 (cập nhật).
  */
-public class Customer extends BaseEntity implements IAuditableEntity {
+public class Customer {
+
+    private int accountId;
+    private int customerId;
+    private String email;
+    private String fullName;
+    private String phoneNumber;
+    private String roleName;
+    private String status;        // Account.Status: Active / Locked
     private String address;
     private BigDecimal debtBalance;
-    private int accountId;
+    private String bookingStatus; // Customer.BookingStatus: Active / Suspended
     private Timestamp createdAt;
-    private Timestamp updatedAt;
-    
-    //constructor
-    
+
     public Customer() {
     }
 
-    public Customer(String address, BigDecimal debtBalance, int accountId, Timestamp createdAt, Timestamp updatedAt) {
-        this.address = address;
-        this.debtBalance = debtBalance;
-        this.accountId = accountId;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-    }
+    public int getAccountId() { return accountId; }
+    public void setAccountId(int accountId) { this.accountId = accountId; }
 
-    public String getAddress() {
-        return address;
-    }
+    public int getCustomerId() { return customerId; }
+    public void setCustomerId(int customerId) { this.customerId = customerId; }
 
-    public void setAddress(String address) {
-        this.address = address;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public BigDecimal getDebtBalance() {
-        return debtBalance;
-    }
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
 
-    public void setDebtBalance(BigDecimal debtBalance) {
-        this.debtBalance = debtBalance;
-    }
+    public String getPhoneNumber() { return phoneNumber; }
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
 
-    public int getAccountId() {
-        return accountId;
-    }
+    public String getRoleName() { return roleName; }
+    public void setRoleName(String roleName) { this.roleName = roleName; }
 
-    public void setAccountId(int accountId) {
-        this.accountId = accountId;
-    }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
-    
-    @Override
-    public Timestamp getCreatedAt() {
-        return createdAt;
-    }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
 
-    @Override
-    public void setCreatedAt(Timestamp createdAt) {
-        this.createdAt = createdAt;
-    }
+    public BigDecimal getDebtBalance() { return debtBalance; }
+    public void setDebtBalance(BigDecimal debtBalance) { this.debtBalance = debtBalance; }
 
-    @Override
-    public Timestamp getUpdatedAt() {
-         return updatedAt;
-    }
-    
+    public String getBookingStatus() { return bookingStatus; }
+    public void setBookingStatus(String bookingStatus) { this.bookingStatus = bookingStatus; }
 
-    @Override
-    public void setUpdatedAt(Timestamp updatedAt) {
-        this.updatedAt = updatedAt;
-    }
+    public Timestamp getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }
 }
