@@ -29,7 +29,7 @@ public class DriverController extends HttpServlet {
     private final Gson gson = new Gson();
 
     // =========================================================================
-    // 🔍 1. PHƯƠNG THỨC GET: ĐỌC DỮ LIỆU PROFILE, DASHBOARD & TRẠNG THÁI DUYỆT
+    // 🔍 1. PHƯƠNG THỨC GET: PROFILE, DASHBOARD, TRẠNG THÁI DUYỆT, VÍ & THỐNG KÊ
     // =========================================================================
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -53,13 +53,10 @@ public class DriverController extends HttpServlet {
 
             if (action != null && action.equals("/profile")) {
                 // 🔗 LINK API: /api/v1/driver/profile?accountID=xx
-                
-                // 🎯 ĐÃ CẬP NHẬT: Hứng bằng thực thể Model Driver thay vì Map lỏng lẻo
                 Driver driverData = dao.getDriverProfile(accountId);
-                
                 if (driverData != null) {
                     apiResponse.put("success", true);
-                    apiResponse.put("data", driverData); // Gson tự động phân tích Object thành chuỗi JSON
+                    apiResponse.put("data", driverData); 
                 } else {
                     apiResponse.put("success", false);
                     apiResponse.put("message", "Không tìm thấy hồ sơ tài xế hoặc tài khoản đã bị ẩn/xóa mềm.");
@@ -81,6 +78,30 @@ public class DriverController extends HttpServlet {
                     apiResponse.put("message", "Tài khoản không tồn tại thông tin tài xế hoạt động.");
                 }
             } 
+            else if (action != null && action.equals("/wallet")) {
+                // 🔗 LINK API: /api/v1/driver/wallet?accountID=xx
+                Map<String, Object> walletData = dao.getDriverWallet(accountId);
+                if (walletData != null) {
+                    apiResponse.put("success", true);
+                    apiResponse.put("data", walletData);
+                    apiResponse.put("message", "Tải thông tin số dư và trạng thái ví công nợ tài xế thành công.");
+                } else {
+                    apiResponse.put("success", false);
+                    apiResponse.put("message", "Không tìm thấy thông tin ví của tài xế này hoặc ví đã bị khóa.");
+                }
+            }
+            else if (action != null && action.equals("/income-summary")) {
+                // 🔗 LINK API MỚI: /api/v1/driver/income-summary?accountID=xx
+                Map<String, Object> incomeData = dao.getDriverIncomeSummary(accountId);
+                if (incomeData != null && !incomeData.isEmpty()) {
+                    apiResponse.put("success", true);
+                    apiResponse.put("data", incomeData);
+                    apiResponse.put("message", "Tải bảng thống kê báo cáo thu nhập tài xế thành công.");
+                } else {
+                    apiResponse.put("success", false);
+                    apiResponse.put("message", "Không tìm thấy dữ liệu báo cáo thu nhập của tài xế này.");
+                }
+            }
             else {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 apiResponse.put("success", false);
@@ -185,20 +206,15 @@ public class DriverController extends HttpServlet {
         Part cccdPart = request.getPart("identityCard");
         Part licensePart = request.getPart("driverLicense");
 
-        if ((cccdPart == null || cccdPart.getSize() == 0) && (licensePart == null || licensePart.getSize() == 0)) {
+        if (cccdPart == null || cccdPart.getSize() == 0 || licensePart == null || licensePart.getSize() == 0) {
             apiResponse.put("success", false);
-            apiResponse.put("message", "Vui lòng đính kèm ít nhất ảnh CCCD hoặc Bằng lái xe để nộp hồ sơ.");
+            apiResponse.put("message", "Hồ sơ không hợp lệ! Bắt buộc phải nộp đồng thời cả 2 loại giấy tờ: ảnh CCCD (identityCard) và ảnh Bằng lái xe (driverLicense).");
             return;
         }
 
-        if (cccdPart != null && cccdPart.getSize() > 0 && dao.isDocTypeExist(accountId, "NationalID")) {
+        if (dao.isDocTypeExist(accountId, "NationalID") || dao.isDocTypeExist(accountId, "DriverLicense")) {
             apiResponse.put("success", false);
-            apiResponse.put("message", "Bạn đã nộp ảnh CCCD (NationalID) trước đó rồi. Vui lòng đợi Admin phê duyệt, không được nộp đè.");
-            return;
-        }
-        if (licensePart != null && licensePart.getSize() > 0 && dao.isDocTypeExist(accountId, "DriverLicense")) {
-            apiResponse.put("success", false);
-            apiResponse.put("message", "Bạn đã nộp ảnh Bằng lái (DriverLicense) trước đó rồi. Vui lòng đợi Admin phê duyệt, không được nộp đè.");
+            apiResponse.put("message", "Tài khoản này đã có lịch sử nộp hồ sơ trên hệ thống. Vui lòng đợi Ban quản trị duyệt.");
             return;
         }
 
@@ -211,11 +227,8 @@ public class DriverController extends HttpServlet {
         boolean isSuccess = dao.submitDriverDocuments(accountId, cccdUrl, licenseUrl);
         if (isSuccess) {
             apiResponse.put("success", true);
-            boolean isComplete = dao.isDriverDocumentsComplete(accountId);
-            apiResponse.put("isProfileComplete", isComplete);
-            apiResponse.put("message", isComplete 
-                ? "Bạn đã nộp đầy đủ bộ hồ sơ (CCCD + Bằng lái)! Vui lòng chờ Ban quản trị kiểm tra và phê duyệt để bắt đầu nhận chuyến." 
-                : "Tải tài liệu lên thành công! Tuy nhiên hồ sơ của bạn vẫn còn thiếu giấy tờ bắt buộc. Vui lòng bổ sung đầy đủ để được xét duyệt nhận chuyến.");
+            apiResponse.put("isProfileComplete", true); 
+            apiResponse.put("message", "Bạn đã nộp đầy đủ bộ hồ sơ (CCCD + Bằng lái) thành công! Vui lòng chờ Ban quản trị hệ thống kiểm tra và phê duyệt.");
         } else {
             apiResponse.put("success", false);
             apiResponse.put("message", "Nộp hồ sơ thất bại. Nguyên nhân: Mã accountID không tồn tại trong hệ thống bảng Account.");
