@@ -206,18 +206,52 @@ Docs VietMap SDK: https://maps.vietmap.vn/docs/sdk-web-gl/map/example-map/simple
 ---
 
 ## ADMIN
-
-- Path:
+1.Xem toàn bô document cua các driver
+- Path: GET http://localhost:8080/FleetFlow/api/v1/admin/drivers/pending
 - Input:
 - Output:
-
-- Path:
+{
+    "success": true,
+    "data": [
+        {
+            "accountId": 17,
+            "fullName": "Tạ Văn Sơn",
+            "email": "sonta17@example.com",
+            "phone": "0912239087",
+            "createdAt": "2026-04-18 08:51:00.0",
+            "documents": [
+                {
+                    "docId": 15,
+                    "docType": "NationalID",
+                    "fileUrl": "https://storage.fleetflow.vn/kyc/driver17_NationalID.jpg",
+                    "status": "Pending",
+                    "uploadedAt": "2026-04-06 11:00:00.0"
+                },
+                {
+                    "docId": 16,
+                    "docType": "DriverLicense",
+                    "fileUrl": "https://storage.fleetflow.vn/kyc/driver17_DriverLicense.jpg",
+                    "status": "Pending",
+                    "uploadedAt": "2026-04-06 11:00:00.0"
+                }
+            ]
+        }
+    ]
+}
+2.Chấp nhận đơn apply của driver
+- Path: POST http://localhost:8080/FleetFlow/api/v1/admin/drivers/accountID/approve
+- Input:
+- Output:{
+    "success": true,
+    "message": "......."
+3.Reject đơn apply của driver
+- Path: POST http://localhost:8080/FleetFlow/api/v1/admin/drivers/accountID/reject
 - Input:
 - Output:
-
-- Path:
-- Input:
-- Output:
+{
+    "success": true,
+    "message": "Từ chối hồ sơ tài xế thành công"
+}
 
 - Path:
 - Input:
