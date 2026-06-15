@@ -1,7 +1,8 @@
 package controller;
 
 import com.google.gson.Gson;
-import dao.AccountDAO;
+import dao.DriverDAO; // 🚀 Sử dụng DriverDAO độc quyền cho phân hệ tài xế
+import model.Driver;   // 🚀 Import Model Driver để đồng bộ dữ liệu hướng đối tượng
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -16,7 +17,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
 
-@WebServlet("/api/v1/driver/*") // 🚀 Thâu tóm toàn bộ mọi endpoint bắt đầu bằng cấu trúc này
+@WebServlet("/api/v1/driver/*") // 🚀 Thâu tóm toàn bộ mọi endpoint của phân hệ Driver
 @MultipartConfig(
     fileSizeThreshold = 1024 * 1024 * 2,  // 2MB
     maxFileSize = 1024 * 1024 * 10,       // 10MB
@@ -28,7 +29,7 @@ public class DriverController extends HttpServlet {
     private final Gson gson = new Gson();
 
     // =========================================================================
-    // 🔍 1. PHƯƠNG THỨC GET: ĐỌC DỮ LIỆU PROFILE & DASHBOARD TÀI XẾ
+    // 🔍 1. PHƯƠNG THỨC GET: ĐỌC DỮ LIỆU PROFILE, DASHBOARD & TRẠNG THÁI DUYỆT
     // =========================================================================
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -37,9 +38,8 @@ public class DriverController extends HttpServlet {
         PrintWriter out = response.getWriter();
         Map<String, Object> apiResponse = new HashMap<>();
 
-        // Bóc tách endpoint con
         String action = request.getPathInfo();
-        AccountDAO dao = new AccountDAO();
+        DriverDAO dao = new DriverDAO(); 
 
         try {
             String accountIdParam = request.getParameter("accountID");
@@ -53,18 +53,33 @@ public class DriverController extends HttpServlet {
 
             if (action != null && action.equals("/profile")) {
                 // 🔗 LINK API: /api/v1/driver/profile?accountID=xx
-                Map<String, Object> driverData = dao.getDriverProfile(accountId);
+                
+                // 🎯 ĐÃ CẬP NHẬT: Hứng bằng thực thể Model Driver thay vì Map lỏng lẻo
+                Driver driverData = dao.getDriverProfile(accountId);
+                
                 if (driverData != null) {
                     apiResponse.put("success", true);
-                    apiResponse.put("data", driverData);
+                    apiResponse.put("data", driverData); // Gson tự động phân tích Object thành chuỗi JSON
                 } else {
                     apiResponse.put("success", false);
-                    apiResponse.put("message", "Không tìm thấy hồ sơ tài xế hoặc tài khoản không phải vai trò Driver.");
+                    apiResponse.put("message", "Không tìm thấy hồ sơ tài xế hoặc tài khoản đã bị ẩn/xóa mềm.");
                 }
             } 
             else if (action != null && action.equals("/dashboard")) {
-                // 🚀 LINK API MỚI: /api/v1/driver/dashboard?accountID=xx
+                // 🔗 LINK API: /api/v1/driver/dashboard?accountID=xx
                 handleDriverDashboard(accountId, dao, apiResponse);
+            } 
+            else if (action != null && action.equals("/approval-status")) {
+                // 🔗 LINK API: /api/v1/driver/approval-status?accountID=xx
+                Map<String, Object> approvalData = dao.getDriverApprovalDetail(accountId);
+                if (approvalData != null) {
+                    apiResponse.put("success", true);
+                    apiResponse.put("data", approvalData);
+                    apiResponse.put("message", "Tải trạng thái phê duyệt hồ sơ và lý do từ chối thành công.");
+                } else {
+                    apiResponse.put("success", false);
+                    apiResponse.put("message", "Tài khoản không tồn tại thông tin tài xế hoạt động.");
+                }
             } 
             else {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
@@ -73,7 +88,7 @@ public class DriverController extends HttpServlet {
             }
         } catch (NumberFormatException e) {
             apiResponse.put("success", false);
-            apiResponse.put("message", "Mã accountID truyền lên URL phải là ký tự số.");
+            apiResponse.put("message", "Mã accountID truyền lên URL phải là ký tự số nguyên.");
         } catch (Exception e) {
             apiResponse.put("success", false);
             apiResponse.put("message", "System Error: " + e.toString());
@@ -95,7 +110,7 @@ public class DriverController extends HttpServlet {
         Map<String, Object> apiResponse = new HashMap<>();
 
         String action = request.getPathInfo();
-        AccountDAO dao = new AccountDAO();
+        DriverDAO dao = new DriverDAO(); 
 
         try {
             String accountIdParam = request.getParameter("accountID");
@@ -109,29 +124,25 @@ public class DriverController extends HttpServlet {
 
             switch (action) {
                 case "/documents/submit":
-                    // 🔗 LINK API: /api/v1/driver/documents/submit
                     handleDocumentSubmit(request, accountId, dao, apiResponse);
                     break;
 
                 case "/documents/reupload":
-                    // 🔗 LINK API: /api/v1/driver/documents/reupload
                     handleDocumentReupload(request, accountId, dao, apiResponse);
                     break;
 
                 case "/profile/update":
-                    // 🔗 LINK API: /api/v1/driver/profile/update
                     handleProfileUpdate(request, accountId, dao, apiResponse);
                     break;
 
                 case "/terms/accept":
-                    // 🔗 LINK API: /api/v1/driver/terms/accept
                     boolean isTermsOk = dao.acceptDriverTerms(accountId);
                     if (isTermsOk) {
                         apiResponse.put("success", true);
                         apiResponse.put("message", "Tài xế đã xác nhận đồng ý điều khoản dịch vụ thành công!");
                     } else {
                         apiResponse.put("success", false);
-                        apiResponse.put("message", "Không tìm thấy tài xế tương ứng hoặc cập nhật thất bại.");
+                        apiResponse.put("message", "Không tìm thấy tài xế tương ứng hoặc tài khoản không hợp lệ.");
                     }
                     break;
 
@@ -158,19 +169,19 @@ public class DriverController extends HttpServlet {
     // 📂 3. CÁC HÀM XỬ LÝ NGHIỆP VỤ CON (SUB-LOGIC HELPER METHODS)
     // =========================================================================
 
-    private void handleDriverDashboard(int accountId, AccountDAO dao, Map<String, Object> apiResponse) throws Exception {
+    private void handleDriverDashboard(int accountId, DriverDAO dao, Map<String, Object> apiResponse) throws Exception {
         Map<String, Object> dashboardData = dao.getDriverDashboardMetrics(accountId);
         if (dashboardData != null) {
             apiResponse.put("success", true);
             apiResponse.put("data", dashboardData);
-            apiResponse.put("message", "Tải dữ liệu thống kê cá nhân tài xế thành công.");
+            apiResponse.put("message", "Tải dữ liệu thống kê cá nhân tài xế từ bảng DriverEarning thành công.");
         } else {
             apiResponse.put("success", false);
-            apiResponse.put("message", "Không thể lấy dữ liệu thống kê tài xế.");
+            apiResponse.put("message", "Không thể lấy dữ liệu thống kê tài xế (Mã tài khoản không tồn tại hoặc bị ẩn).");
         }
     }
 
-    private void handleDocumentSubmit(HttpServletRequest request, int accountId, AccountDAO dao, Map<String, Object> apiResponse) throws Exception {
+    private void handleDocumentSubmit(HttpServletRequest request, int accountId, DriverDAO dao, Map<String, Object> apiResponse) throws Exception {
         Part cccdPart = request.getPart("identityCard");
         Part licensePart = request.getPart("driverLicense");
 
@@ -207,11 +218,11 @@ public class DriverController extends HttpServlet {
                 : "Tải tài liệu lên thành công! Tuy nhiên hồ sơ của bạn vẫn còn thiếu giấy tờ bắt buộc. Vui lòng bổ sung đầy đủ để được xét duyệt nhận chuyến.");
         } else {
             apiResponse.put("success", false);
-            apiResponse.put("message", "Nộp hồ sơ thất bại. Vui lòng kiểm tra lại Account ID.");
+            apiResponse.put("message", "Nộp hồ sơ thất bại. Nguyên nhân: Mã accountID không tồn tại trong hệ thống bảng Account.");
         }
     }
 
-    private void handleDocumentReupload(HttpServletRequest request, int accountId, AccountDAO dao, Map<String, Object> apiResponse) throws Exception {
+    private void handleDocumentReupload(HttpServletRequest request, int accountId, DriverDAO dao, Map<String, Object> apiResponse) throws Exception {
         Part cccdPart = request.getPart("identityCard");
         Part licensePart = request.getPart("driverLicense");
 
@@ -230,14 +241,14 @@ public class DriverController extends HttpServlet {
         boolean isSuccess = dao.reuploadBothDocuments(accountId, cccdUrl, licenseUrl);
         if (isSuccess) {
             apiResponse.put("success", true);
-            apiResponse.put("message", "Đã tải lên lại toàn bộ hồ sơ thành công! Đang chờ Ban quản trị phê duyệt lại.");
+            apiResponse.put("message", "Đã tải lên lại toàn bộ hồ sơ thành công! Hệ thống đã reset trường lý do lỗi, đang chờ Ban quản trị duyệt lại.");
         } else {
             apiResponse.put("success", false);
             apiResponse.put("message", "Cập nhật dữ liệu thất bại. Vui lòng kiểm tra lại Account ID xem có tồn tại giấy tờ cũ không.");
         }
     }
 
-    private void handleProfileUpdate(HttpServletRequest request, int accountId, AccountDAO dao, Map<String, Object> apiResponse) throws Exception {
+    private void handleProfileUpdate(HttpServletRequest request, int accountId, DriverDAO dao, Map<String, Object> apiResponse) throws Exception {
         String fullName = request.getParameter("fullName");
         String phoneNumber = request.getParameter("phoneNumber");
         String availabilityStatus = request.getParameter("availabilityStatus");
@@ -253,10 +264,10 @@ public class DriverController extends HttpServlet {
         boolean isSuccess = dao.updateDriverProfile(accountId, fullName.trim(), phoneNumber.trim(), availabilityStatus.trim());
         if (isSuccess) {
             apiResponse.put("success", true);
-            apiResponse.put("message", "Cập nhật thông tin hồ sơ tài xế thành công!");
+            apiResponse.put("message", "Cập nhật thông tin hồ sơ và trạng thái trực tuyến tài xế thành công!");
         } else {
             apiResponse.put("success", false);
-            apiResponse.put("message", "Không tìm thấy thông tin tài xế để cập nhật.");
+            apiResponse.put("message", "Không tìm thấy thông tin tài xế hợp lệ để cập nhật.");
         }
     }
 
