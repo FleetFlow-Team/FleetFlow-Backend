@@ -23,18 +23,22 @@ public class DriverVerificationService {
 
     // BE-14: Duyệt hồ sơ
     public void approveDriver(int accountId, int adminAccountId) throws Exception {
-        if (accountId <= 0) throw new IllegalArgumentException("AccountID không hợp lệ");
+        if (accountId <= 0) {
+            throw new IllegalArgumentException("AccountID không hợp lệ");
+        }
         boolean ok = dao.approveDriver(accountId, adminAccountId);
-        if (!ok) throw new IllegalArgumentException("Driver không tồn tại hoặc không ở trạng thái PENDING_APPROVAL");
+        if (!ok) {
+            throw new IllegalArgumentException("Driver không tồn tại hoặc không ở trạng thái PENDING_APPROVAL");
+        }
     }
 
     // BE-15: Từ chối hồ sơ
     public void rejectDriver(int accountId, String rejectReason) throws Exception {
-        if (accountId <= 0) throw new IllegalArgumentException("AccountID không hợp lệ");
-        if (rejectReason == null || rejectReason.trim().isEmpty()) {
-            throw new IllegalArgumentException("Phải có lý do từ chối");
+        boolean ok = dao.rejectDriver(accountId, rejectReason);
+
+        if (!ok) {
+            throw new IllegalArgumentException(
+                    "Driver không tồn tại hoặc không ở trạng thái PENDING");
         }
-        boolean ok = dao.rejectDriver(accountId);
-        if (!ok) throw new IllegalArgumentException("Driver không tồn tại hoặc không ở trạng thái PENDING_APPROVAL");
     }
 }

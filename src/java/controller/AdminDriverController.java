@@ -19,9 +19,9 @@ import service.DriverVerificationService;
 /**
  * Admin quản lý duyệt/từ chối hồ sơ tài xế
  *
- * BE-13: GET  /api/v1/admin/drivers/pending          — danh sách driver chờ duyệt
- * BE-14: POST /api/v1/admin/drivers/{accountId}/approve — duyệt hồ sơ
- * BE-15: POST /api/v1/admin/drivers/{accountId}/reject  — từ chối hồ sơ
+ * BE-13: GET /api/v1/admin/drivers/pending — danh sách driver chờ duyệt BE-14:
+ * POST /api/v1/admin/drivers/{accountId}/approve — duyệt hồ sơ BE-15: POST
+ * /api/v1/admin/drivers/{accountId}/reject — từ chối hồ sơ
  */
 @WebServlet("/api/v1/admin/drivers/*")
 public class AdminDriverController extends HttpServlet {
@@ -74,11 +74,15 @@ public class AdminDriverController extends HttpServlet {
                     json.append("\"status\":\"").append(esc(doc.getStatus())).append("\",");
                     json.append("\"uploadedAt\":\"").append(doc.getUploadedAt()).append("\"");
                     json.append("}");
-                    if (j < docs.size() - 1) json.append(",");
+                    if (j < docs.size() - 1) {
+                        json.append(",");
+                    }
                 }
 
                 json.append("]}");
-                if (i < drivers.size() - 1) json.append(",");
+                if (i < drivers.size() - 1) {
+                    json.append(",");
+                }
             }
 
             json.append("]}");
@@ -96,8 +100,11 @@ public class AdminDriverController extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
+        request.setCharacterEncoding("UTF-8");
+
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
+
         PrintWriter out = response.getWriter();
 
         String pathInfo = request.getPathInfo(); // "/{accountId}/approve" hoặc "/{accountId}/reject"
@@ -129,12 +136,28 @@ public class AdminDriverController extends HttpServlet {
 
         // Lấy adminAccountId từ session
         HttpSession session = request.getSession(false);
+
+        System.out.println("APPROVE SESSION = " + session);
+
+        if (session != null) {
+            System.out.println("APPROVE SESSION ID = " + session.getId());
+            System.out.println("APPROVE ACCOUNT = " + session.getAttribute("account"));
+
+            java.util.Enumeration<String> names = session.getAttributeNames();
+
+            while (names.hasMoreElements()) {
+                String name = names.nextElement();
+                System.out.println("SESSION ATTR = " + name + " => " + session.getAttribute(name));
+            }
+        }
         if (session == null || session.getAttribute("account") == null) {
             response.setStatus(401);
             out.print("{\"error\": \"Chưa đăng nhập\"}");
             return;
         }
         Account adminAcc = (Account) session.getAttribute("account");
+        System.out.println("ADMIN ID = " + adminAcc.getId());
+        System.out.println("ADMIN EMAIL = " + adminAcc.getEmail());
         int adminAccountId = (int) adminAcc.getId();
 
         try {
@@ -151,7 +174,9 @@ public class AdminDriverController extends HttpServlet {
                     StringBuilder sb = new StringBuilder();
                     BufferedReader reader = request.getReader();
                     String line;
-                    while ((line = reader.readLine()) != null) sb.append(line);
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line);
+                    }
 
                     String rejectReason = "";
                     if (sb.length() > 0) {
@@ -182,7 +207,9 @@ public class AdminDriverController extends HttpServlet {
 
     // Escape ký tự đặc biệt trong JSON string
     private String esc(String s) {
-        if (s == null) return "";
+        if (s == null) {
+            return "";
+        }
         return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

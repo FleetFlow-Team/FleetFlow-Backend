@@ -15,34 +15,35 @@ import utils.DbUtils;
 public class DriverVerificationDAO {
 
     // SQL
-    private static final String GET_PENDING_DRIVERS =
-        "SELECT a.AccountID, a.FullName, a.Email, a.PhoneNumber, a.CreatedAt, " +
-        "       d.DriverID, d.ApprovalStatus " +
-        "FROM Account a " +
-        "JOIN Driver d ON d.AccountID = a.AccountID " +
-        "WHERE d.ApprovalStatus = 'PENDING' " +
-        "ORDER BY a.CreatedAt ASC";
+    private static final String GET_PENDING_DRIVERS
+            = "SELECT a.AccountID, a.FullName, a.Email, a.PhoneNumber, a.CreatedAt, "
+            + "       d.DriverID, d.ApprovalStatus "
+            + "FROM Account a "
+            + "JOIN Driver d ON d.AccountID = a.AccountID "
+            + "WHERE d.ApprovalStatus = 'PENDING' "
+            + "ORDER BY a.CreatedAt ASC";
 
-    private static final String GET_DOCS_BY_ACCOUNT =
-        "SELECT DocumentID, OwnerAccountID, DocType, SecureFileUrl, Status, UploadedAt " +
-        "FROM IdentityDocument " +
-        "WHERE OwnerAccountID = ? AND OwnerType = 'DRIVER'";
+    private static final String GET_DOCS_BY_ACCOUNT
+            = "SELECT DocumentID, OwnerAccountID, DocType, SecureFileUrl, Status, UploadedAt "
+            + "FROM IdentityDocument "
+            + "WHERE OwnerAccountID = ? AND OwnerType = 'DRIVER'";
 
-    private static final String APPROVE_DRIVER =
-        "UPDATE Driver SET ApprovalStatus = 'APPROVED', UpdatedAt = ? " +
-        "WHERE AccountID = ? AND ApprovalStatus = 'PENDING_APPROVAL'";
+    private static final String APPROVE_DRIVER
+            = "UPDATE Driver SET ApprovalStatus = 'APPROVED', UpdatedAt = ? "
+            + "WHERE AccountID = ? AND ApprovalStatus = 'PENDING'";
 
-    private static final String APPROVE_DOCS =
-        "UPDATE IdentityDocument SET Status = 'APPROVED', VerifiedAt = ?, VerifiedBy = ? " +
-        "WHERE OwnerAccountID = ? AND OwnerType = 'DRIVER'";
+    private static final String APPROVE_DOCS
+            = "UPDATE IdentityDocument SET Status = 'APPROVED', VerifiedAt = ?, VerifiedBy = ? "
+            + "WHERE OwnerAccountID = ? AND OwnerType = 'DRIVER'";
 
-    private static final String REJECT_DRIVER =
-        "UPDATE Driver SET ApprovalStatus = 'REJECTED', UpdatedAt = ? " +
-        "WHERE AccountID = ? AND ApprovalStatus = 'PENDING_APPROVAL'";
+    private static final String REJECT_DRIVER
+            = "UPDATE Driver SET ApprovalStatus = 'REJECTED', UpdatedAt = ? "
+            + "WHERE AccountID = ? AND ApprovalStatus = 'PENDING'";
 
-    private static final String REJECT_DOCS =
-        "UPDATE IdentityDocument SET Status = 'REJECTED', UpdatedAt = ? " +
-        "WHERE OwnerAccountID = ? AND OwnerType = 'DRIVER'";
+    private static final String REJECT_DOCS
+            = "UPDATE IdentityDocument "
+            + "SET Status = 'REJECTED', RejectReason = ?, UpdatedAt = ? "
+            + "WHERE OwnerAccountID = ? AND OwnerType = 'DRIVER'";
 
     // BE-13: Lấy danh sách driver PENDING kèm account info
     public List<Account> getPendingDriverAccounts() throws SQLException, ClassNotFoundException {
@@ -64,9 +65,15 @@ public class DriverVerificationDAO {
                 list.add(acc);
             }
         } finally {
-            if (rs != null) rs.close();
-            if (ps != null) ps.close();
-            if (conn != null) conn.close();
+            if (rs != null) {
+                rs.close();
+            }
+            if (ps != null) {
+                ps.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
         }
         return list;
     }
@@ -93,9 +100,15 @@ public class DriverVerificationDAO {
                 docs.add(doc);
             }
         } finally {
-            if (rs != null) rs.close();
-            if (ps != null) ps.close();
-            if (conn != null) conn.close();
+            if (rs != null) {
+                rs.close();
+            }
+            if (ps != null) {
+                ps.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
         }
         return docs;
     }
@@ -130,7 +143,9 @@ public class DriverVerificationDAO {
             conn.commit();
             return true;
         } catch (SQLException | ClassNotFoundException e) {
-            if (conn != null) conn.rollback();
+            if (conn != null) {
+                conn.rollback();
+            }
             throw e;
         } finally {
             if (conn != null) {
@@ -141,7 +156,7 @@ public class DriverVerificationDAO {
     }
 
     // BE-15: Từ chối driver — dùng transaction
-    public boolean rejectDriver(int accountId) throws SQLException, ClassNotFoundException, ClassNotFoundException {
+    public boolean rejectDriver(int accountId, String rejectReason) throws SQLException, ClassNotFoundException, ClassNotFoundException {
         Connection conn = null;
         try {
             conn = DbUtils.getConnection();
@@ -161,15 +176,17 @@ public class DriverVerificationDAO {
             }
 
             PreparedStatement psDocs = conn.prepareStatement(REJECT_DOCS);
-            psDocs.setTimestamp(1, now);
-            psDocs.setInt(2, accountId);
+            psDocs.setString(1, rejectReason);
+            psDocs.setTimestamp(2, now);
+            psDocs.setInt(3, accountId);
             psDocs.executeUpdate();
-            psDocs.close();
 
             conn.commit();
             return true;
         } catch (SQLException | ClassNotFoundException e) {
-            if (conn != null) conn.rollback();
+            if (conn != null) {
+                conn.rollback();
+            }
             throw e;
         } finally {
             if (conn != null) {
