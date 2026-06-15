@@ -20,7 +20,7 @@ public class DriverVerificationDAO {
         "       d.DriverID, d.ApprovalStatus " +
         "FROM Account a " +
         "JOIN Driver d ON d.AccountID = a.AccountID " +
-        "WHERE d.ApprovalStatus = 'PENDING_APPROVAL' " +
+        "WHERE d.ApprovalStatus = 'PENDING' " +
         "ORDER BY a.CreatedAt ASC";
 
     private static final String GET_DOCS_BY_ACCOUNT =
