@@ -44,10 +44,7 @@
         <servlet-name>RegisterController</servlet-name>
         <servlet-class>controller.RegisterController</servlet-class>
     </servlet>
-    <servlet>
-        <servlet-name>DeleteAccountContoller</servlet-name>
-        <servlet-class>controller.DeleteAccountContoller</servlet-class>
-    </servlet>
+
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -92,10 +89,7 @@
         <servlet-name>RegisterController</servlet-name>
         <url-pattern>/RegisterController</url-pattern>
     </servlet-mapping>
-    <servlet-mapping>
-        <servlet-name>DeleteAccountContoller</servlet-name>
-        <url-pattern>/DeleteAccountContoller</url-pattern>
-    </servlet-mapping>
+
     <session-config>
         <session-timeout>30</session-timeout>
     </session-config>
