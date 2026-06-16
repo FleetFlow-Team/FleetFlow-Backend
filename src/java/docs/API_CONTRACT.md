@@ -246,7 +246,7 @@ Docs VietMap SDK: https://maps.vietmap.vn/docs/sdk-web-gl/map/example-map/simple
     "message": "......."
 3.Reject đơn apply của driver
 - Path: POST http://localhost:8080/FleetFlow/api/v1/admin/drivers/accountID/reject
-- Input:
+- Input: RejectReason: string
 - Output:
 {
     "success": true,
