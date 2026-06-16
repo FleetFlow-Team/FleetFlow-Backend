@@ -82,27 +82,140 @@ Docs VietMap SDK: https://maps.vietmap.vn/docs/sdk-web-gl/map/example-map/simple
 ---
 
 ## CUSTOMER
-
-- Path:
+Customer tạo đơn đặt xe
+- Path: POST http://localhost:8080/FleetFlow/api/v1/bookings
+- Input:
+{
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "DISTANCE",
+  "tripDirection": "ONE_WAY",
+  "pickupAddress": "123 Nguyễn Huệ Quận 1 HCM",
+  "pickupLat": 10.776,
+  "pickupLng": 106.700,
+  "dropoffAddress": "Vũng Tàu",
+  "dropoffLat": 10.346,
+  "dropoffLng": 107.084,
+  "departureTime": "2026-07-20T08:00:00"
+}
+- Output:
+{
+    "success": true,
+    "bookingId": 22,
+    "status": "PENDING",
+    "message": "Đặt xe thành công, chờ Dispatcher duyệt"
+}
+Xem chi tiết đơn booking của customer
+- Path: GET http://localhost:8080/FleetFlow/api/v1/bookings/22
 - Input:
 - Output:
-
-- Path:
+{
+    "bookingId": 22,
+    "customerId": 1,
+    "vehicleId": 1,
+    "bookingType": "DISTANCE",
+    "tripDirection": "ONE_WAY",
+    "status": "PENDING",
+    "detail": {
+        "pickupAddress": string,
+        "pickupLat": 10.776000,
+        "pickupLng": 106.700000,
+        "dropoffAddress": string,
+        "dropoffLat": 10.346000,
+        "dropoffLng": 107.084000,
+        "departureTime": "2026-07-20 08:00:00.0"
+    }
+}
+Xem lịch sử booking
+- Path: GET http://localhost:8080/FleetFlow/api/v1/customer/bookings?customerId=1
 - Input:
+    customerId
 - Output:
-
-- Path:
+{
+    "success": true,
+    "data": [
+        {
+            "bookingId": 21,
+            "vehicleId": 1,
+            "vehicleName": "Toyota Vios",
+            "licensePlate": "51B-111.37",
+            "bookingType": "DISTANCE",
+            "tripDirection": "ONE_WAY",
+            "status": "PENDING",
+            "pickupAddress": string,
+            "dropoffAddress": string,
+            "departureTime": "2026-07-15 08:00:00.0",
+            "distanceKm": 94.60,
+            "createdAt": "2026-06-10 20:59:45.463"
+        },
+        {
+            "bookingId": 13,
+            "vehicleId": 1,
+            "vehicleName": "Toyota Vios",
+            "licensePlate": "51B-111.37",
+            "bookingType": "Distance",
+            "tripDirection": "OneWay",
+            "status": "Completed",
+            "pickupAddress": "82 Lê Lợi, Quận 3, TP.HCM",
+            "dropoffAddress": "193 Nguyễn Thị Minh Khai, Quận 10, TP.HCM",
+            "departureTime": "2026-05-15 10:05:00.0",
+            "distanceKm": 258.40,
+            "createdAt": "2026-05-14 10:05:00.0"
+        },
+        {
+            "bookingId": 1,
+            "vehicleId": 1,
+            "vehicleName": "Toyota Vios",
+            "licensePlate": "51B-111.37",
+            "bookingType": "Distance",
+            "tripDirection": "OneWay",
+            "status": "Completed",
+            "pickupAddress": "38 Lê Lợi, Quận 3, TP.HCM",
+            "dropoffAddress": "149 Nguyễn Thị Minh Khai, Quận 10, TP.HCM",
+            "departureTime": "2026-05-03 08:05:00.0",
+            "distanceKm": 50.80,
+            "createdAt": "2026-05-02 08:05:00.0"
+        }
+    ]
+}
+Tính cước phí chuyến đi
+- Path: POST http://localhost:8080/FleetFlow/api/v1/customer/bookings/check-price
 - Input:
+{
+  "vehicleId": 1,
+  "bookingType": "DISTANCE",
+  "tripDirection": "ONE_WAY",
+  "distanceKm": 120.5,
+  "durationHours": 0,
+  "durationDays": 0,
+  "departureTime": "2026-07-20T08:00:00"
+}
 - Output:
-
-- Path:
+{
+    "success": true,
+    "ruleId": 1,
+    "baseFare": 1857500.000,
+    "weekendSurcharge": 0,
+    "estimatedTotal": 1857500.000,
+    "deposit30Percent": 557250
+}
+Áp mã voucher
+- Path: POST http://localhost:8080/FleetFlow/api/v1/customer/vouchers/apply
 - Input:
+{
+  "code": "HE2026",
+  "customerId": 1,
+  "estimatedTotal": 1857500,
+  "vehicleTypeId": 1
+}
 - Output:
-
-- Path:
-- Input:
-- Output:
-
+{
+    "success": true,
+    "voucherId": 1,
+    "code": "HE2026",
+    "discountAmount": 20.00,
+    "finalTotal": 1857480.00
+}
 - Path:
 - Input:
 - Output:

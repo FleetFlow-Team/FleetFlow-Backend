@@ -26,7 +26,7 @@ public class BookingController extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-
+        request.setCharacterEncoding("UTF-8");
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
@@ -91,28 +91,18 @@ public class BookingController extends HttpServlet {
     }
 
     /**
-     * POST /api/v1/bookings — tạo booking mới
-     * Request body (JSON):
-     * {
-     *   "customerId": 1,
-     *   "vehicleId": 3,
-     *   "voucherId": null,
-     *   "bookingType": "DISTANCE",
-     *   "tripDirection": "ONE_WAY",
-     *   "pickupAddress": "123 Nguyễn Huệ, Q1, HCM",
-     *   "pickupLat": 10.776,
-     *   "pickupLng": 106.700,
-     *   "dropoffAddress": "Vũng Tàu",
-     *   "dropoffLat": 10.346,
-     *   "dropoffLng": 107.084,
-     *   "departureTime": "2026-06-15T08:00:00",
-     *   "returnTime": null
-     * }
+     * POST /api/v1/bookings — tạo booking mới Request body (JSON): {
+     * "customerId": 1, "vehicleId": 3, "voucherId": null, "bookingType":
+     * "DISTANCE", "tripDirection": "ONE_WAY", "pickupAddress": "123 Nguyễn Huệ,
+     * Q1, HCM", "pickupLat": 10.776, "pickupLng": 106.700, "dropoffAddress":
+     * "Vũng Tàu", "dropoffLat": 10.346, "dropoffLng": 107.084, "departureTime":
+     * "2026-06-15T08:00:00", "returnTime": null }
      */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
+        request.setCharacterEncoding("UTF-8");
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
@@ -131,14 +121,14 @@ public class BookingController extends HttpServlet {
             // Parse các field bắt buộc
             int customerId = body.get("customerId").getAsInt();
             int vehicleId = body.get("vehicleId").getAsInt();
-            String bookingType   = body.get("bookingType").getAsString();
+            String bookingType = body.get("bookingType").getAsString();
             String tripDirection = body.get("tripDirection").getAsString();
-            String pickupAddress  = body.get("pickupAddress").getAsString();
-            double pickupLat      = body.get("pickupLat").getAsDouble();
-            double pickupLng      = body.get("pickupLng").getAsDouble();
+            String pickupAddress = body.get("pickupAddress").getAsString();
+            double pickupLat = body.get("pickupLat").getAsDouble();
+            double pickupLng = body.get("pickupLng").getAsDouble();
             String dropoffAddress = body.get("dropoffAddress").getAsString();
-            double dropoffLat     = body.get("dropoffLat").getAsDouble();
-            double dropoffLng     = body.get("dropoffLng").getAsDouble();
+            double dropoffLat = body.get("dropoffLat").getAsDouble();
+            double dropoffLng = body.get("dropoffLng").getAsDouble();
             String departureTimeStr = body.get("departureTime").getAsString();
 
             // Parse optional fields
@@ -150,22 +140,22 @@ public class BookingController extends HttpServlet {
             Timestamp returnTime = null;
             if (body.has("returnTime") && !body.get("returnTime").isJsonNull()) {
                 returnTime = Timestamp.valueOf(
-                    body.get("returnTime").getAsString().replace("T", " ")
+                        body.get("returnTime").getAsString().replace("T", " ")
                 );
             }
 
             // Parse departureTime
             Timestamp departureTime = Timestamp.valueOf(
-                departureTimeStr.replace("T", " ")
+                    departureTimeStr.replace("T", " ")
             );
 
             // Gọi BookingService — validate maps + insert DB
             long bookingId = bookingService.createBooking(
-                customerId, vehicleId, voucherId,
-                bookingType, tripDirection,
-                pickupAddress, pickupLat, pickupLng,
-                dropoffAddress, dropoffLat, dropoffLng,
-                departureTime, returnTime
+                    customerId, vehicleId, voucherId,
+                    bookingType, tripDirection,
+                    pickupAddress, pickupLat, pickupLng,
+                    dropoffAddress, dropoffLat, dropoffLng,
+                    departureTime, returnTime
             );
 
             // Trả về response thành công
@@ -186,12 +176,13 @@ public class BookingController extends HttpServlet {
     }
 
     /**
-     * PATCH /api/v1/bookings/{id}/status — cập nhật trạng thái
-     * Body: { "status": "APPROVED" }
+     * PATCH /api/v1/bookings/{id}/status — cập nhật trạng thái Body: {
+     * "status": "APPROVED" }
      */
     protected void doPatch(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
+        request.setCharacterEncoding("UTF-8");
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
