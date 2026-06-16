@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import dao.AccountDAO;
 import model.Account;
 import utils.JwtUtils; // Đảm bảo import đúng
-
+import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
@@ -60,6 +60,14 @@ public class LoginController extends HttpServlet {
                 Account loginUser = dao.checkLogin(email.trim(), password.trim());
 
                 if (loginUser != null) {
+
+                    // TẠO SESSION
+                    HttpSession session = request.getSession();
+                    session.setAttribute("account", loginUser);
+                    System.out.println("LOGIN ACCOUNT ID = " + loginUser.getId());
+                    System.out.println("LOGIN ACCOUNT EMAIL = " + loginUser.getEmail());
+                    System.out.println("Session ID: " + session.getId());
+                    System.out.println("Account saved: " + session.getAttribute("account"));
                     apiResponse.put("success", true);
                     apiResponse.put("message", "Login thành công");
 
@@ -70,15 +78,21 @@ public class LoginController extends HttpServlet {
                     userData.put("roleName", loginUser.getRoleName());
                     apiResponse.put("user", userData);
 
-                    // BỌC RIÊNG LUỒNG TOKEN: Nếu thiếu thư viện Jackson, Postman sẽ báo lỗi Token luôn chứ không sập 404
                     try {
-                        String accessToken = JwtUtils.generateAccessToken(loginUser.getEmail(), loginUser.getRoleName());
-                        String refreshToken = JwtUtils.generateRefreshToken(loginUser.getEmail());
-                        
+                        String accessToken = JwtUtils.generateAccessToken(
+                                loginUser.getEmail(),
+                                loginUser.getRoleName());
+
+                        String refreshToken = JwtUtils.generateRefreshToken(
+                                loginUser.getEmail());
+
                         apiResponse.put("accessToken", accessToken);
                         apiResponse.put("refreshToken", refreshToken);
+
                     } catch (Throwable t) {
-                        apiResponse.put("token_error", "Không thể tạo token do thiếu thư viện Jackson: " + t.getMessage());
+                        apiResponse.put("token_error",
+                                "Không thể tạo token do thiếu thư viện Jackson: "
+                                + t.getMessage());
                     }
 
                 } else {

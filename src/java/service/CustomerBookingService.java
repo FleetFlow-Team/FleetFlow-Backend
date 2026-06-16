@@ -1,0 +1,226 @@
+package service;
+
+import model.Booking;
+import dao.CustomerBookingDAO;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.sql.Timestamp;
+import java.util.Calendar;
+import java.util.List;
+import dao.CustomerBookingDAO.BookingRow;
+import model.PricingRule;
+import model.Voucher;
+
+public class CustomerBookingService {
+
+    private final CustomerBookingDAO dao = new CustomerBookingDAO();
+
+    // ===================== BE-23: Lịch sử đặt xe =====================
+    public List<BookingRow> getBookingHistory(int customerId) throws Exception {
+        return dao.getBookingsByCustomerId(customerId);
+    }
+
+    // ===================== BE-25: Cancel + tính phạt =====================
+    // Logic phạt:
+    // Hủy trước >= 24h  → không phạt (0%)
+    // Hủy trước 12-24h  → phạt 30%
+    // Hủy trước < 12h   → phạt 50%
+    // Booking đang COMPLETED/CANCELLED → không cho hủy
+    public CancelResult cancelBooking(int bookingId, int customerId, String reason) throws Exception {
+        Booking booking = dao.findBookingById(bookingId);
+        if (booking == null) {
+            throw new IllegalArgumentException("Không tìm thấy booking");
+        }
+        if (booking.getCustomerId() != customerId) {
+            throw new IllegalArgumentException("Booking không thuộc customer này");
+        }
+        if ("CANCELLED".equals(booking.getStatus()) || "COMPLETED".equals(booking.getStatus())) {
+            throw new IllegalArgumentException("Booking đã " + booking.getStatus() + ", không thể hủy");
+        }
+
+        // Lấy departureTime từ note (đã gắn trong DAO)
+        Timestamp departureTime = null;
+        String note = booking.getNote();
+        if (note != null && note.contains("departureTime=")) {
+            String dtStr = note.replace("departureTime=", "").trim();
+            if (!"null".equals(dtStr)) {
+                departureTime = Timestamp.valueOf(dtStr);
+            }
+        }
+
+        // Tính phạt
+        int penaltyPercent = 0;
+        if (departureTime != null) {
+            long now = System.currentTimeMillis();
+            long hoursUntilDeparture = (departureTime.getTime() - now) / (1000 * 60 * 60);
+            if (hoursUntilDeparture >= 24) {
+                penaltyPercent = 0;
+            } else if (hoursUntilDeparture >= 12) {
+                penaltyPercent = 30;
+            } else {
+                penaltyPercent = 50;
+            }
+        }
+
+        // Tính tiền phạt dựa trên estimated total từ BookingPricing nếu có
+        // Tạm tính phạt = 0 nếu chưa có giá xác nhận
+        BigDecimal penaltyAmount = BigDecimal.ZERO;
+
+        dao.cancelBookingWithPenalty(bookingId, customerId, penaltyPercent, penaltyAmount, reason);
+
+        return new CancelResult(bookingId, penaltyPercent, penaltyAmount);
+    }
+
+    public static class CancelResult {
+
+        public final int bookingId;
+        public final int penaltyPercent;
+        public final BigDecimal penaltyAmount;
+
+        public CancelResult(int bookingId, int penaltyPercent, BigDecimal penaltyAmount) {
+            this.bookingId = bookingId;
+            this.penaltyPercent = penaltyPercent;
+            this.penaltyAmount = penaltyAmount;
+        }
+    }
+
+    // ===================== BE-26: Tính giá ước tính =====================
+    public PriceResult checkPrice(int vehicleId, String bookingType, String tripDirection,
+            double distanceKm, int durationHours, int durationDays,
+            Timestamp departureTime) throws Exception {
+
+        PricingRule rule = dao.getPricingRule(vehicleId, bookingType, tripDirection);
+        if (rule == null) {
+            throw new IllegalArgumentException("Không tìm thấy bảng giá cho xe và loại booking này");
+        }
+
+        BigDecimal base = rule.getBasePrice() != null ? rule.getBasePrice() : BigDecimal.ZERO;
+        BigDecimal fare = BigDecimal.ZERO;
+
+        switch (bookingType) {
+            case "DISTANCE":
+            case "INNER_CITY":
+            case "INTER_CITY":
+                if (rule.getPricePerKm() != null) {
+                    fare = rule.getPricePerKm().multiply(BigDecimal.valueOf(distanceKm));
+                }
+                break;
+            case "HOURLY":
+                if (rule.getPricePerHour() != null) {
+                    fare = rule.getPricePerHour().multiply(BigDecimal.valueOf(durationHours));
+                }
+                break;
+            case "DAILY":
+                if (rule.getPricePerDay() != null) {
+                    fare = rule.getPricePerDay().multiply(BigDecimal.valueOf(durationDays));
+                }
+                break;
+        }
+
+        BigDecimal baseFare = base.add(fare);
+
+        // Check weekend surcharge
+        BigDecimal weekendSurcharge = BigDecimal.ZERO;
+        if (departureTime != null && rule.getWeekendMultiplier() != null) {
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(departureTime);
+            int dow = cal.get(Calendar.DAY_OF_WEEK);
+            if (dow == Calendar.SATURDAY || dow == Calendar.SUNDAY) {
+                weekendSurcharge = baseFare.multiply(
+                        rule.getWeekendMultiplier().subtract(BigDecimal.ONE)
+                ).setScale(0, RoundingMode.HALF_UP);
+            }
+        }
+
+        BigDecimal estimatedTotal = baseFare.add(weekendSurcharge);
+        BigDecimal deposit = estimatedTotal.multiply(new BigDecimal("0.30"))
+                .setScale(0, RoundingMode.HALF_UP);
+
+        return new PriceResult(rule.getId(), baseFare, weekendSurcharge, estimatedTotal, deposit);
+    }
+
+    public static class PriceResult {
+
+        public final int ruleId;
+        public final BigDecimal baseFare;
+        public final BigDecimal weekendSurcharge;
+        public final BigDecimal estimatedTotal;
+        public final BigDecimal deposit30Percent;
+
+        public PriceResult(int ruleId, BigDecimal baseFare, BigDecimal weekendSurcharge,
+                BigDecimal estimatedTotal, BigDecimal deposit30Percent) {
+            this.ruleId = ruleId;
+            this.baseFare = baseFare;
+            this.weekendSurcharge = weekendSurcharge;
+            this.estimatedTotal = estimatedTotal;
+            this.deposit30Percent = deposit30Percent;
+        }
+    }
+
+    // ===================== BE-27: Apply Voucher =====================
+    public VoucherResult applyVoucher(String code, int customerId,
+            BigDecimal estimatedTotal, int vehicleTypeId) throws Exception {
+
+        Voucher voucher = dao.findVoucherByCode(code);
+        if (voucher == null) {
+            throw new IllegalArgumentException("Mã voucher không hợp lệ hoặc đã hết hạn");
+        }
+
+        // Check min booking value
+        if (voucher.getMinBookingValue() != null
+                && estimatedTotal.compareTo(voucher.getMinBookingValue()) < 0) {
+            throw new IllegalArgumentException(
+                    "Đơn hàng tối thiểu " + voucher.getMinBookingValue() + "đ để dùng voucher này");
+        }
+
+        // Check applicable vehicle type
+        if (voucher.getApplicableVehicleTypeId() != 0
+                && voucher.getApplicableVehicleTypeId() != vehicleTypeId) {
+            throw new IllegalArgumentException("Voucher không áp dụng cho loại xe này");
+        }
+
+        // Check max usage per user
+        if (voucher.getMaxUsagePerUser() != null) {
+            int used = dao.countVoucherUsageByCustomer(voucher.getId(), customerId);
+            System.out.println("DEBUG voucherId=" + voucher.getId() + " customerId=" + customerId + " used=" + used + " max=" + voucher.getMaxUsagePerUser());
+            if (used >= voucher.getMaxUsagePerUser()) {
+                throw new IllegalArgumentException("Bạn đã dùng voucher này đủ số lần tối đa");
+            }
+        }
+
+        // Tính discount
+        BigDecimal discount;
+        if ("PERCENT".equals(voucher.getDiscountType())) {
+            discount = estimatedTotal.multiply(voucher.getDiscountValue())
+                    .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
+            if (voucher.getMaxDiscountAmount() != null
+                    && discount.compareTo(voucher.getMaxDiscountAmount()) > 0) {
+                discount = voucher.getMaxDiscountAmount();
+            }
+        } else {
+            // FIXED
+            discount = voucher.getDiscountValue();
+        }
+
+        BigDecimal finalTotal = estimatedTotal.subtract(discount).max(BigDecimal.ZERO);
+
+        return new VoucherResult(voucher.getId(), voucher.getCode(),
+                discount, finalTotal);
+    }
+
+    public static class VoucherResult {
+
+        public final int voucherId;
+        public final String code;
+        public final BigDecimal discountAmount;
+        public final BigDecimal finalTotal;
+
+        public VoucherResult(int voucherId, String code,
+                BigDecimal discountAmount, BigDecimal finalTotal) {
+            this.voucherId = voucherId;
+            this.code = code;
+            this.discountAmount = discountAmount;
+            this.finalTotal = finalTotal;
+        }
+    }
+}

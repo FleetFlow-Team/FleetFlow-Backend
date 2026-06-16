@@ -137,7 +137,7 @@ public class BookingDAO {
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                return "AVAILABLE".equals(rs.getString("Status"));
+                return "AVAILABLE".equalsIgnoreCase(rs.getString("Status"));
             }
             return false;
         }
@@ -200,7 +200,7 @@ public class BookingDAO {
 
     private Booking mapBooking(ResultSet rs) throws SQLException {
         Booking b = new Booking();
-        b.setId((long) rs.getInt("BookingID"));
+        b.setId((int) rs.getInt("BookingID"));
         b.setCustomerId(rs.getInt("CustomerID"));
         b.setVehicleId(rs.getInt("VehicleID"));
 
@@ -216,7 +216,7 @@ public class BookingDAO {
 
     private BookingDetail mapBookingDetail(ResultSet rs) throws SQLException {
         BookingDetail d = new BookingDetail();
-        d.setId((long) rs.getInt("DetailID"));
+        d.setId((int) rs.getInt("DetailID"));
         d.setBookingId(rs.getInt("BookingID"));
         d.setPickupAddress(rs.getString("PickupAddress"));
         d.setPickupLat(rs.getBigDecimal("PickupLat"));

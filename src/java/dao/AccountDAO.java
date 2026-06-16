@@ -5,13 +5,15 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.HashMap;
+import java.util.Map;
 import model.Account;
 import utils.DbUtils;
 
 public class AccountDAO {
 
     // =========================================================================
-    // ==================== SQL FORM QUẢN LÝ TÀI KHOẢN CHUNG ====================
+    // ================== TOÀN BỘ FORM SQL ĐƯỢC QUY QUẨN LÊN ĐẦU CLASS ==================
     // =========================================================================
     private static final String LOGIN = "SELECT * FROM Account WHERE Email=? AND PasswordHash=?";
     private static final String CHECK_EMAIL = "SELECT Email FROM Account WHERE Email = ?";
@@ -27,7 +29,7 @@ public class AccountDAO {
 
 
     // =========================================================================
-    // ======================== LOGIC NGHIỆP VỤ HỆ THỐNG =========================
+    // ======================== PHÂN HỆ XỬ LÝ LOGIC NGHIỆP VỤ =========================
     // =========================================================================
     public Account checkLogin(String email, String password) throws SQLException {
         Account account = null;
@@ -43,6 +45,7 @@ public class AccountDAO {
                 rs = ptm.executeQuery();
 
                 if (rs.next()) {
+                    int accountId = rs.getInt("AccountID");
                     String roleName = rs.getString("RoleName");
                     String userEmail = rs.getString("Email");
                     String fullName = rs.getString("FullName");
@@ -52,9 +55,14 @@ public class AccountDAO {
                     Timestamp updatedAt = rs.getTimestamp("UpdatedAt");
 
                     account = new Account(roleName, userEmail, "***", fullName, phoneNumber, status, createdAt, updatedAt);
+                    account.setId(accountId);
                 } else {
-                    if (rs != null) rs.close();
-                    if (ptm != null) ptm.close();
+                    if (rs != null) {
+                        rs.close();
+                    }
+                    if (ptm != null) {
+                        ptm.close();
+                    }
 
                     String backupQuery = "SELECT * FROM Account WHERE Email = ?";
                     ptm = conn.prepareStatement(backupQuery);
@@ -63,8 +71,10 @@ public class AccountDAO {
 
                     if (rs.next()) {
                         String dbHashedPassword = rs.getString("PasswordHash");
+
                         if (dbHashedPassword != null && dbHashedPassword.startsWith("$2a$")) {
                             if (utils.PasswordUtils.checkPassword(password, dbHashedPassword)) {
+                                int accountId = rs.getInt("AccountID");
                                 String roleName = rs.getString("RoleName");
                                 String userEmail = rs.getString("Email");
                                 String fullName = rs.getString("FullName");
@@ -74,6 +84,7 @@ public class AccountDAO {
                                 Timestamp updatedAt = rs.getTimestamp("UpdatedAt");
 
                                 account = new Account(roleName, userEmail, "***", fullName, phoneNumber, status, createdAt, updatedAt);
+                                account.setId(accountId);
                             }
                         }
                     }
@@ -83,9 +94,15 @@ public class AccountDAO {
             e.printStackTrace();
             throw new SQLException("Error at checkLogin: " + e.getMessage());
         } finally {
-            if (rs != null) rs.close();
-            if (ptm != null) ptm.close();
-            if (conn != null) conn.close();
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
         }
         return account;
     }
@@ -108,9 +125,15 @@ public class AccountDAO {
         } catch (Exception e) {
             throw new SQLException("Error at checkEmailExist: " + e.getMessage());
         } finally {
-            if (rs != null) rs.close();
-            if (ptm != null) ptm.close();
-            if (conn != null) conn.close();
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
         }
         return isExist;
     }
@@ -135,8 +158,12 @@ public class AccountDAO {
         } catch (Exception e) {
             throw new SQLException("Database Update Password Error: " + e.getMessage());
         } finally {
-            if (ptm != null) ptm.close();
-            if (conn != null) conn.close();
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
         }
         return isUpdated;
     }
@@ -172,8 +199,12 @@ public class AccountDAO {
         } catch (Exception e) {
             System.err.println("LOG_ERROR: [AccountDAO] Lỗi chèn lịch sử vào bảng EmailLog: " + e.getMessage());
         } finally {
-            if (ptm != null) ptm.close();
-            if (conn != null) conn.close();
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
         }
         return isLogged;
     }
@@ -196,9 +227,15 @@ public class AccountDAO {
         } catch (Exception e) {
             throw new SQLException("Error at getAccountIdByEmail: " + e.getMessage());
         } finally {
-            if (rs != null) rs.close();
-            if (ptm != null) ptm.close();
-            if (conn != null) conn.close();
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
         }
         return accountId;
     }
@@ -224,8 +261,12 @@ public class AccountDAO {
         } catch (Exception e) {
             throw new SQLException("Database Change Password Error: " + e.getMessage());
         } finally {
-            if (ptm != null) ptm.close();
-            if (conn != null) conn.close();
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
         }
         return isChanged;
     }
@@ -248,13 +289,24 @@ public class AccountDAO {
         } catch (Exception e) {
             throw new SQLException("Error at getHashedPasswordByEmail: " + e.getMessage());
         } finally {
-            if (rs != null) rs.close();
-            if (ptm != null) ptm.close();
-            if (conn != null) conn.close();
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
         }
         return dbHashedPassword;
     }
 
+    /**
+     * 🚀 1. ĐĂNG KÝ HỆ THỐNG GỘP (SWITCH-CASE LỒNG TRANSACTION THEO YÊU CẦU CỦA
+     * SẾP) Tạo song song dữ liệu bảng Account cơ bản và bảng định danh vai trò
+     * phụ trợ tương ứng.
+     */
     public boolean registerUnifiedAccount(Account acc, String address) throws SQLException {
         boolean isCreated = false;
         Connection conn = null;
@@ -265,9 +317,11 @@ public class AccountDAO {
         try {
             conn = DbUtils.getConnection();
             if (conn != null) {
+                // Kích hoạt quản lý giao dịch Transaction thủ công
                 conn.setAutoCommit(false);
                 Timestamp now = new Timestamp(System.currentTimeMillis());
 
+                // Thực thi chèn dòng dữ liệu vào bảng Account tổng trước
                 ptmAcc = conn.prepareStatement(REGISTER_ACCOUNT, java.sql.Statement.RETURN_GENERATED_KEYS);
                 ptmAcc.setString(1, acc.getRoleName());
                 ptmAcc.setString(2, acc.getEmail());
@@ -285,6 +339,7 @@ public class AccountDAO {
                     if (rs.next()) {
                         int generatedAccountId = rs.getInt(1);
 
+                        // Phân rẽ nhánh nghiệp vụ switch-case lưu dữ liệu bảng phụ
                         switch (acc.getRoleName()) {
                             case "Customer":
                                 ptmRole = conn.prepareStatement(INSERT_CUSTOMER);
@@ -305,28 +360,42 @@ public class AccountDAO {
 
                         int roleRows = ptmRole.executeUpdate();
                         if (roleRows > 0) {
-                            conn.commit();
+                            conn.commit(); // ✅ Mọi thứ thông suốt -> Chốt hạ ghi xuống DB
                             isCreated = true;
                         } else {
-                            conn.rollback();
+                            conn.rollback(); // ❌ Lỗi bảng phụ -> Hoàn tác
                         }
                     }
                 } else {
-                    conn.rollback();
+                    conn.rollback(); // ❌ Lỗi bảng Account -> Hoàn tác
                 }
             }
         } catch (Exception e) {
             if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
             }
             e.printStackTrace();
             throw new SQLException("Unified Registration Error: " + e.getMessage());
         } finally {
-            if (rs != null) rs.close();
-            if (ptmRole != null) ptmRole.close();
-            if (ptmAcc != null) ptmAcc.close();
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptmRole != null) {
+                ptmRole.close();
+            }
+            if (ptmAcc != null) {
+                ptmAcc.close();
+            }
             if (conn != null) {
-                try { conn.setAutoCommit(true); } catch (SQLException ex) { ex.printStackTrace(); }
+                try {
+                    conn.setAutoCommit(true);
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
                 conn.close();
             }
         }
