@@ -57,6 +57,12 @@ public class DriverController extends HttpServlet {
                 if (driverData != null) {
                     apiResponse.put("success", true);
                     apiResponse.put("data", driverData); 
+                    
+                    // 🔔 CẢNH BÁO CHỦ ĐỘNG: Gửi cảnh báo nhắc nhở nếu chưa ký xác nhận điều khoản
+                    if (!driverData.isTermsAccepted()) {
+                        apiResponse.put("warning", "TermsNotAccepted");
+                        apiResponse.put("warningMessage", "Tài khoản của bạn chưa thực hiện ký xác nhận điều khoản dịch vụ. Vui lòng hoàn tất ký kết.");
+                    }
                 } else {
                     apiResponse.put("success", false);
                     apiResponse.put("message", "Không tìm thấy hồ sơ tài xế hoặc tài khoản đã bị ẩn/xóa mềm.");
@@ -145,18 +151,18 @@ public class DriverController extends HttpServlet {
 
             switch (action) {
                 case "/documents/submit":
-                    handleDocumentSubmit(request, accountId, dao, apiResponse);
-                    break;
+                    handleDocumentSubmit(request, response, accountId, dao, apiResponse);
+                    return; // Điều hướng luồng in dữ liệu riêng của hàm con
 
                 case "/documents/reupload":
-                    handleDocumentReupload(request, accountId, dao, apiResponse);
-                    break;
+                    handleDocumentReupload(request, response, accountId, dao, apiResponse);
+                    return; // Điều hướng luồng in dữ liệu riêng của hàm con
 
                 case "/profile/update":
-                    handleProfileUpdate(request, accountId, dao, apiResponse);
-                    break;
+                    handleProfileUpdate(request, response, accountId, dao, apiResponse);
+                    return; // Điều hướng luồng in dữ liệu riêng của hàm con
 
-                case "/terms/accept":
+                case "/terms/accept": // 🔗 GIỮ NGUYÊN ĐƯỜNG DẪN GỐC CỦA BẠN KHÔNG ĐỔI
                     boolean isTermsOk = dao.acceptDriverTerms(accountId);
                     if (isTermsOk) {
                         apiResponse.put("success", true);
@@ -181,8 +187,11 @@ public class DriverController extends HttpServlet {
             apiResponse.put("success", false);
             apiResponse.put("message", "System Error: " + e.toString());
         } finally {
-            out.print(gson.toJson(apiResponse));
-            out.flush();
+            // Chỉ chạy khối in mặc định nếu không thuộc 3 hàm đã tự xử lý PrintWriter ở dưới
+            if (!"/profile/update".equals(action) && !"/documents/submit".equals(action) && !"/documents/reupload".equals(action)) {
+                out.print(gson.toJson(apiResponse));
+                out.flush();
+            }
         }
     }
 
@@ -202,19 +211,33 @@ public class DriverController extends HttpServlet {
         }
     }
 
-    private void handleDocumentSubmit(HttpServletRequest request, int accountId, DriverDAO dao, Map<String, Object> apiResponse) throws Exception {
+    private void handleDocumentSubmit(HttpServletRequest request, HttpServletResponse response, int accountId, DriverDAO dao, Map<String, Object> apiResponse) throws Exception {
+        PrintWriter out = response.getWriter();
+        
+        // 🛑 PHÒNG THỦ KHÓA CỔNG CHẶN NỘP ĐƠN MỚI NẾU CHƯA KÝ XÁC NHẬN ĐIỀU KHOẢN
+        Driver driver = dao.getDriverProfile(accountId);
+        if (driver != null && !driver.isTermsAccepted()) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            apiResponse.put("success", false);
+            apiResponse.put("message", "Thao tác bị từ chối! Bạn phải bấm xác nhận đồng ý với điều khoản dịch vụ trước khi tiến hành nộp hồ sơ giấy tờ.");
+            out.print(gson.toJson(apiResponse));
+            return;
+        }
+
         Part cccdPart = request.getPart("identityCard");
         Part licensePart = request.getPart("driverLicense");
 
         if (cccdPart == null || cccdPart.getSize() == 0 || licensePart == null || licensePart.getSize() == 0) {
             apiResponse.put("success", false);
             apiResponse.put("message", "Hồ sơ không hợp lệ! Bắt buộc phải nộp đồng thời cả 2 loại giấy tờ: ảnh CCCD (identityCard) và ảnh Bằng lái xe (driverLicense).");
+            out.print(gson.toJson(apiResponse));
             return;
         }
 
         if (dao.isDocTypeExist(accountId, "NationalID") || dao.isDocTypeExist(accountId, "DriverLicense")) {
             apiResponse.put("success", false);
             apiResponse.put("message", "Tài khoản này đã có lịch sử nộp hồ sơ trên hệ thống. Vui lòng đợi Ban quản trị duyệt.");
+            out.print(gson.toJson(apiResponse));
             return;
         }
 
@@ -233,15 +256,29 @@ public class DriverController extends HttpServlet {
             apiResponse.put("success", false);
             apiResponse.put("message", "Nộp hồ sơ thất bại. Nguyên nhân: Mã accountID không tồn tại trong hệ thống bảng Account.");
         }
+        out.print(gson.toJson(apiResponse));
     }
 
-    private void handleDocumentReupload(HttpServletRequest request, int accountId, DriverDAO dao, Map<String, Object> apiResponse) throws Exception {
+    private void handleDocumentReupload(HttpServletRequest request, HttpServletResponse response, int accountId, DriverDAO dao, Map<String, Object> apiResponse) throws Exception {
+        PrintWriter out = response.getWriter();
+        
+        // 🛑 PHÒNG THỦ KHÓA CỔNG CHẶN REUPLOAD LẠI HỒ SƠ NẾU CHƯA KÝ XÁC NHẬN ĐIỀU KHOẢN
+        Driver driver = dao.getDriverProfile(accountId);
+        if (driver != null && !driver.isTermsAccepted()) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            apiResponse.put("success", false);
+            apiResponse.put("message", "Thao tác bị từ chối! Bạn phải bấm xác nhận đồng ý với điều khoản dịch vụ trước khi nộp lại hồ sơ lỗi.");
+            out.print(gson.toJson(apiResponse));
+            return;
+        }
+
         Part cccdPart = request.getPart("identityCard");
         Part licensePart = request.getPart("driverLicense");
 
         if (cccdPart == null || cccdPart.getSize() == 0 || licensePart == null || licensePart.getSize() == 0) {
             apiResponse.put("success", false);
             apiResponse.put("message", "Bắt buộc phải đính kèm đầy đủ cả 2 file ảnh mới (keys: identityCard và driverLicense).");
+            out.print(gson.toJson(apiResponse));
             return;
         }
 
@@ -259,9 +296,11 @@ public class DriverController extends HttpServlet {
             apiResponse.put("success", false);
             apiResponse.put("message", "Cập nhật dữ liệu thất bại. Vui lòng kiểm tra lại Account ID xem có tồn tại giấy tờ cũ không.");
         }
+        out.print(gson.toJson(apiResponse));
     }
 
-    private void handleProfileUpdate(HttpServletRequest request, int accountId, DriverDAO dao, Map<String, Object> apiResponse) throws Exception {
+    private void handleProfileUpdate(HttpServletRequest request, HttpServletResponse response, int accountId, DriverDAO dao, Map<String, Object> apiResponse) throws Exception {
+        PrintWriter out = response.getWriter();
         String fullName = request.getParameter("fullName");
         String phoneNumber = request.getParameter("phoneNumber");
         String availabilityStatus = request.getParameter("availabilityStatus");
@@ -271,9 +310,21 @@ public class DriverController extends HttpServlet {
             availabilityStatus == null || availabilityStatus.trim().isEmpty()) {
             apiResponse.put("success", false);
             apiResponse.put("message", "Vui lòng điền đầy đủ Full Name, Phone Number và Availability Status.");
+            out.print(gson.toJson(apiResponse));
             return;
         }
 
+        // 🛑 PHÒNG THỦ TOÀN DIỆN: Kiểm tra cờ điều khoản, nếu chưa ký (false) -> CHẶN ĐỨNG HOÀN TOÀN TẤT CẢ trạng thái gửi lên
+        Driver driver = dao.getDriverProfile(accountId);
+        if (driver != null && !driver.isTermsAccepted()) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST); // Trả lỗi 400 Bad Request
+            apiResponse.put("success", false);
+            apiResponse.put("message", "Thao tác bị từ chối! Bạn phải bấm xác nhận đồng ý với điều khoản dịch vụ trước khi cập nhật hồ sơ hoặc trạng thái.");
+            out.print(gson.toJson(apiResponse));
+            return; // Ngắt luồng ngay, không cho cập nhật xuống database
+        }
+
+        // Nếu hợp lệ (đã ký điều khoản) -> Tiến hành cập nhật bình thường như cũ
         boolean isSuccess = dao.updateDriverProfile(accountId, fullName.trim(), phoneNumber.trim(), availabilityStatus.trim());
         if (isSuccess) {
             apiResponse.put("success", true);
@@ -282,6 +333,7 @@ public class DriverController extends HttpServlet {
             apiResponse.put("success", false);
             apiResponse.put("message", "Không tìm thấy thông tin tài xế hợp lệ để cập nhật.");
         }
+        out.print(gson.toJson(apiResponse));
     }
 
     // =========================================================================

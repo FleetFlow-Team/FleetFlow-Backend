@@ -22,14 +22,9 @@ public class AccountDAO {
     private static final String CHANGE_PASSWORD = "UPDATE Account SET PasswordHash = ?, UpdatedAt = ? WHERE Email = ? AND PasswordHash = ?";
     private static final String HASH_PASSWORD = "SELECT * FROM Account WHERE Email = ?";
     private static final String INSERT_CUSTOMER = "INSERT INTO Customer (AccountID, Address, DebtBalance, BookingStatus, CreatedAt) VALUES (?, ?, 0, 'Active', ?)";
-    private static final String INSERT_DRIVER = "INSERT INTO Driver (AccountID, ApprovalStatus, AvailabilityStatus, TermsAcceptedAt, AverageRating, WalletBalance, CreatedAt, terms_accepted) VALUES (?, 'Pending', 'Offline', NULL, NULL, 0, ?, 0)";
+    private static final String INSERT_DRIVER = "INSERT INTO Driver (AccountID, ApprovalStatus, AvailabilityStatus, TermsAcceptedAt, AverageRating, WalletBalance, CreatedAt, TermsAccepted) VALUES (?, 'Pending', 'Offline', NULL, NULL, 0, ?, 0)";
 
-    // SQL XÓA TÀI KHOẢN TEST
-    private static final String DELETE_EMAIL_LOGS = "DELETE FROM EmailLog WHERE RecipientAccountID = ?";
-    private static final String DELETE_IDENTITY_DOCS = "DELETE FROM IdentityDocument WHERE OwnerAccountID = ?";
-    private static final String DELETE_DRIVER = "DELETE FROM Driver WHERE AccountID = ?";
-    private static final String DELETE_CUSTOMER = "DELETE FROM Customer WHERE AccountID = ?";
-    private static final String DELETE_ACCOUNT = "DELETE FROM Account WHERE AccountID = ?";
+
 
     // =========================================================================
     // ======================== LOGIC NGHIỆP VỤ HỆ THỐNG =========================
@@ -338,59 +333,5 @@ public class AccountDAO {
         return isCreated;
     }
 
-    public boolean deleteAccount(int accountId) throws SQLException {
-        Connection conn = null;
-        PreparedStatement ptm = null;
-        boolean isDeleted = false;
-        try {
-            conn = DbUtils.getConnection();
-            if (conn != null) {
-                conn.setAutoCommit(false);
-
-                ptm = conn.prepareStatement(DELETE_EMAIL_LOGS);
-                ptm.setInt(1, accountId);
-                ptm.executeUpdate();
-                ptm.close();
-
-                ptm = conn.prepareStatement(DELETE_IDENTITY_DOCS);
-                ptm.setInt(1, accountId);
-                ptm.executeUpdate();
-                ptm.close();
-
-                ptm = conn.prepareStatement(DELETE_DRIVER);
-                ptm.setInt(1, accountId);
-                ptm.executeUpdate();
-                ptm.close();
-
-                ptm = conn.prepareStatement(DELETE_CUSTOMER);
-                ptm.setInt(1, accountId);
-                ptm.executeUpdate();
-                ptm.close();
-
-                ptm = conn.prepareStatement(DELETE_ACCOUNT);
-                ptm.setInt(1, accountId);
-                int affectedRows = ptm.executeUpdate();
-
-                if (affectedRows > 0) {
-                    conn.commit();
-                    isDeleted = true;
-                } else {
-                    conn.rollback();
-                }
-            }
-        } catch (Exception e) {
-            if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
-            }
-            e.printStackTrace();
-            throw new SQLException("Error at deleteAccount: " + e.getMessage());
-        } finally {
-            if (ptm != null) ptm.close();
-            if (conn != null) {
-                try { conn.setAutoCommit(true); } catch (SQLException ex) { ex.printStackTrace(); }
-                conn.close();
-            }
-        }
-        return isDeleted;
-    }
+    
 }
