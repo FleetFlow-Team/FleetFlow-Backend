@@ -44,7 +44,10 @@
         <servlet-name>RegisterController</servlet-name>
         <servlet-class>controller.RegisterController</servlet-class>
     </servlet>
-
+    <servlet>
+        <servlet-name>CustomerBookingController</servlet-name>
+        <servlet-class>controller.CustomerBookingController</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -89,7 +92,10 @@
         <servlet-name>RegisterController</servlet-name>
         <url-pattern>/RegisterController</url-pattern>
     </servlet-mapping>
-
+    <servlet-mapping>
+        <servlet-name>CustomerBookingController</servlet-name>
+        <url-pattern>/CustomerBookingController</url-pattern>
+    </servlet-mapping>
     <session-config>
         <session-timeout>30</session-timeout>
     </session-config>

@@ -12,6 +12,7 @@ public class Booking extends BaseEntity implements IAuditableEntity {
     private String bookingType;    // HOURLY, DAILY, DISTANCE, INNER_CITY, INTER_CITY
     private String tripDirection;  // ONE_WAY, ROUND_TRIP
     private String status;
+    private String note;
     private Timestamp createdAt;
     private Timestamp updatedAt;
 
@@ -96,5 +97,13 @@ public class Booking extends BaseEntity implements IAuditableEntity {
     @Override
     public void setUpdatedAt(Timestamp updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
     }
 }
