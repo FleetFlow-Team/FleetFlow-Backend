@@ -73,6 +73,7 @@ public class LoginController extends HttpServlet {
 
                     // TRẢ THÔNG TIN USER NHƯ CŨ ĐANG CHẠY TỐT
                     Map<String, Object> userData = new HashMap<>();
+                    userData.put("accountId", loginUser.getId());
                     userData.put("email", loginUser.getEmail());
                     userData.put("fullName", loginUser.getFullName());
                     userData.put("roleName", loginUser.getRoleName());
