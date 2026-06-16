@@ -17,7 +17,8 @@ public class DriverDAO {
     // =========================================================================
     // ==================== SQL FORM ĐỒNG BỘ 100% CỜ ISDELETED ===================
     // =========================================================================
-    private static final String ACCEPT_DRIVER_TERMS = "UPDATE Driver SET terms_accepted = 1, TermsAcceptedAt = ?, UpdatedAt = ? WHERE AccountID = ? AND IsDeleted = 0";
+    // 🎯 ĐÃ ĐỔI CỘT: terms_accepted -> TermsAccepted
+    private static final String ACCEPT_DRIVER_TERMS = "UPDATE Driver SET TermsAccepted = 1, TermsAcceptedAt = ?, UpdatedAt = ? WHERE AccountID = ? AND IsDeleted = 0";
     private static final String UPDATE_ACCOUNT_INFO = "UPDATE Account SET FullName = ?, PhoneNumber = ?, UpdatedAt = ? WHERE AccountID = ? AND IsDeleted = 0";
     private static final String UPDATE_DRIVER_STATUS = "UPDATE Driver SET AvailabilityStatus = ?, UpdatedAt = ? WHERE AccountID = ? AND IsDeleted = 0";
 
@@ -33,8 +34,9 @@ public class DriverDAO {
             + "WHERE OwnerAccountID = ? AND DocType IN ('NationalID', 'DriverLicense') "
             + "AND SecureFileUrl IS NOT NULL AND SecureFileUrl <> '' AND IsDeleted = 0";
 
+    // 🎯 ĐÃ ĐỔI CỘT: terms_accepted -> TermsAccepted
     private static final String GET_DRIVER_OBJECT_PROFILE
-            = "SELECT AccountID, DriverID, ApprovalStatus, AvailabilityStatus, TermsAcceptedAt, AverageRating, WalletBalance, terms_accepted, CreatedAt, UpdatedAt "
+            = "SELECT AccountID, DriverID, ApprovalStatus, AvailabilityStatus, TermsAcceptedAt, AverageRating, WalletBalance, TermsAccepted, CreatedAt, UpdatedAt "
             + "FROM Driver WHERE AccountID = ? AND IsDeleted = 0";
 
     private static final String GET_DRIVER_STATUS_AND_ID
@@ -52,7 +54,7 @@ public class DriverDAO {
     private static final String GET_DRIVER_DOCUMENTS_LIST
             = "SELECT DocType, NationalID, SecureFileUrl, Status, UploadedAt, RejectReason FROM IdentityDocument WHERE OwnerAccountID = ? AND OwnerType = 'Driver' AND IsDeleted = 0";
 
-//SQL XEM VÍ CÔNG NỢ
+    // SQL XEM VÍ CÔNG NỢ
     private static final String GET_DRIVER_WALLET_INFO
             = "SELECT DriverID, WalletBalance, ApprovalStatus FROM Driver WHERE AccountID = ? AND IsDeleted = 0";
 
@@ -60,27 +62,27 @@ public class DriverDAO {
             = "SELECT EarningID, BookingID, EarningType, FareShare, SurchargeShare, CancellationCompensation, CompanyCommission, NetAmount, CreatedAt "
             + "FROM DriverEarning WHERE DriverID = ? AND IsDeleted = 0 ORDER BY CreatedAt DESC";
     
-    //SQL THỐNG KÊ THU NHẬP TÀI XẾ (THÊM VÀO ĐẦU CLASS DRIVERDAO)
+    // SQL THỐNG KÊ THU NHẬP TÀI XẾ
 
-private static final String GET_INCOME_SUMMARY_OVERVIEW = 
-    "SELECT " +
-    "    SUM(CASE WHEN EarningType = 'Trip' THEN NetAmount ELSE 0 END) AS TotalTripEarnings, " +
-    "    SUM(CASE WHEN EarningType = 'CancellationCompensation' THEN NetAmount ELSE 0 END) AS TotalCancellationCompensation, " +
-    "    SUM(CompanyCommission) AS TotalCommissionPaid, " +
-    "    SUM(NetAmount) AS TotalNetIncome " +
-    "FROM DriverEarning " +
-    "WHERE DriverID = (SELECT DriverID FROM Driver WHERE AccountID = ? AND IsDeleted = 0) AND IsDeleted = 0";
+    private static final String GET_INCOME_SUMMARY_OVERVIEW = 
+        "SELECT " +
+        "    SUM(CASE WHEN EarningType = 'Trip' THEN NetAmount ELSE 0 END) AS TotalTripEarnings, " +
+        "    SUM(CASE WHEN EarningType = 'CancellationCompensation' THEN NetAmount ELSE 0 END) AS TotalCancellationCompensation, " +
+        "    SUM(CompanyCommission) AS TotalCommissionPaid, " +
+        "    SUM(NetAmount) AS TotalNetIncome " +
+        "FROM DriverEarning " +
+        "WHERE DriverID = (SELECT DriverID FROM Driver WHERE AccountID = ? AND IsDeleted = 0) AND IsDeleted = 0";
 
-private static final String GET_INCOME_BY_MONTH = 
-    "SELECT " +
-    "    MONTH(CreatedAt) AS EarningMonth, " +
-    "    YEAR(CreatedAt) AS EarningYear, " +
-    "    SUM(NetAmount) AS MonthlyNetIncome, " +
-    "    COUNT(EarningID) AS TotalTransactions " +
-    "FROM DriverEarning " +
-    "WHERE DriverID = (SELECT DriverID FROM Driver WHERE AccountID = ? AND IsDeleted = 0) AND IsDeleted = 0 " +
-    "GROUP BY YEAR(CreatedAt), MONTH(CreatedAt) " +
-    "ORDER BY EarningYear DESC, EarningMonth DESC";
+    private static final String GET_INCOME_BY_MONTH = 
+        "SELECT " +
+        "    MONTH(CreatedAt) AS EarningMonth, " +
+        "    YEAR(CreatedAt) AS EarningYear, " +
+        "    SUM(NetAmount) AS MonthlyNetIncome, " +
+        "    COUNT(EarningID) AS TotalTransactions " +
+        "FROM DriverEarning " +
+        "WHERE DriverID = (SELECT DriverID FROM Driver WHERE AccountID = ? AND IsDeleted = 0) AND IsDeleted = 0 " +
+        "GROUP BY YEAR(CreatedAt), MONTH(CreatedAt) " +
+        "ORDER BY EarningYear DESC, EarningMonth DESC";
 
     // =========================================================================
     // ============================ HÀM NGHIỆP VỤ DRIVER ========================
@@ -91,7 +93,6 @@ private static final String GET_INCOME_BY_MONTH =
      * hoặc rỗng hệ thống hủy ngay lập tức, không lưu dữ liệu rác.
      */
     public boolean submitDriverDocuments(int accountId, String cccdUrl, String licenseUrl) throws SQLException {
-        // Chặn đầu ngay tại DAO: Nếu chuỗi file trống, thoát luồng trả về false ngay
         if (cccdUrl == null || cccdUrl.trim().isEmpty() || licenseUrl == null || licenseUrl.trim().isEmpty()) {
             return false;
         }
@@ -207,7 +208,10 @@ private static final String GET_INCOME_BY_MONTH =
                     driver.setTermsAcceptedAt(rs.getTimestamp("TermsAcceptedAt"));
                     driver.setAverageRating(rs.getBigDecimal("AverageRating"));
                     driver.setWalletBalance(rs.getBigDecimal("WalletBalance"));
-                    driver.setTermsAccepted(rs.getBoolean("terms_accepted"));
+                    
+                    // 🎯 ĐÃ CẬP NHẬT: Đọc chuẩn từ tên cột viết hoa mới dưới DB
+                    driver.setTermsAccepted(rs.getBoolean("TermsAccepted"));
+                    
                     driver.setCreatedAt(rs.getTimestamp("CreatedAt"));
                     driver.setUpdatedAt(rs.getTimestamp("UpdatedAt"));
                 }
@@ -595,53 +599,51 @@ private static final String GET_INCOME_BY_MONTH =
         return walletData;
     }
 
+    public Map<String, Object> getDriverIncomeSummary(int accountId) throws SQLException {
+        Map<String, Object> summary = new HashMap<>();
+        List<Map<String, Object>> monthlyDetails = new ArrayList<>();
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
 
+        try {
+            conn = DbUtils.getConnection();
+            if (conn != null) {
+                // 1. Chạy câu lệnh 1: Lấy các số số liệu tổng quan (Tổng doanh thu, hoa hồng...)
+                ptm = conn.prepareStatement(GET_INCOME_SUMMARY_OVERVIEW);
+                ptm.setInt(1, accountId);
+                rs = ptm.executeQuery();
+                if (rs.next()) {
+                    // Nếu tài xế hoàn toàn chưa có cuốc xe nào (Hàm SUM trả về null), ta gán mặc định là 0.0
+                    summary.put("totalTripEarnings", rs.getObject("TotalTripEarnings") != null ? rs.getDouble("TotalTripEarnings") : 0.0);
+                    summary.put("totalCancellationCompensation", rs.getObject("TotalCancellationCompensation") != null ? rs.getDouble("TotalCancellationCompensation") : 0.0);
+                    summary.put("totalCommissionPaid", rs.getObject("TotalCommissionPaid") != null ? rs.getDouble("TotalCommissionPaid") : 0.0);
+                    summary.put("totalNetIncome", rs.getObject("TotalNetIncome") != null ? rs.getDouble("TotalNetIncome") : 0.0);
+                }
+                rs.close(); ptm.close();
 
-public Map<String, Object> getDriverIncomeSummary(int accountId) throws SQLException {
-    Map<String, Object> summary = new HashMap<>();
-    List<Map<String, Object>> monthlyDetails = new ArrayList<>();
-    Connection conn = null;
-    PreparedStatement ptm = null;
-    ResultSet rs = null;
-
-    try {
-        conn = DbUtils.getConnection();
-        if (conn != null) {
-            // 1. Chạy câu lệnh 1: Lấy các số số liệu tổng quan (Tổng doanh thu, hoa hồng...)
-            ptm = conn.prepareStatement(GET_INCOME_SUMMARY_OVERVIEW);
-            ptm.setInt(1, accountId);
-            rs = ptm.executeQuery();
-            if (rs.next()) {
-                // Nếu tài xế hoàn toàn chưa có cuốc xe nào (Hàm SUM trả về null), ta gán mặc định là 0.0
-                summary.put("totalTripEarnings", rs.getObject("TotalTripEarnings") != null ? rs.getDouble("TotalTripEarnings") : 0.0);
-                summary.put("totalCancellationCompensation", rs.getObject("TotalCancellationCompensation") != null ? rs.getDouble("TotalCancellationCompensation") : 0.0);
-                summary.put("totalCommissionPaid", rs.getObject("TotalCommissionPaid") != null ? rs.getDouble("TotalCommissionPaid") : 0.0);
-                summary.put("totalNetIncome", rs.getObject("TotalNetIncome") != null ? rs.getDouble("TotalNetIncome") : 0.0);
+                // 2. Chạy câu lệnh 2: Nhóm doanh thu theo từng tháng/năm
+                ptm = conn.prepareStatement(GET_INCOME_BY_MONTH);
+                ptm.setInt(1, accountId);
+                rs = ptm.executeQuery();
+                while (rs.next()) {
+                    Map<String, Object> monthData = new HashMap<>();
+                    monthData.put("month", rs.getInt("EarningMonth"));
+                    monthData.put("year", rs.getInt("EarningYear"));
+                    monthData.put("monthlyNetIncome", rs.getDouble("MonthlyNetIncome"));
+                    monthData.put("totalTransactions", rs.getInt("TotalTransactions"));
+                    monthlyDetails.add(monthData);
+                }
+                summary.put("monthlyBreakdown", monthlyDetails);
             }
-            rs.close(); ptm.close();
-
-            // 2. Chạy câu lệnh 2: Nhóm doanh thu theo từng tháng/năm
-            ptm = conn.prepareStatement(GET_INCOME_BY_MONTH);
-            ptm.setInt(1, accountId);
-            rs = ptm.executeQuery();
-            while (rs.next()) {
-                Map<String, Object> monthData = new HashMap<>();
-                monthData.put("month", rs.getInt("EarningMonth"));
-                monthData.put("year", rs.getInt("EarningYear"));
-                monthData.put("monthlyNetIncome", rs.getDouble("MonthlyNetIncome"));
-                monthData.put("totalTransactions", rs.getInt("TotalTransactions"));
-                monthlyDetails.add(monthData);
-            }
-            summary.put("monthlyBreakdown", monthlyDetails);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new SQLException("Error at getDriverIncomeSummary: " + e.getMessage());
+        } finally {
+            if (rs != null) rs.close();
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
         }
-    } catch (Exception e) {
-        e.printStackTrace();
-        throw new SQLException("Error at getDriverIncomeSummary: " + e.getMessage());
-    } finally {
-        if (rs != null) rs.close();
-        if (ptm != null) ptm.close();
-        if (conn != null) conn.close();
+        return summary;
     }
-    return summary;
-}
 }
