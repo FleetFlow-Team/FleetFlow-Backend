@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package dao;
 
 import java.sql.Connection;
@@ -13,31 +9,29 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import utils.DbUtils;
-/**
- *
- * @author User
- */
+
 public class CustomerDAO {
-private static final String GET_PROFILE_BY_EMAIL =
+
+    private static final String GET_PROFILE_BY_EMAIL =
             "SELECT a.AccountID, a.Email, a.FullName, a.PhoneNumber, a.RoleName, a.Status, "
           + "c.CustomerID, c.Address, c.DebtBalance, c.BookingStatus, c.CreatedAt "
           + "FROM Account a "
           + "JOIN Customer c ON c.AccountID = a.AccountID "
           + "WHERE a.Email = ?";
- 
+
     private static final String GET_CUSTOMER_ID_BY_EMAIL =
             "SELECT c.CustomerID FROM Customer c "
           + "JOIN Account a ON a.AccountID = c.AccountID "
           + "WHERE a.Email = ?";
- 
+
     private static final String UPDATE_ACCOUNT =
             "UPDATE Account SET FullName = COALESCE(?, FullName), "
           + "PhoneNumber = COALESCE(?, PhoneNumber), UpdatedAt = ? WHERE Email = ?";
- 
+
     private static final String UPDATE_CUSTOMER_ADDRESS =
             "UPDATE c SET Address = COALESCE(?, Address) "
           + "FROM Customer c JOIN Account a ON a.AccountID = c.AccountID WHERE a.Email = ?";
- 
+
     private static final String GET_HISTORY_BY_CUSTOMER_ID =
             "SELECT b.BookingID, b.Status, b.BookingType, b.TripDirection, b.CreatedAt, "
           + "v.Brand, v.Model, v.LicensePlate, "
@@ -49,7 +43,7 @@ private static final String GET_PROFILE_BY_EMAIL =
           + "LEFT JOIN BookingPricing bp ON bp.BookingID = b.BookingID "
           + "WHERE b.CustomerID = ? "
           + "ORDER BY b.CreatedAt DESC";
- 
+
     public Map<String, Object> getProfileByEmail(String email) throws Exception {
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(GET_PROFILE_BY_EMAIL)) {
@@ -74,7 +68,7 @@ private static final String GET_PROFILE_BY_EMAIL =
             }
         }
     }
- 
+
     public int getCustomerIdByEmail(String email) throws Exception {
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(GET_CUSTOMER_ID_BY_EMAIL)) {
@@ -87,7 +81,7 @@ private static final String GET_PROFILE_BY_EMAIL =
             }
         }
     }
- 
+
     public boolean updateProfileByEmail(String email, String fullName, String phoneNumber, String address)
             throws Exception {
         Connection conn = null;
@@ -96,19 +90,19 @@ private static final String GET_PROFILE_BY_EMAIL =
         try {
             conn = DbUtils.getConnection();
             conn.setAutoCommit(false);
- 
+
             psAccount = conn.prepareStatement(UPDATE_ACCOUNT);
             psAccount.setString(1, fullName);
             psAccount.setString(2, phoneNumber);
             psAccount.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
             psAccount.setString(4, email);
             int affected = psAccount.executeUpdate();
- 
+
             psCustomer = conn.prepareStatement(UPDATE_CUSTOMER_ADDRESS);
             psCustomer.setString(1, address);
             psCustomer.setString(2, email);
             psCustomer.executeUpdate();
- 
+
             conn.commit();
             return affected > 0;
         } catch (Exception e) {
@@ -125,7 +119,7 @@ private static final String GET_PROFILE_BY_EMAIL =
             }
         }
     }
- 
+
     public List<Map<String, Object>> findBookingHistoryByCustomerId(int customerId) throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
         try (Connection conn = DbUtils.getConnection();
@@ -152,5 +146,20 @@ private static final String GET_PROFILE_BY_EMAIL =
             }
         }
         return list;
+    }
+
+    public Integer getCustomerIdByAccountId(int accountId) {
+        String sql = "SELECT CustomerID FROM Customer WHERE AccountID = ?";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, accountId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("CustomerID");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
