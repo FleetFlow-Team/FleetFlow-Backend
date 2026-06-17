@@ -153,6 +153,20 @@ public class VehicleDAO {
             return ps.executeUpdate() > 0;
         }
     }
+    
+    public int getAccountIdByEmail(String email) throws Exception {
+        String sql = "SELECT AccountID FROM Account WHERE Email = ?";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, email);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("AccountID");
+                }
+                return 0;
+            }
+        }
+    }
  
     public int countBookingsByVehicle(int vehicleId) throws Exception {
         String sql = "SELECT COUNT(*) AS Cnt FROM Booking WHERE VehicleID = ?";
