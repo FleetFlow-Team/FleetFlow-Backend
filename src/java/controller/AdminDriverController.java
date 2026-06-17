@@ -2,16 +2,20 @@ package controller;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import dao.AccountDAO;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.security.Key;
 import java.util.List;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
 import model.Account;
 import model.IdentityDocument;
 import service.DriverVerificationService;
@@ -22,11 +26,17 @@ import service.DriverVerificationService;
  * BE-13: GET /api/v1/admin/drivers/pending — danh sách driver chờ duyệt BE-14:
  * POST /api/v1/admin/drivers/{accountId}/approve — duyệt hồ sơ BE-15: POST
  * /api/v1/admin/drivers/{accountId}/reject — từ chối hồ sơ
+ *
+ * Xác thực bằng JWT Bearer token (đồng bộ với CustomerController/AdminVehicleController),
+ * KHÔNG dùng session.
  */
 @WebServlet("/api/v1/admin/drivers/*")
 public class AdminDriverController extends HttpServlet {
 
     private final DriverVerificationService service = new DriverVerificationService();
+
+    private static final String SECRET_STRING = "FleetFlowProjectSuperSecretKey2026SecureBridgesString";
+    private static final Key KEY = Keys.hmacShaKeyFor(SECRET_STRING.getBytes());
 
     private void setAccessControlHeaders(HttpServletRequest request, HttpServletResponse response) {
         String clientOrigin = request.getHeader("Origin");
@@ -60,6 +70,11 @@ public class AdminDriverController extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
 
+        Account admin = getAdminAccount(request, response, out);
+        if (admin == null) {
+            return;
+        }
+
         String pathInfo = request.getPathInfo(); // "/pending"
 
         if (!"/pending".equals(pathInfo)) {
@@ -77,7 +92,6 @@ public class AdminDriverController extends HttpServlet {
             for (int i = 0; i < drivers.size(); i++) {
                 Account acc = drivers.get(i);
 
-                // Lấy giấy tờ của từng driver
                 List<IdentityDocument> docs = service.getDocsByAccountId((int) acc.getId());
 
                 json.append("{");
@@ -130,6 +144,12 @@ public class AdminDriverController extends HttpServlet {
 
         PrintWriter out = response.getWriter();
 
+        Account adminAcc = getAdminAccount(request, response, out);
+        if (adminAcc == null) {
+            return;
+        }
+        int adminAccountId = (int) adminAcc.getId();
+
         String pathInfo = request.getPathInfo(); // "/{accountId}/approve" hoặc "/{accountId}/reject"
 
         if (pathInfo == null) {
@@ -138,7 +158,6 @@ public class AdminDriverController extends HttpServlet {
             return;
         }
 
-        // Parse path: ["", "{accountId}", "approve"]
         String[] parts = pathInfo.split("/");
         if (parts.length != 3) {
             response.setStatus(400);
@@ -157,43 +176,15 @@ public class AdminDriverController extends HttpServlet {
 
         String action = parts[2]; // "approve" hoặc "reject"
 
-        // Lấy adminAccountId từ session
-        HttpSession session = request.getSession(false);
-
-        System.out.println("APPROVE SESSION = " + session);
-
-        if (session != null) {
-            System.out.println("APPROVE SESSION ID = " + session.getId());
-            System.out.println("APPROVE ACCOUNT = " + session.getAttribute("account"));
-
-            java.util.Enumeration<String> names = session.getAttributeNames();
-
-            while (names.hasMoreElements()) {
-                String name = names.nextElement();
-                System.out.println("SESSION ATTR = " + name + " => " + session.getAttribute(name));
-            }
-        }
-        if (session == null || session.getAttribute("account") == null) {
-            response.setStatus(401);
-            out.print("{\"error\": \"Chưa đăng nhập\"}");
-            return;
-        }
-        Account adminAcc = (Account) session.getAttribute("account");
-        System.out.println("ADMIN ID = " + adminAcc.getId());
-        System.out.println("ADMIN EMAIL = " + adminAcc.getEmail());
-        int adminAccountId = (int) adminAcc.getId();
-
         try {
             switch (action) {
                 case "approve":
-                    // BE-14
                     service.approveDriver(accountId, adminAccountId);
                     response.setStatus(200);
                     out.print("{\"success\": true, \"message\": \"Duyệt hồ sơ tài xế thành công\"}");
                     break;
 
                 case "reject":
-                    // BE-15 — đọc rejectReason từ body JSON
                     StringBuilder sb = new StringBuilder();
                     BufferedReader reader = request.getReader();
                     String line;
@@ -225,6 +216,59 @@ public class AdminDriverController extends HttpServlet {
         } catch (Exception e) {
             response.setStatus(500);
             out.print("{\"error\": \"Lỗi server: " + esc(e.getMessage()) + "\"}");
+        }
+    }
+
+    // ===================== JWT Helpers =====================
+
+    private String extractToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7).trim();
+        }
+        return null;
+    }
+
+    private Account getAdminAccount(HttpServletRequest request, HttpServletResponse response, PrintWriter out) {
+        String token = extractToken(request);
+        if (token == null) {
+            response.setStatus(401);
+            out.print("{\"error\": \"Chưa đăng nhập (thiếu Bearer token)\"}");
+            return null;
+        }
+
+        String email;
+        String role;
+        try {
+            Claims claims = Jwts.parserBuilder().setSigningKey(KEY).build()
+                    .parseClaimsJws(token).getBody();
+            email = claims.getSubject();
+            Object roleObj = claims.get("role");
+            role = roleObj == null ? null : roleObj.toString();
+        } catch (Exception e) {
+            response.setStatus(401);
+            out.print("{\"error\": \"Token không hợp lệ hoặc đã hết hạn\"}");
+            return null;
+        }
+
+        if (role == null || !role.equalsIgnoreCase("Admin")) {
+            response.setStatus(403);
+            out.print("{\"error\": \"Chỉ tài khoản Admin được truy cập chức năng này\"}");
+            return null;
+        }
+
+        try {
+            Account acc = new AccountDAO().findByEmail(email);
+            if (acc == null) {
+                response.setStatus(401);
+                out.print("{\"error\": \"Không tìm thấy tài khoản\"}");
+                return null;
+            }
+            return acc;
+        } catch (Exception e) {
+            response.setStatus(500);
+            out.print("{\"error\": \"Lỗi server khi xác thực: " + esc(e.getMessage()) + "\"}");
+            return null;
         }
     }
 
