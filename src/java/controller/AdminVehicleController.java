@@ -19,6 +19,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import model.Account;
+import utils.JwtUtils;
 
 /**
  *
@@ -60,8 +61,8 @@ public class AdminVehicleController extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
  
-        Account admin = getAdminAccount(request, response, out);
-        if (admin == null) {
+        String adminEmail = requireAdminEmail(request, response, out);
+        if (adminEmail == null) {
             return;
         }
  
@@ -118,8 +119,8 @@ public class AdminVehicleController extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
  
-        Account admin = getAdminAccount(request, response, out);
-        if (admin == null) {
+        String adminEmail = requireAdminEmail(request, response, out);
+        if (adminEmail == null) {
             return;
         }
  
@@ -139,6 +140,13 @@ public class AdminVehicleController extends HttpServlet {
                 return;
             }
  
+            int createdBy = vehicleDAO.getAccountIdByEmail(adminEmail);
+            if (createdBy <= 0) {
+                response.setStatus(401);
+                out.print("{\"error\": \"Không xác định được tài khoản admin từ token\"}");
+                return;
+            }
+ 
             String chassisNumber = getStr(body, "chassisNumber");
             String engineNumber = getStr(body, "engineNumber");
             String status = getStr(body, "status");
@@ -147,7 +155,6 @@ public class AdminVehicleController extends HttpServlet {
             }
             Integer accumulatedKm = getInt(body, "accumulatedKm");
             String description = getStr(body, "description");
-            int createdBy = (int) admin.getId();
  
             int newId = vehicleDAO.create(vehicleTypeId, licensePlate, chassisNumber, engineNumber,
                     brand, model, seatCount, status, accumulatedKm, createdBy, description);
@@ -172,8 +179,8 @@ public class AdminVehicleController extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
  
-        Account admin = getAdminAccount(request, response, out);
-        if (admin == null) {
+        String adminEmail = requireAdminEmail(request, response, out);
+        if (adminEmail == null) {
             return;
         }
  
@@ -225,8 +232,8 @@ public class AdminVehicleController extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
  
-        Account admin = getAdminAccount(request, response, out);
-        if (admin == null) {
+        String adminEmail = requireAdminEmail(request, response, out);
+        if (adminEmail == null) {
             return;
         }
  
@@ -262,20 +269,28 @@ public class AdminVehicleController extends HttpServlet {
         }
     }
  
-    private Account getAdminAccount(HttpServletRequest request, HttpServletResponse response, PrintWriter out) {
-        HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("account") == null) {
+    private String requireAdminEmail(HttpServletRequest request, HttpServletResponse response, PrintWriter out) {
+        String token = extractToken(request);
+        if (token == null || !JwtUtils.validateToken(token)) {
             response.setStatus(401);
-            out.print("{\"error\": \"Chưa đăng nhập\"}");
+            out.print("{\"error\": \"Chưa đăng nhập hoặc token không hợp lệ/đã hết hạn\"}");
             return null;
         }
-        Account acc = (Account) session.getAttribute("account");
-        if (acc.getRoleName() == null || !acc.getRoleName().equalsIgnoreCase("Admin")) {
+        String role = JwtUtils.getRoleFromToken(token);
+        if (role == null || !role.equalsIgnoreCase("Admin")) {
             response.setStatus(403);
             out.print("{\"error\": \"Chỉ tài khoản Admin được truy cập chức năng này\"}");
             return null;
         }
-        return acc;
+        return JwtUtils.getEmailFromToken(token);
+    }
+ 
+    private String extractToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7).trim();
+        }
+        return null;
     }
  
     private JsonObject readJsonBody(HttpServletRequest request) throws IOException {
@@ -351,4 +366,3 @@ public class AdminVehicleController extends HttpServlet {
         return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }
- 
