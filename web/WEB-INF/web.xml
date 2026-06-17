@@ -48,6 +48,10 @@
         <servlet-name>CustomerBookingController</servlet-name>
         <servlet-class>controller.CustomerBookingController</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>AdminVehicleController</servlet-name>
+        <servlet-class>controller.AdminVehicleController</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -95,6 +99,10 @@
     <servlet-mapping>
         <servlet-name>CustomerBookingController</servlet-name>
         <url-pattern>/CustomerBookingController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>AdminVehicleController</servlet-name>
+        <url-pattern>/AdminVehicleController</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>30</session-timeout>
