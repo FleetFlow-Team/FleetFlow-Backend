@@ -2,6 +2,7 @@ package controller;
 
 import com.google.gson.Gson;
 import dao.AccountDAO;
+import dao.CustomerDAO;
 import model.Account;
 import utils.JwtUtils; // Đảm bảo import đúng
 import javax.servlet.http.HttpSession;
@@ -73,6 +74,17 @@ public class LoginController extends HttpServlet {
 
                     // TRẢ THÔNG TIN USER NHƯ CŨ ĐANG CHẠY TỐT
                     Map<String, Object> userData = new HashMap<>();
+
+                    userData.put("accountId", loginUser.getId());
+
+                    if ("Customer".equalsIgnoreCase(loginUser.getRoleName())) {
+                        CustomerDAO customerDAO = new CustomerDAO();
+                        Integer customerId
+                                = customerDAO.getCustomerIdByAccountId((int) loginUser.getId());
+
+                        userData.put("customerId", customerId);
+                    }
+
                     userData.put("email", loginUser.getEmail());
                     userData.put("fullName", loginUser.getFullName());
                     userData.put("roleName", loginUser.getRoleName());
