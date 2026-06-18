@@ -216,21 +216,459 @@ Tính cước phí chuyến đi
     "discountAmount": 20.00,
     "finalTotal": 1857480.00
 }
-- Path:
-- Input:
-- Output:
 
-- Path:
+Xem hồ sơ của khách hàng
+- Path: GET /FleetFlow/api/v1/customers/profile
 - Input:
 - Output:
+{
+  "data": {
+    "accountId": 1,
+    "customerId": 1,
+    "email": "annguyen1@example.com",
+    "fullName": "Nguyễn Văn An",
+    "phoneNumber": "0910131711",
+    "roleName": "Customer",
+    "status": "Active",
+    "address": "38 Lê Lợi, Quận 3, TP.HCM",
+    "debtBalance": 0.00,
+    "bookingStatus": "Active",
+    "createdAt": "2026-04-02 09:00:00"
+  },
+  "success": true
+}
 
-- Path:
+Cập nhật thông tin của khách hàng
+- Path: POST /FleetFlow/api/v1/customers/profile/update
 - Input:
+{
+  "fullName": "Nguyễn Văn An",
+}
 - Output:
+{
+  "data": {
+    "accountId": 1,
+    "customerId": 1,
+    "email": "annguyen1@example.com",
+    "fullName": "Nguyễn Văn An",
+    "phoneNumber": "0910131711",
+    "roleName": "Customer",
+    "status": "Active",
+    "address": "38 Lê Lợi, Quận 3, TP.HCM",
+    "debtBalance": 0.00,
+    "bookingStatus": "Active",
+    "createdAt": "2026-04-02 09:00:00"
+  },
+  "success": true,
+  "message": "Cập nhật hồ sơ thành công."
+}
 
-- Path:
+Lọc xe có sẵn
+- Path: GET /FleetFlow/api/v1/vehicles/?seatCount=7
+- Input:
+{
+    "seatCount": 7
+}
+- Output:
+{
+    "data": [
+        {
+            "vehicleId": 28,
+            "vehicleTypeId": 2,
+            "typeName": "Xe 7 chỗ",
+            "licensePlate": "51E-836.12",
+            "chassisNumber": "CHS002805268",
+            "engineNumber": "ENG002856844",
+            "brand": "Ford",
+            "model": "Everest",
+            "seatCount": 7,
+            "status": "Available",
+            "accumulatedKm": 53400,
+            "description": "Ford Everest 7 chỗ, đời 2019, 7 chỗ rộng rãi, gầm cao, lý tưởng cho gia đình và nhóm.",
+            "tags": null
+        },
+        {
+            "vehicleId": 38,
+            "vehicleTypeId": 2,
+            "typeName": "Xe 7 chỗ",
+            "licensePlate": "51C-206.02",
+            "chassisNumber": "CHS003878578",
+            "engineNumber": "ENG003848574",
+            "brand": "Ford",
+            "model": "Everest",
+            "seatCount": 7,
+            "status": "Available",
+            "accumulatedKm": 8400,
+            "description": "Ford Everest 7 chỗ, đời 2022, 7 chỗ rộng rãi, gầm cao, lý tưởng cho gia đình và nhóm.",
+            "tags": null
+        },
+        {
+            "vehicleId": 26,
+            "vehicleTypeId": 2,
+            "typeName": "Xe 7 chỗ",
+            "licensePlate": "51C-562.54",
+            "chassisNumber": "CHS002690606",
+            "engineNumber": "ENG002638498",
+            "brand": "Hyundai",
+            "model": "Custin",
+            "seatCount": 7,
+            "status": "Available",
+            "accumulatedKm": 42800,
+            "description": "Hyundai Custin 7 chỗ, đời 2024, 7 chỗ rộng rãi, gầm cao, lý tưởng cho gia đình và nhóm.",
+            "tags": null
+        },
+        {
+            "vehicleId": 36,
+            "vehicleTypeId": 2,
+            "typeName": "Xe 7 chỗ",
+            "licensePlate": "51A-932.44",
+            "chassisNumber": "CHS003663916",
+            "engineNumber": "ENG003630228",
+            "brand": "Hyundai",
+            "model": "Custin",
+            "seatCount": 7,
+            "status": "Available",
+            "accumulatedKm": 95800,
+            "description": "Hyundai Custin 7 chỗ, đời 2020, 7 chỗ rộng rãi, gầm cao, lý tưởng cho gia đình và nhóm.",
+            "tags": null
+        },
+        {
+            "vehicleId": 31,
+            "vehicleTypeId": 2,
+            "typeName": "Xe 7 chỗ",
+            "licensePlate": "51B-247.99",
+            "chassisNumber": "CHS003127261",
+            "engineNumber": "ENG003184363",
+            "brand": "Mitsubishi",
+            "model": "Xpander",
+            "seatCount": 7,
+            "status": "Available",
+            "accumulatedKm": 69300,
+            "description": "Mitsubishi Xpander 7 chỗ, đời 2022, 7 chỗ rộng rãi, gầm cao, lý tưởng cho gia đình và nhóm.",
+            "tags": null
+        },
+        {
+            "vehicleId": 21,
+            "vehicleTypeId": 2,
+            "typeName": "Xe 7 chỗ",
+            "licensePlate": "51D-877.09",
+            "chassisNumber": "CHS002153951",
+            "engineNumber": "ENG002192633",
+            "brand": "Mitsubishi",
+            "model": "Xpander",
+            "seatCount": 7,
+            "status": "Available",
+            "accumulatedKm": 16300,
+            "description": "Mitsubishi Xpander 7 chỗ, đời 2019, 7 chỗ rộng rãi, gầm cao, lý tưởng cho gia đình và nhóm.",
+            "tags": "Ghế da, Có màn hình giải trí"
+        },
+        {
+            "vehicleId": 23,
+            "vehicleTypeId": 2,
+            "typeName": "Xe 7 chỗ",
+            "licensePlate": "51F-151.67",
+            "chassisNumber": "CHS002368613",
+            "engineNumber": "ENG002310979",
+            "brand": "Suzuki",
+            "model": "XL7",
+            "seatCount": 7,
+            "status": "Available",
+            "accumulatedKm": 26900,
+            "description": "Suzuki XL7 7 chỗ, đời 2021, 7 chỗ rộng rãi, gầm cao, lý tưởng cho gia đình và nhóm.",
+            "tags": "Tiết kiệm nhiên liệu, Phù hợp gia đình"
+        },
+        {
+            "vehicleId": 33,
+            "vehicleTypeId": 2,
+            "typeName": "Xe 7 chỗ",
+            "licensePlate": "51D-521.57",
+            "chassisNumber": "CHS003341923",
+            "engineNumber": "ENG003302709",
+            "brand": "Suzuki",
+            "model": "XL7",
+            "seatCount": 7,
+            "status": "Available",
+            "accumulatedKm": 79900,
+            "description": "Suzuki XL7 7 chỗ, đời 2024, 7 chỗ rộng rãi, gầm cao, lý tưởng cho gia đình và nhóm.",
+            "tags": null
+        },
+        {
+            "vehicleId": 35,
+            "vehicleTypeId": 2,
+            "typeName": "Xe 7 chỗ",
+            "licensePlate": "51F-795.15",
+            "chassisNumber": "CHS003556585",
+            "engineNumber": "ENG003521055",
+            "brand": "Toyota",
+            "model": "Fortuner",
+            "seatCount": 7,
+            "status": "Available",
+            "accumulatedKm": 90500,
+            "description": "Toyota Fortuner 7 chỗ, đời 2019, 7 chỗ rộng rãi, gầm cao, lý tưởng cho gia đình và nhóm.",
+            "tags": null
+        },
+        {
+            "vehicleId": 25,
+            "vehicleTypeId": 2,
+            "typeName": "Xe 7 chỗ",
+            "licensePlate": "51B-425.25",
+            "chassisNumber": "CHS002583275",
+            "engineNumber": "ENG002529325",
+            "brand": "Toyota",
+            "model": "Fortuner",
+            "seatCount": 7,
+            "status": "Available",
+            "accumulatedKm": 37500,
+            "description": "Toyota Fortuner 7 chỗ, đời 2023, 7 chỗ rộng rãi, gầm cao, lý tưởng cho gia đình và nhóm.",
+            "tags": null
+        },
+        {
+            "vehicleId": 30,
+            "vehicleTypeId": 2,
+            "typeName": "Xe 7 chỗ",
+            "licensePlate": "51A-110.70",
+            "chassisNumber": "CHS003019930",
+            "engineNumber": "ENG003075190",
+            "brand": "Toyota",
+            "model": "Innova",
+            "seatCount": 7,
+            "status": "Available",
+            "accumulatedKm": 64000,
+            "description": "Toyota Innova 7 chỗ, đời 2021, 7 chỗ rộng rãi, gầm cao, lý tưởng cho gia đình và nhóm.",
+            "tags": null
+        }
+    ],
+    "success": true,
+    "count": 11
+}
+
+Lấy lịch sử đặt xe của khách hàng
+- Path: GET /FleetFlow/api/v1/customers/bookings
 - Input:
 - Output:
+{
+  "data": [
+    {
+      "bookingId": 13,
+      "status": "Completed",
+      "bookingType": "DISTANCE",
+      "tripDirection": "ONE_WAY",
+      "createdAt": "2026-05-14 10:05:00",
+      "brand": "Thaco",
+      "model": "Iveco Daily",
+      "licensePlate": "51B-891.47",
+      "pickupAddress": "82 Lê Lợi, Quận 3, TP.HCM",
+      "dropoffAddress": "193 Nguyễn Thị Minh Khai, Quận 10, TP.HCM",
+      "distanceKm": 258.40,
+      "departureTime": "2026-05-15 10:05:00",
+      "estimatedTotal": 6580000.00
+    }
+  ]
+}
+
+Lấy danh sách xe
+- Path: GET /FleetFlow/api/v1/vehicles
+- Input:
+- Output:
+{
+  "data": [
+    {
+      "vehicleId": 1,
+      "vehicleTypeId": 1,
+      "typeName": "Xe 4 chỗ",
+      "licensePlate": "51B-137.29",
+      "chassisNumber": "CHS000107331",
+      "engineNumber": "ENG000109173",
+      "brand": "Honda",
+      "model": "City",
+      "seatCount": 4,
+      "status": "Available",
+      "accumulatedKm": 8300,
+      "description": "Honda City 4 chỗ, đời 2020, máy xăng, tiết kiệm nhiên liệu, phù hợp đi phố và đường ngắn.",
+      "tags": "Ghế da, Có màn hình giải trí"
+    }
+  ]
+}
+
+Lọc xe theo bookingType:
+- Path: GET /FleetFlow/api/v1/vehicles?bookingType=DAILY&seatCount=4
+- Input:
+{
+    bookingType: "DAILY",
+    seatCount: "4"
+}
+- Output:
+{
+    "data": [
+        {
+            "vehicleId": 1,
+            "vehicleTypeId": 1,
+            "typeName": "Xe 4 chỗ",
+            "licensePlate": "51B-137.29",
+            "chassisNumber": "CHS000107331",
+            "engineNumber": "ENG000109173",
+            "brand": "Honda",
+            "model": "City",
+            "seatCount": 4,
+            "status": "Available",
+            "accumulatedKm": 8300,
+            "description": "Honda City 4 chỗ, đời 2020, máy xăng, tiết kiệm nhiên liệu, phù hợp đi phố và đường ngắn.",
+            "tags": "Ghế da, Có màn hình giải trí"
+        },
+        {
+            "vehicleId": 11,
+            "vehicleTypeId": 1,
+            "typeName": "Xe 4 chỗ",
+            "licensePlate": "51F-507.19",
+            "chassisNumber": "CHS001180641",
+            "engineNumber": "ENG001100903",
+            "brand": "Honda",
+            "model": "City",
+            "seatCount": 4,
+            "status": "Available",
+            "accumulatedKm": 61300,
+            "description": "Honda City 4 chỗ, đời 2023, máy xăng, tiết kiệm nhiên liệu, phù hợp đi phố và đường ngắn.",
+            "tags": "Cách âm tốt, Hỗ trợ trẻ em"
+        },
+        {
+            "vehicleId": 13,
+            "vehicleTypeId": 1,
+            "typeName": "Xe 4 chỗ",
+            "licensePlate": "51B-781.77",
+            "chassisNumber": "CHS001395303",
+            "engineNumber": "ENG001319249",
+            "brand": "Hyundai",
+            "model": "Accent",
+            "seatCount": 4,
+            "status": "Available",
+            "accumulatedKm": 71900,
+            "description": "Hyundai Accent 4 chỗ, đời 2025, máy xăng, tiết kiệm nhiên liệu, phù hợp đi phố và đường ngắn.",
+            "tags": "Xe không hút thuốc, Tài xế kinh nghiệm"
+        },
+        {
+            "vehicleId": 16,
+            "vehicleTypeId": 1,
+            "typeName": "Xe 4 chỗ",
+            "licensePlate": "51E-192.64",
+            "chassisNumber": "CHS001617296",
+            "engineNumber": "ENG001646768",
+            "brand": "Kia",
+            "model": "Soluto",
+            "seatCount": 4,
+            "status": "Available",
+            "accumulatedKm": 87800,
+            "description": "Kia Soluto 4 chỗ, đời 2021, máy xăng, tiết kiệm nhiên liệu, phù hợp đi phố và đường ngắn.",
+            "tags": "Tài xế kinh nghiệm, Cửa sổ trời"
+        },
+        {
+            "vehicleId": 6,
+            "vehicleTypeId": 1,
+            "typeName": "Xe 4 chỗ",
+            "licensePlate": "51A-822.74",
+            "chassisNumber": "CHS000643986",
+            "engineNumber": "ENG000655038",
+            "brand": "Kia",
+            "model": "Soluto",
+            "seatCount": 4,
+            "status": "Available",
+            "accumulatedKm": 34800,
+            "description": "Kia Soluto 4 chỗ, đời 2025, máy xăng, tiết kiệm nhiên liệu, phù hợp đi phố và đường ngắn.",
+            "tags": "Phù hợp gia đình, Cổng sạc USB"
+        },
+        {
+            "vehicleId": 8,
+            "vehicleTypeId": 1,
+            "typeName": "Xe 4 chỗ",
+            "licensePlate": "51C-096.32",
+            "chassisNumber": "CHS000858648",
+            "engineNumber": "ENG000873384",
+            "brand": "Mitsubishi",
+            "model": "Attrage",
+            "seatCount": 4,
+            "status": "Available",
+            "accumulatedKm": 45400,
+            "description": "Mitsubishi Attrage 4 chỗ, đời 2020, máy xăng, tiết kiệm nhiên liệu, phù hợp đi phố và đường ngắn.",
+            "tags": "Wifi miễn phí, Cách âm tốt"
+        },
+        {
+            "vehicleId": 18,
+            "vehicleTypeId": 1,
+            "typeName": "Xe 4 chỗ",
+            "licensePlate": "51A-466.22",
+            "chassisNumber": "CHS001831958",
+            "engineNumber": "ENG001865114",
+            "brand": "Mitsubishi",
+            "model": "Attrage",
+            "seatCount": 4,
+            "status": "Available",
+            "accumulatedKm": 98400,
+            "description": "Mitsubishi Attrage 4 chỗ, đời 2023, máy xăng, tiết kiệm nhiên liệu, phù hợp đi phố và đường ngắn.",
+            "tags": "Ghế da, Khử mùi thơm mát"
+        },
+        {
+            "vehicleId": 20,
+            "vehicleTypeId": 1,
+            "typeName": "Xe 4 chỗ",
+            "licensePlate": "51C-740.80",
+            "chassisNumber": "CHS002046620",
+            "engineNumber": "ENG002083460",
+            "brand": "Toyota",
+            "model": "Vios",
+            "seatCount": 4,
+            "status": "Available",
+            "accumulatedKm": 11000,
+            "description": "Toyota Vios 4 chỗ, đời 2025, máy xăng, tiết kiệm nhiên liệu, phù hợp đi phố và đường ngắn.",
+            "tags": "Khoang hành lý rộng, Tiết kiệm nhiên liệu"
+        },
+        {
+            "vehicleId": 15,
+            "vehicleTypeId": 1,
+            "typeName": "Xe 4 chỗ",
+            "licensePlate": "51D-055.35",
+            "chassisNumber": "CHS001509965",
+            "engineNumber": "ENG001537595",
+            "brand": "Toyota",
+            "model": "Wigo",
+            "seatCount": 4,
+            "status": "Available",
+            "accumulatedKm": 82500,
+            "description": "Toyota Wigo 4 chỗ, đời 2020, máy xăng, tiết kiệm nhiên liệu, phù hợp đi phố và đường ngắn.",
+            "tags": "Gầm cao, Khử mùi thơm mát"
+        },
+        {
+            "vehicleId": 10,
+            "vehicleTypeId": 1,
+            "typeName": "Xe 4 chỗ",
+            "licensePlate": "51E-370.90",
+            "chassisNumber": "CHS001073310",
+            "engineNumber": "ENG001091730",
+            "brand": "Toyota",
+            "model": "Vios",
+            "seatCount": 4,
+            "status": "Available",
+            "accumulatedKm": 56000,
+            "description": "Toyota Vios 4 chỗ, đời 2022, máy xăng, tiết kiệm nhiên liệu, phù hợp đi phố và đường ngắn.",
+            "tags": "Ghế ngả, Xe không hút thuốc"
+        },
+        {
+            "vehicleId": 5,
+            "vehicleTypeId": 1,
+            "typeName": "Xe 4 chỗ",
+            "licensePlate": "51F-685.45",
+            "chassisNumber": "CHS000536655",
+            "engineNumber": "ENG000545865",
+            "brand": "Toyota",
+            "model": "Wigo",
+            "seatCount": 4,
+            "status": "Available",
+            "accumulatedKm": 29500,
+            "description": "Toyota Wigo 4 chỗ, đời 2024, máy xăng, tiết kiệm nhiên liệu, phù hợp đi phố và đường ngắn.",
+            "tags": "Mới (đời 2023+), Wifi miễn phí"
+        }
+    ],
+    "success": true,
+    "count": 11
+}
 
 - Path:
 - Input:
@@ -366,29 +804,132 @@ Tính cước phí chuyến đi
     "message": "Từ chối hồ sơ tài xế thành công"
 }
 
-- Path:
+Lấy danh sách xe (phía Admin)
+- Path: GET /FleetFlow/api/v1/admin/vehicles
 - Input:
 - Output:
+{
+  "success": true,
+  "count": 50,
+  "data": [
+    {
+      "vehicleId": 1,
+      "vehicleTypeId": 1,
+      "typeName": "Xe 4 chỗ",
+      "licensePlate": "51B-137.29",
+      "chassisNumber": "CHS000107331",
+      "engineNumber": "ENG000109173",
+      "brand": "Honda",
+      "model": "City",
+      "seatCount": 4,
+      "status": "Available",
+      "accumulatedKm": 8300,
+      "description": "Honda City 4 chỗ, đời 2020, máy xăng, tiết kiệm nhiên liệu, phù hợp đi phố và đường..."
+    }
+  ]
+}
 
-- Path:
-- Input:
+Xóa xe (phía Admin)
+- Path: DELETE /FleetFlow/api/v1/admin/vehicles/52
+- Input: 
+{
+    "vehicleId": 52
+}
 - Output:
+{
+  "success": true,
+  "message": "Xóa xe thành công"
+}
 
-- Path:
-- Input:
+Lấy chi tiết 1 xe cụ thể (Phía Admin)
+- Path: GET /FleetFlow/api/v1/admin/vehicles/3
+- Input: 
+{
+    "vehicleId": 3
+}
 - Output:
+{
+  "success": true,
+  "data": {
+    "vehicleId": 3,
+    "vehicleTypeId": 1,
+    "typeName": "Xe 4 chỗ",
+    "licensePlate": "51D-411.87",
+    "chassisNumber": "CHS000321993",
+    "engineNumber": "ENG000327519",
+    "brand": "Hyundai",
+    "model": "Accent",
+    "seatCount": 4,
+    "status": "Unavailable",
+    "accumulatedKm": 15000,
+    "description": "Hyundai Accent 4 chỗ, đời 2022, máy xăng, tiết kiệm nhiên liệu, phù hợp đi phố và đường ngắn.",
+    "tags": "Tiết kiệm nhiên liệu, Phù hợp gia đình"
+  }
+}
 
-- Path:
+Thêm xe mới (Phía Admin)
+- Path: POST /FleetFlow/api/v1/admin/vehicles/
 - Input:
+{
+  "vehicleTypeId": 2,
+  "licensePlate": "51F-999.99",
+  "chassisNumber": "CHS-TEST-001",
+  "engineNumber": "ENG-TEST-001",
+  "brand": "Toyota",
+  "model": "Innova 2024",
+  "seatCount": 7,
+  "status": "Available",
+  "accumulatedKm": 0,
+  "description": "Xe test tạo bằng Postman"
+}
 - Output:
+{
+  "success": true,
+  "message": "Tạo xe thành công",
+  "vehicleId": 52,
+  "data": {
+    "vehicleId": 52,
+    "vehicleTypeId": 2,
+    "typeName": "Xe 7 chỗ",
+    "licensePlate": "51F-999.99",
+    "chassisNumber": "CHS-TEST-001",
+    "engineNumber": "ENG-TEST-001",
+    "brand": "Toyota",
+    "model": "Innova 2024",
+    "seatCount": 7,
+    "status": "Available",
+    "accumulatedKm": 0,
+    "description": "Xe test tạo bằng Postman"
+  }
+}
 
-- Path:
-- Input:
+Cập nhật thông tin xe (Phía Admin)
+- Path: PUT /FleetFlow/api/v1/admin/vehicles/2
+- Input: 
+{
+  "status": "Unavailable",
+  "accumulatedKm": 15000
+}
 - Output:
-
-- Path:
-- Input:
-- Output:
+{
+  "success": true,
+  "message": "Cập nhật xe thành công",
+  "data": {
+    "vehicleId": 2,
+    "vehicleTypeId": 1,
+    "typeName": "Xe 4 chỗ",
+    "licensePlate": "51C-274.58",
+    "chassisNumber": "CHS000214662",
+    "engineNumber": "ENG000218346",
+    "brand": "Kia",
+    "model": "Morning",
+    "seatCount": 4,
+    "status": "Unavailable",
+    "accumulatedKm": 15000,
+    "description": "Kia Morning 4 chỗ, đời 2021, máy xăng, tiết kiệm nhiên liệu, phù hợp đi phố và đường ngắn.",
+    "tags": "Êm ái, Mới (đời 2023+)"
+  }
+}
 
 - Path:
 - Input:

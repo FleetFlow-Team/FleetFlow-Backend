@@ -64,6 +64,46 @@ public class VehicleDAO {
         return list;
     }
  
+    public List<Map<String, Object>> findAvailable(Integer seatCount, Integer typeId, String bookingType) throws Exception {
+        List<Map<String, Object>> list = new ArrayList<>();
+        StringBuilder sql = new StringBuilder(BASE_SELECT)
+                .append("WHERE UPPER(v.Status) = 'AVAILABLE' ")
+                .append("AND EXISTS (SELECT 1 FROM PricingRule pr WHERE pr.VehicleTypeID = v.VehicleTypeID AND UPPER(pr.BookingType) = UPPER(?)) ");
+        
+        List<Object> params = new ArrayList<>();
+        params.add(bookingType);
+        
+        if (seatCount != null) {
+            sql.append("AND v.SeatCount = ? ");
+            params.add(seatCount);
+        }
+        if (typeId != null) {
+            sql.append("AND v.VehicleTypeID = ? ");
+            params.add(typeId);
+        }
+        sql.append(GROUP_BY).append("ORDER BY v.SeatCount, v.Brand");
+ 
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            
+            for (int i = 0; i < params.size(); i++) {
+                Object param = params.get(i);
+                if (param instanceof String) {
+                    ps.setString(i + 1, (String) param);
+                } else if (param instanceof Integer) {
+                    ps.setInt(i + 1, (Integer) param);
+                }
+            }
+            
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(mapVehicle(rs));
+                }
+            }
+        }
+        return list;
+    }
+    
     public List<Map<String, Object>> findAll() throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
         String sql = BASE_SELECT + GROUP_BY + "ORDER BY v.VehicleID";
