@@ -45,7 +45,13 @@ private final VehicleDAO vehicleDAO = new VehicleDAO();
                 Integer seatCount = parseIntParam(request.getParameter("seatCount"));
                 Integer typeId = parseIntParam(request.getParameter("typeId"));
  
-                List<Map<String, Object>> vehicles = vehicleDAO.findAvailable(seatCount, typeId);
+                String bookingType = request.getParameter("bookingType");
+                List<Map<String, Object>> vehicles;
+                if (bookingType != null && !bookingType.trim().isEmpty()) {
+                    vehicles = vehicleDAO.findAvailable(seatCount, typeId, bookingType);
+                } else {
+                    vehicles = vehicleDAO.findAvailable(seatCount, typeId);
+                }
                 apiResponse.put("success", true);
                 apiResponse.put("count", vehicles.size());
                 apiResponse.put("data", vehicles);
