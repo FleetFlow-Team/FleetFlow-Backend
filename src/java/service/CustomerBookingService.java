@@ -52,13 +52,18 @@ public class CustomerBookingService {
         int penaltyPercent = 0;
         if (departureTime != null) {
             long now = System.currentTimeMillis();
-            long hoursUntilDeparture = (departureTime.getTime() - now) / (1000 * 60 * 60);
-            if (hoursUntilDeparture >= 24) {
+            long minutesSinceCreated = (now - booking.getCreatedAt().getTime()) / (1000 * 60);
+            if (minutesSinceCreated <= 10) {
                 penaltyPercent = 0;
-            } else if (hoursUntilDeparture >= 12) {
-                penaltyPercent = 30;
             } else {
-                penaltyPercent = 50;
+                long hoursUntilDeparture = (departureTime.getTime() - now) / (1000 * 60 * 60);
+                if (hoursUntilDeparture >= 12) {
+                    penaltyPercent = 0;
+                } else if (hoursUntilDeparture >= 6) {
+                    penaltyPercent = 30;
+                } else {
+                    penaltyPercent = 50;
+                }
             }
         }
 
