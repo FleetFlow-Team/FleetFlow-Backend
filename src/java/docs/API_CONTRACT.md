@@ -126,6 +126,198 @@ Xem chi tiết đơn booking của customer
         "departureTime": "2026-07-20 08:00:00.0"
     }
 }
+---------------------------------------------------------------------------------
+                                BỔ SUNG LUỒNG BOOKING NGÀY 19/6/2026
+Tạo đơn đặt xe — DISTANCE ROUND_TRIP
+fe làm them giao điện để customer nhập them chiều ii và về
+
+Path: POST http://localhost:8080/FleetFlow/api/v1/bookings
+Input:
+
+json{
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "DISTANCE",
+  "tripDirection": "ROUND_TRIP",
+  "pickupAddress": "123 Nguyễn Huệ Quận 1 HCM",
+  "pickupLat": 10.776,
+  "pickupLng": 106.700,
+  "dropoffAddress": "Vũng Tàu",
+  "dropoffLat": 10.346,
+  "dropoffLng": 107.084,
+  "departureTime": "2026-07-20T08:00:00",
+  "returnTime": "2026-07-20T18:00:00",
+  "returnPickupAddress": "Vũng Tàu",
+  "returnPickupLat": 10.346,
+  "returnPickupLng": 107.084,
+  "returnDropoffAddress": "123 Nguyễn Huệ Quận 1 HCM",
+  "returnDropoffLat": 10.776,
+  "returnDropoffLng": 106.700
+}
+
+Output:
+
+{
+  "success": true,
+  "bookingId": 23,
+  "status": "PENDING",
+  "message": "Đặt xe thành công, chờ Dispatcher duyệt"
+}
+Tạo đơn đặt xe — HOURLY
+
+Path: POST http://localhost:8080/FleetFlow/api/v1/bookings
+Input:
+
+{
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "HOURLY",
+  "tripDirection": "ONE_WAY",
+  "pickupAddress": "123 Nguyễn Huệ Quận 1 HCM",
+  "departureTime": "2026-07-20T08:00:00",
+  "durationHours": 4
+}
+
+Output:
+
+json{
+  "success": true,
+  "bookingId": 24,
+  "status": "PENDING",
+  "message": "Đặt xe thành công, chờ Dispatcher duyệt"
+}
+Tạo đơn đặt xe — DAILY
+
+Path: POST http://localhost:8080/FleetFlow/api/v1/bookings
+Input:
+
+json{
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "DAILY",
+  "tripDirection": "ONE_WAY",
+  "pickupAddress": "123 Nguyễn Huệ Quận 1 HCM",
+  "departureTime": "2026-07-20T08:00:00",
+  "durationDays": 2
+}
+
+Output:
+
+json{
+  "success": true,
+  "bookingId": 25,
+  "status": "PENDING",
+  "message": "Đặt xe thành công, chờ Dispatcher duyệt"
+}
+
+Tạo đơn đặt xe — INNER_CITY
+
+Path: POST http://localhost:8080/FleetFlow/api/v1/bookings
+Input:
+
+json{
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "INNER_CITY",
+  "tripDirection": "ONE_WAY",
+  "pickupAddress": "123 Nguyễn Huệ Quận 1 HCM",
+  "pickupLat": 10.776,
+  "pickupLng": 106.700,
+  "dropoffAddress": "Sân bay Tân Sơn Nhất",
+  "dropoffLat": 10.818,
+  "dropoffLng": 106.652,
+  "departureTime": "2026-07-20T08:00:00"
+}
+
+Output:
+
+json{
+  "success": true,
+  "bookingId": 26,
+  "status": "PENDING",
+  "message": "Đặt xe thành công, chờ Dispatcher duyệt"
+}
+
+Tạo đơn đặt xe — INTER_CITY
+
+Path: POST http://localhost:8080/FleetFlow/api/v1/bookings
+Input:
+
+json{
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "INTER_CITY",
+  "tripDirection": "ONE_WAY",
+  "pickupAddress": "Bến xe Miền Đông HCM",
+  "pickupLat": 10.814,
+  "pickupLng": 106.711,
+  "dropoffAddress": "Bến xe Đà Lạt",
+  "dropoffLat": 11.940,
+  "dropoffLng": 108.458,
+  "departureTime": "2026-07-20T08:00:00"
+}
+
+Output:
+
+{
+  "success": true,
+  "bookingId": 27,
+  "status": "PENDING",
+  "message": "Đặt xe thành công, chờ Dispatcher duyệt"
+}
+Xem chi tiết booking
+
+Path: GET http://localhost:8080/FleetFlow/api/v1/bookings/{bookingId}
+Output (ONE_WAY):
+
+json{
+  "bookingId": 22,
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "DISTANCE",
+  "tripDirection": "ONE_WAY",
+  "status": "PENDING",
+  "detail": {
+    "pickupAddress": "123 Nguyễn Huệ Quận 1 HCM",
+    "pickupLat": 10.776000,
+    "pickupLng": 106.700000,
+    "dropoffAddress": "Vũng Tàu",
+    "dropoffLat": 10.346000,
+    "dropoffLng": 107.084000,
+    "distanceKm": 120.5,
+    "departureTime": "2026-07-20 08:00:00.0"
+  }
+}
+
+Output (ROUND_TRIP):
+
+json{
+  "bookingId": 23,
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "DISTANCE",
+  "tripDirection": "ROUND_TRIP",
+  "status": "PENDING",
+  "detail": {
+    "pickupAddress": "123 Nguyễn Huệ Quận 1 HCM",
+    "pickupLat": 10.776000,
+    "pickupLng": 106.700000,
+    "dropoffAddress": "Vũng Tàu",
+    "dropoffLat": 10.346000,
+    "dropoffLng": 107.084000,
+    "distanceKm": 120.5,
+    "departureTime": "2026-07-20 08:00:00.0",
+    "returnTime": "2026-07-20 18:00:00.0",
+    "returnPickupAddress": "Vũng Tàu",
+    "returnPickupLat": 10.346000,
+    "returnPickupLng": 107.084000,
+    "returnDropoffAddress": "123 Nguyễn Huệ Quận 1 HCM",
+    "returnDropoffLat": 10.776000,
+    "returnDropoffLng": 106.700000,
+    "returnDistanceKm": 118.0
+  }
+}
+---------------------------------------------------------------------------
 Xem lịch sử booking
 - Path: GET http://localhost:8080/FleetFlow/api/v1/customer/bookings?customerId=1
 - Input:
@@ -199,6 +391,117 @@ Tính cước phí chuyến đi
     "estimatedTotal": 1857500.000,
     "deposit30Percent": 557250
 }
+                    BỔ SUNG LUỒNG BOOKING NGÀY 19/6/2026
+-------------------------------------------------------------------------------
+Tính cước phí — DISTANCE ROUND_TRIP(Phí cước đi 2 chiều )
+Path: POST http://localhost:8080/FleetFlow/api/v1/customer/bookings/check-price
+Input:
+
+json{
+  "vehicleId": 1,
+  "bookingType": "DISTANCE",
+  "tripDirection": "ROUND_TRIP",
+  "distanceKm": 120.5,
+  "returnDistanceKm": 118.0,
+  "departureTime": "2026-07-20T08:00:00"
+}
+
+Output:
+
+json{
+  "success": true,
+  "ruleId": 1,
+  "baseFare": 3672500.000,
+  "weekendSurcharge": 0,
+  "estimatedTotal": 3672500.000,
+  "deposit30Percent": 1101750,
+  "legDistanceKm": 120.5,
+  "returnDistanceKm": 118.0,
+  "totalDistanceKm": 238.5
+}
+
+Tính cước phí — HOURLY
+
+Path: POST http://localhost:8080/FleetFlow/api/v1/customer/bookings/check-price
+Input:
+
+json{
+  "vehicleId": 1,
+  "bookingType": "HOURLY",
+  "tripDirection": "ONE_WAY",
+  "durationHours": 4,
+  "departureTime": "2026-07-20T08:00:00"
+}
+
+Output:
+
+{
+  "success": true,
+  "ruleId": 2,
+  "baseFare": 600000.000,
+  "weekendSurcharge": 0,
+  "estimatedTotal": 600000.000,
+  "deposit30Percent": 180000,
+  "legDistanceKm": 0.0,
+  "returnDistanceKm": 0.0,
+  "totalDistanceKm": 0.0
+}
+
+Tính cước phí — DAILY(THUÊ XE THEO NGÀY)
+
+Path: POST http://localhost:8080/FleetFlow/api/v1/customer/bookings/check-price
+Input:
+
+json{
+  "vehicleId": 1,
+  "bookingType": "DAILY",
+  "tripDirection": "ONE_WAY",
+  "durationDays": 2,
+  "departureTime": "2026-07-20T08:00:00"
+}
+
+Output:
+
+{
+  "success": true,
+  "ruleId": 3,
+  "baseFare": 2000000.000,
+  "weekendSurcharge": 0,
+  "estimatedTotal": 2000000.000,
+  "deposit30Percent": 600000,
+  "legDistanceKm": 0.0,
+  "returnDistanceKm": 0.0,
+  "totalDistanceKm": 0.0
+}
+
+Tính cước phí — Cuối tuần (weekend surcharge +10%)
+
+Path: POST http://localhost:8080/FleetFlow/api/v1/customer/bookings/check-price
+Input:
+
+json{
+  "vehicleId": 1,
+  "bookingType": "DISTANCE",
+  "tripDirection": "ONE_WAY",
+  "distanceKm": 120.5,
+  "departureTime": "2026-07-18T08:00:00"
+}
+(2026-07-18 là thứ 7)
+
+Output:
+
+json{
+  "success": true,
+  "ruleId": 1,
+  "baseFare": 1857500.000,
+  "weekendSurcharge": 185750,
+  "estimatedTotal": 2043250.000,
+  "deposit30Percent": 612975,
+  "legDistanceKm": 120.5,
+  "returnDistanceKm": 0.0,
+  "totalDistanceKm": 120.5
+}
+-------------------------------------------------------------------------------
 Áp mã voucher
 - Path: POST http://localhost:8080/FleetFlow/api/v1/customer/vouchers/apply
 - Input:
