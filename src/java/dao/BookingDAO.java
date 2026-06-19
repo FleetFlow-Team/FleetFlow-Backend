@@ -49,22 +49,47 @@ public class BookingDAO {
             }
             int bookingId = rs.getInt(1);
 
-            // 2. Insert BookingDetail (có DistanceKm)
+            // 2. Insert BookingDetail (PickupLat/Lng, DropoffLat/Lng có thể NULL khi HOURLY/DAILY)
             String sqlDetail = "INSERT INTO BookingDetail "
                     + "(BookingID, PickupAddress, PickupLat, PickupLng, "
                     + "DropoffAddress, DropoffLat, DropoffLng, DistanceKm, "
-                    + "DepartureTime, ReturnTime) "
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    + "DepartureTime, ReturnTime, DurationHours, DurationDays, "
+                    + "ReturnPickupAddress, ReturnPickupLat, ReturnPickupLng, "
+                    + "ReturnDropoffAddress, ReturnDropoffLat, ReturnDropoffLng, ReturnDistanceKm) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
             stmtDetail = conn.prepareStatement(sqlDetail);
             stmtDetail.setInt(1, bookingId);
             stmtDetail.setString(2, detail.getPickupAddress());
-            stmtDetail.setBigDecimal(3, detail.getPickupLat());
-            stmtDetail.setBigDecimal(4, detail.getPickupLng());
+
+            if (detail.getPickupLat() != null) {
+                stmtDetail.setBigDecimal(3, detail.getPickupLat());
+            } else {
+                stmtDetail.setNull(3, Types.DECIMAL);
+            }
+            if (detail.getPickupLng() != null) {
+                stmtDetail.setBigDecimal(4, detail.getPickupLng());
+            } else {
+                stmtDetail.setNull(4, Types.DECIMAL);
+            }
+
             stmtDetail.setString(5, detail.getDropoffAddress());
-            stmtDetail.setBigDecimal(6, detail.getDropoffLat());
-            stmtDetail.setBigDecimal(7, detail.getDropoffLng());
-            stmtDetail.setBigDecimal(8, detail.getDistanceKm());  // thêm mới
+
+            if (detail.getDropoffLat() != null) {
+                stmtDetail.setBigDecimal(6, detail.getDropoffLat());
+            } else {
+                stmtDetail.setNull(6, Types.DECIMAL);
+            }
+            if (detail.getDropoffLng() != null) {
+                stmtDetail.setBigDecimal(7, detail.getDropoffLng());
+            } else {
+                stmtDetail.setNull(7, Types.DECIMAL);
+            }
+            if (detail.getDistanceKm() != null) {
+                stmtDetail.setBigDecimal(8, detail.getDistanceKm());
+            } else {
+                stmtDetail.setNull(8, Types.DECIMAL);
+            }
 
             stmtDetail.setTimestamp(9, detail.getDepartureTime());
 
@@ -72,6 +97,55 @@ public class BookingDAO {
                 stmtDetail.setTimestamp(10, detail.getReturnTime());
             } else {
                 stmtDetail.setNull(10, Types.TIMESTAMP);
+            }
+
+            if (detail.getDurationHours() != null) {
+                stmtDetail.setInt(11, detail.getDurationHours());
+            } else {
+                stmtDetail.setNull(11, Types.INTEGER);
+            }
+
+            if (detail.getDurationDays() != null) {
+                stmtDetail.setInt(12, detail.getDurationDays());
+            } else {
+                stmtDetail.setNull(12, Types.INTEGER);
+            }
+
+            // --- Cột 13-19: chiều về (NULL khi ONE_WAY) ---
+            if (detail.getReturnPickupAddress() != null) {
+                stmtDetail.setString(13, detail.getReturnPickupAddress());
+            } else {
+                stmtDetail.setNull(13, Types.NVARCHAR);
+            }
+            if (detail.getReturnPickupLat() != null) {
+                stmtDetail.setBigDecimal(14, detail.getReturnPickupLat());
+            } else {
+                stmtDetail.setNull(14, Types.DECIMAL);
+            }
+            if (detail.getReturnPickupLng() != null) {
+                stmtDetail.setBigDecimal(15, detail.getReturnPickupLng());
+            } else {
+                stmtDetail.setNull(15, Types.DECIMAL);
+            }
+            if (detail.getReturnDropoffAddress() != null) {
+                stmtDetail.setString(16, detail.getReturnDropoffAddress());
+            } else {
+                stmtDetail.setNull(16, Types.NVARCHAR);
+            }
+            if (detail.getReturnDropoffLat() != null) {
+                stmtDetail.setBigDecimal(17, detail.getReturnDropoffLat());
+            } else {
+                stmtDetail.setNull(17, Types.DECIMAL);
+            }
+            if (detail.getReturnDropoffLng() != null) {
+                stmtDetail.setBigDecimal(18, detail.getReturnDropoffLng());
+            } else {
+                stmtDetail.setNull(18, Types.DECIMAL);
+            }
+            if (detail.getReturnDistanceKm() != null) {
+                stmtDetail.setBigDecimal(19, detail.getReturnDistanceKm());
+            } else {
+                stmtDetail.setNull(19, Types.DECIMAL);
             }
 
             stmtDetail.executeUpdate();
@@ -224,9 +298,25 @@ public class BookingDAO {
         d.setDropoffAddress(rs.getString("DropoffAddress"));
         d.setDropoffLat(rs.getBigDecimal("DropoffLat"));
         d.setDropoffLng(rs.getBigDecimal("DropoffLng"));
-        d.setDistanceKm(rs.getBigDecimal("DistanceKm"));  // thêm mới
+        d.setDistanceKm(rs.getBigDecimal("DistanceKm"));
         d.setDepartureTime(rs.getTimestamp("DepartureTime"));
         d.setReturnTime(rs.getTimestamp("ReturnTime"));
+
+        int durationHours = rs.getInt("DurationHours");
+        if (!rs.wasNull()) d.setDurationHours(durationHours);
+
+        int durationDays = rs.getInt("DurationDays");
+        if (!rs.wasNull()) d.setDurationDays(durationDays);
+
+        // --- Chiều về ---
+        d.setReturnPickupAddress(rs.getString("ReturnPickupAddress"));
+        d.setReturnPickupLat(rs.getBigDecimal("ReturnPickupLat"));
+        d.setReturnPickupLng(rs.getBigDecimal("ReturnPickupLng"));
+        d.setReturnDropoffAddress(rs.getString("ReturnDropoffAddress"));
+        d.setReturnDropoffLat(rs.getBigDecimal("ReturnDropoffLat"));
+        d.setReturnDropoffLng(rs.getBigDecimal("ReturnDropoffLng"));
+        d.setReturnDistanceKm(rs.getBigDecimal("ReturnDistanceKm"));
+
         return d;
     }
 }
