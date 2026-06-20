@@ -9,6 +9,7 @@ import com.google.gson.GsonBuilder;
 import dao.VehicleDAO;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,16 +43,28 @@ private final VehicleDAO vehicleDAO = new VehicleDAO();
             String pathInfo = request.getPathInfo();
  
             if (pathInfo == null || pathInfo.equals("/")) {
-                Integer seatCount = parseIntParam(request.getParameter("seatCount"));
-                Integer typeId = parseIntParam(request.getParameter("typeId"));
- 
+                String seatCountStr = request.getParameter("seatCount");
+                String brand = request.getParameter("brand");
+                String fuelType = request.getParameter("fuelType");
                 String bookingType = request.getParameter("bookingType");
-                List<Map<String, Object>> vehicles;
-                if (bookingType != null && !bookingType.trim().isEmpty()) {
-                    vehicles = vehicleDAO.findAvailable(seatCount, typeId, bookingType);
-                } else {
-                    vehicles = vehicleDAO.findAvailable(seatCount, typeId);
+                String priceMinStr = request.getParameter("priceMin");
+                String priceMaxStr = request.getParameter("priceMax");
+                
+                Integer seatCount = (seatCountStr != null && !seatCountStr.trim().isEmpty()) ? Integer.valueOf(seatCountStr.trim()) : null;
+                BigDecimal priceMin = (priceMinStr != null && !priceMinStr.trim().isEmpty()) ? new BigDecimal(priceMinStr.trim()) : null;
+                BigDecimal priceMax = (priceMaxStr != null && !priceMaxStr.trim().isEmpty()) ? new BigDecimal(priceMaxStr.trim()) : null;
+
+                if (bookingType != null) {
+                    bookingType = bookingType.trim().toUpperCase();
+                    if (bookingType.equals("CHUYẾN")) bookingType = "DISTANCE";
+                    else if (bookingType.equals("GIỜ")) bookingType = "HOURLY";
+                    else if (bookingType.equals("NGÀY")) bookingType = "DAILY";
                 }
+
+                List<Map<String, Object>> vehicles = vehicleDAO.findVehiclesWithFilters(
+                        seatCount, brand, fuelType, bookingType, priceMin, priceMax
+                );
+                
                 apiResponse.put("success", true);
                 apiResponse.put("count", vehicles.size());
                 apiResponse.put("data", vehicles);

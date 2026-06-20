@@ -1,8 +1,6 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package dao;
+
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -10,17 +8,19 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import model.VehicleAIData;
 import utils.DbUtils;
+
 /**
  *
  * @author User
  */
 public class VehicleDAO {
-   private static final String BASE_SELECT =
+    private static final String BASE_SELECT =
             "SELECT v.VehicleID, v.VehicleTypeID, vt.TypeName, "
           + "v.LicensePlate, v.ChassisNumber, v.EngineNumber, v.Brand, v.Model, "
           + "v.SeatCount, v.Status, v.AccumulatedKm, v.Description, "
@@ -29,12 +29,12 @@ public class VehicleDAO {
           + "JOIN VehicleType vt ON vt.VehicleTypeID = v.VehicleTypeID "
           + "LEFT JOIN VehicleTag vtg ON vtg.VehicleID = v.VehicleID "
           + "LEFT JOIN Tag t ON t.TagID = vtg.TagID ";
- 
+
     private static final String GROUP_BY =
             " GROUP BY v.VehicleID, v.VehicleTypeID, vt.TypeName, "
           + "v.LicensePlate, v.ChassisNumber, v.EngineNumber, v.Brand, v.Model, "
           + "v.SeatCount, v.Status, v.AccumulatedKm, v.Description ";
- 
+
     public List<Map<String, Object>> findAvailable(Integer seatCount, Integer typeId) throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder(BASE_SELECT)
@@ -49,7 +49,7 @@ public class VehicleDAO {
             params.add(typeId);
         }
         sql.append(GROUP_BY).append("ORDER BY v.SeatCount, v.Brand");
- 
+
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql.toString())) {
             for (int i = 0; i < params.size(); i++) {
@@ -63,7 +63,7 @@ public class VehicleDAO {
         }
         return list;
     }
- 
+
     public List<Map<String, Object>> findAvailable(Integer seatCount, Integer typeId, String bookingType) throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder(BASE_SELECT)
@@ -82,7 +82,7 @@ public class VehicleDAO {
             params.add(typeId);
         }
         sql.append(GROUP_BY).append("ORDER BY v.SeatCount, v.Brand");
- 
+
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql.toString())) {
             
@@ -116,7 +116,7 @@ public class VehicleDAO {
         }
         return list;
     }
- 
+
     public Map<String, Object> findById(int vehicleId) throws Exception {
         String sql = BASE_SELECT + "WHERE v.VehicleID = ? " + GROUP_BY;
         try (Connection conn = DbUtils.getConnection();
@@ -130,7 +130,109 @@ public class VehicleDAO {
             }
         }
     }
- 
+    
+    public List<Map<String, Object>> findVehiclesWithFilters(
+            Integer seatCount, 
+            String brand, 
+            String fuelType,
+            String bookingType, 
+            BigDecimal priceMin, 
+            BigDecimal priceMax) {
+        
+        List<Map<String, Object>> list = new ArrayList<>();
+        
+        StringBuilder sql = new StringBuilder(
+            "SELECT DISTINCT v.VehicleID, v.VehicleTypeID, vt.TypeName, " +
+            "v.LicensePlate, v.ChassisNumber, v.EngineNumber, v.Brand, v.Model, " +
+            "v.SeatCount, v.FuelType, v.Status, v.AccumulatedKm, v.Description, v.ImagePath " +
+            "FROM Vehicle v " +
+            "LEFT JOIN VehicleType vt ON vt.VehicleTypeID = v.VehicleTypeID " +
+            "LEFT JOIN PricingRule pr ON pr.VehicleTypeID = v.VehicleTypeID " +
+            "WHERE UPPER(v.Status) = 'AVAILABLE'"
+        );
+        
+        List<Object> parameters = new ArrayList<>();
+        
+        if (seatCount != null) {
+            sql.append(" AND v.SeatCount = ? ");
+            parameters.add(seatCount);
+        }
+        
+        if (brand != null && !brand.trim().isEmpty()) {
+            sql.append(" AND UPPER(v.Brand) = UPPER(?) ");
+            parameters.add(brand.trim());
+        }
+        
+        if (fuelType != null && !fuelType.trim().isEmpty()) {
+            sql.append(" AND UPPER(v.FuelType) = UPPER(?) ");
+            parameters.add(fuelType.trim());
+        }
+        
+        if (bookingType != null && !bookingType.trim().isEmpty()) {
+            sql.append(" AND UPPER(pr.BookingType) = UPPER(?) ");
+            parameters.add(bookingType.trim());
+        }
+        
+        if (priceMin != null || priceMax != null) {
+            String priceColumn = "pr.BasePrice"; 
+            
+            if (bookingType != null) {
+                switch (bookingType.toUpperCase()) {
+                    case "HOURLY":
+                        priceColumn = "pr.PricePerHour";
+                        break;
+                    case "DAILY":
+                        priceColumn = "pr.PricePerDay";
+                        break;
+                    case "DISTANCE":
+                        priceColumn = "pr.PricePerKm";
+                        break;
+                }
+            }
+            
+            if (priceMin != null) {
+                sql.append(" AND ").append(priceColumn).append(" >= ? ");
+                parameters.add(priceMin);
+            }
+            if (priceMax != null) {
+                sql.append(" AND ").append(priceColumn).append(" <= ? ");
+                parameters.add(priceMax);
+            }
+        }
+        sql.append(" ORDER BY v.VehicleID ASC");
+        
+        try (Connection con = DbUtils.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql.toString())) {
+            
+            for (int i = 0; i < parameters.size(); i++) {
+                ps.setObject(i + 1, parameters.get(i));
+            }
+            
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> vehicle = new HashMap<>();
+                    vehicle.put("vehicleId", rs.getInt("VehicleID"));
+                    vehicle.put("vehicleTypeId", rs.getInt("VehicleTypeID"));
+                    vehicle.put("vehicleType", rs.getString("TypeName"));
+                    vehicle.put("licensePlate", rs.getString("LicensePlate"));
+                    vehicle.put("brand", rs.getString("Brand"));
+                    vehicle.put("model", rs.getString("Model"));
+                    vehicle.put("seatCount", rs.getInt("SeatCount"));
+                    vehicle.put("fuelType", rs.getString("FuelType"));
+                    vehicle.put("status", rs.getString("Status"));
+                    vehicle.put("description", rs.getString("Description"));
+                    vehicle.put("imagePath", rs.getString("ImagePath"));
+                    
+                    list.add(vehicle);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        return list;
+    }
+
     public int create(int vehicleTypeId, String licensePlate, String chassisNumber, String engineNumber,
             String brand, String model, int seatCount, String status, Integer accumulatedKm,
             int createdBy, String description) throws Exception {
@@ -161,7 +263,7 @@ public class VehicleDAO {
             }
         }
     }
- 
+
     public boolean update(int vehicleId, Integer vehicleTypeId, String licensePlate, String chassisNumber,
             String engineNumber, String brand, String model, Integer seatCount, String status,
             Integer accumulatedKm, String description) throws Exception {
@@ -207,7 +309,7 @@ public class VehicleDAO {
             }
         }
     }
- 
+
     public int countBookingsByVehicle(int vehicleId) throws Exception {
         String sql = "SELECT COUNT(*) AS Cnt FROM Booking WHERE VehicleID = ?";
         try (Connection conn = DbUtils.getConnection();
@@ -221,7 +323,7 @@ public class VehicleDAO {
             }
         }
     }
- 
+
     public void deleteWithChildren(int vehicleId) throws Exception {
         Connection conn = null;
         try {
@@ -252,7 +354,7 @@ public class VehicleDAO {
             }
         }
     }
- 
+
     private void setIntOrNull(PreparedStatement ps, int idx, Integer val) throws Exception {
         if (val == null) {
             ps.setNull(idx, Types.INTEGER);
@@ -260,7 +362,7 @@ public class VehicleDAO {
             ps.setInt(idx, val);
         }
     }
- 
+
     private Map<String, Object> mapVehicle(ResultSet rs) throws Exception {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("vehicleId", rs.getInt("VehicleID"));
@@ -279,11 +381,11 @@ public class VehicleDAO {
         m.put("tags", rs.getString("Tags"));
         return m;
     }
- 
+
     public List<VehicleAIData> getVehiclesForAI() {
- 
+
         List<VehicleAIData> list = new ArrayList<>();
- 
+
         String sql =
                 "SELECT " +
                 "v.VehicleID, " +
@@ -304,16 +406,16 @@ public class VehicleDAO {
                 "vt.TypeName, " +
                 "v.SeatCount, " +
                 "v.Description";
- 
+
         try (
                 Connection con = DbUtils.getConnection();
                 PreparedStatement ps = con.prepareStatement(sql);
                 ResultSet rs = ps.executeQuery()) {
- 
+
             while (rs.next()) {
- 
+
                 VehicleAIData vehicle = new VehicleAIData();
- 
+
                 vehicle.setVehicleId(rs.getInt("VehicleID"));
                 vehicle.setBrand(rs.getString("Brand"));
                 vehicle.setModel(rs.getString("Model"));
@@ -321,14 +423,14 @@ public class VehicleDAO {
                 vehicle.setSeatCount(rs.getInt("SeatCount"));
                 vehicle.setDescription(rs.getString("Description"));
                 vehicle.setTags(rs.getString("Tags"));
- 
+
                 list.add(vehicle);
             }
- 
+
         } catch (Exception e) {
             e.printStackTrace();
         }
- 
+
         return list;
     }
 }
