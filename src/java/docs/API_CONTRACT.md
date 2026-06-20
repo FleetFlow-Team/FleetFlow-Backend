@@ -1711,7 +1711,7 @@ input:
     "message": "Đặt xe thành công, chờ Dispatcher duyệt"
 }
 
-Bước 2 — Dispatcher duyệt Booking
+Bước 2.1 — Dispatcher duyệt Booking
 POST http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings/{id}/approve
 Header: Authorization: Bearer DISPATCHER_TOKEN
 
@@ -1720,6 +1720,18 @@ Output: 200, Booking.Status chuyển PENDING → APPROVED
 {
     "success": true,
     "message": "Đã duyệt booking #16"
+}
+
+Bước 2.2 — Dispatcher duyệt Booking
+POST http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings/{id}/reject
+Header: Authorization: Bearer DISPATCHER_TOKEN
+Input: 
+{ "reason" : string; } 
+
+Output: 200, Booking.Status chuyển PENDING → REJECTED
+{
+    "success": true,
+    "message": string
 }
 
 Bước 3 — Dispatcher dispatch driver
@@ -1760,3 +1772,14 @@ Output: Booking.Status → CONFIRMED
     "success": true,
     "message": "Đã nhận chuyến"
 }
+Bước 6 — Driver reject
+POST http://localhost:8080/FleetFlow/api/v1/driver/dispatch/{broadcastId}/reject
+Header: Authorization: Bearer DRIVER_TOKEN
+Input: 
+{ "reason": "Xe đang bận chuyến khác" }
+Output: 
+{
+    "success": true,
+    "message": "Đã từ chối chuyến"
+}
+

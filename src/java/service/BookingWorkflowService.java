@@ -1,5 +1,6 @@
 package service;
 
+import controller.DriverDispatchController;
 import dao.AuditLogDAO;
 import dao.BookingDAO;
 import dao.DriverJobBroadcastDAO;
@@ -128,12 +129,21 @@ public class BookingWorkflowService {
     /**
      * Driver reject lệnh dispatch → Booking quay lại APPROVED để Dispatcher dispatch driver khác.
      */
-    public void driverReject(int broadcastId, int driverId, String ipAddress) throws Exception {
-        respondToDispatch(broadcastId, driverId, "REJECTED", "APPROVED", ipAddress, "DRIVER_REJECT");
+    /**
+     * Driver reject lệnh dispatch → Booking quay lại APPROVED để Dispatcher dispatch driver khác.
+     * Lý do reject được ghi vào AuditLog.NewValue, không thêm cột riêng ở DriverJobBroadcast.
+     */
+    public void driverReject(int broadcastId, int driverId, String reason, String ipAddress) throws Exception {
+        respondToDispatch(broadcastId, driverId, "REJECTED", "APPROVED", ipAddress, "DRIVER_REJECT", reason);
     }
 
     private void respondToDispatch(int broadcastId, int driverId, String broadcastStatus,
             String bookingStatus, String ipAddress, String auditAction) throws Exception {
+        respondToDispatch(broadcastId, driverId, broadcastStatus, bookingStatus, ipAddress, auditAction, null);
+    }
+
+    private void respondToDispatch(int broadcastId, int driverId, String broadcastStatus,
+            String bookingStatus, String ipAddress, String auditAction, String reason) throws Exception {
 
         int updated = broadcastDAO.respondToDispatch(broadcastId, driverId, broadcastStatus);
         if (updated == 0) {
@@ -142,13 +152,17 @@ public class BookingWorkflowService {
         }
 
         int bookingId = getBookingIdFromBroadcast(broadcastId);
+        // auditAction (DRIVER_REJECT/DRIVER_ACCEPT) đã thể hiện rõ hành động;
+        // newValueLog chỉ nên ghi rõ "Status mới (do hành động X, lý do: ...)" tránh hiểu lầm
+        String newValueLog = bookingStatus
+                + (reason != null && !reason.trim().isEmpty() ? " — " + auditAction + ", lý do: " + reason : "");
 
         try (Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
             try {
                 bookingDAO.updateStatus(conn, bookingId, bookingStatus);
                 auditLogDAO.log(conn, driverId, auditAction, "Booking",
-                        String.valueOf(bookingId), "DISPATCHED", bookingStatus, ipAddress);
+                        String.valueOf(bookingId), "DISPATCHED", newValueLog, ipAddress);
                 conn.commit();
             } catch (Exception e) {
                 conn.rollback();

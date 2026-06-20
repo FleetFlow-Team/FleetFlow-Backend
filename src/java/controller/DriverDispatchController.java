@@ -37,6 +37,7 @@ public class DriverDispatchController extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
+        request.setCharacterEncoding("UTF-8");
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
@@ -91,6 +92,7 @@ public class DriverDispatchController extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
+        request.setCharacterEncoding("UTF-8");
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
@@ -141,11 +143,13 @@ public class DriverDispatchController extends HttpServlet {
                     out.print("{\"success\": true, \"message\": \"Đã nhận chuyến\"}");
                     break;
 
-                case "reject":
-                    workflowService.driverReject(broadcastId, driverId, ip);
+                case "reject": {
+                    String reason = readReason(request);
+                    workflowService.driverReject(broadcastId, driverId, reason, ip);
                     response.setStatus(200);
                     out.print("{\"success\": true, \"message\": \"Đã từ chối chuyến\"}");
                     break;
+                }
 
                 default:
                     response.setStatus(404);
@@ -162,6 +166,25 @@ public class DriverDispatchController extends HttpServlet {
     }
 
     // ===================== Helpers =====================
+
+    private String readReason(HttpServletRequest request) throws IOException {
+        JsonObject body = readJsonBody(request);
+        return body.has("reason") && !body.get("reason").isJsonNull()
+                ? body.get("reason").getAsString() : null;
+    }
+
+    private JsonObject readJsonBody(HttpServletRequest request) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        BufferedReader reader = request.getReader();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            sb.append(line);
+        }
+        if (sb.length() == 0) {
+            return new JsonObject();
+        }
+        return JsonParser.parseString(sb.toString()).getAsJsonObject();
+    }
 
     private String extractToken(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
