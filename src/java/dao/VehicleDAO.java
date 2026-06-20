@@ -4,6 +4,7 @@
  */
 package dao;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,6 +12,7 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -127,6 +129,108 @@ public class VehicleDAO {
                 return null;
             }
         }
+    }
+    
+    public List<Map<String, Object>> findVehiclesWithFilters(
+            Integer seatCount, 
+            String brand, 
+            String fuelType,
+            String bookingType, 
+            BigDecimal priceMin, 
+            BigDecimal priceMax) {
+        
+        List<Map<String, Object>> list = new ArrayList<>();
+        
+        StringBuilder sql = new StringBuilder(
+            "SELECT DISTINCT v.VehicleID, v.VehicleTypeID, vt.TypeName, " +
+            "v.LicensePlate, v.ChassisNumber, v.EngineNumber, v.Brand, v.Model, " +
+            "v.SeatCount, v.FuelType, v.Status, v.AccumulatedKm, v.Description, v.ImagePath " +
+            "FROM Vehicle v " +
+            "LEFT JOIN VehicleType vt ON vt.VehicleTypeID = v.VehicleTypeID " +
+            "LEFT JOIN PricingRule pr ON pr.VehicleTypeID = v.VehicleTypeID " +
+            "WHERE UPPER(v.Status) = 'AVAILABLE'"
+        );
+        
+        List<Object> parameters = new ArrayList<>();
+        
+        if (seatCount != null) {
+            sql.append(" AND v.SeatCount = ? ");
+            parameters.add(seatCount);
+        }
+        
+        if (brand != null && !brand.trim().isEmpty()) {
+            sql.append(" AND UPPER(v.Brand) = UPPER(?) ");
+            parameters.add(brand.trim());
+        }
+        
+        if (fuelType != null && !fuelType.trim().isEmpty()) {
+            sql.append(" AND UPPER(v.FuelType) = UPPER(?) ");
+            parameters.add(fuelType.trim());
+        }
+        
+        if (bookingType != null && !bookingType.trim().isEmpty()) {
+            sql.append(" AND UPPER(pr.BookingType) = UPPER(?) ");
+            parameters.add(bookingType.trim());
+        }
+        
+        if (priceMin != null || priceMax != null) {
+            String priceColumn = "pr.BasePrice"; 
+            
+            if (bookingType != null) {
+                switch (bookingType.toUpperCase()) {
+                    case "HOURLY":
+                        priceColumn = "pr.PricePerHour";
+                        break;
+                    case "DAILY":
+                        priceColumn = "pr.PricePerDay";
+                        break;
+                    case "DISTANCE":
+                        priceColumn = "pr.PricePerKm";
+                        break;
+                }
+            }
+            
+            if (priceMin != null) {
+                sql.append(" AND ").append(priceColumn).append(" >= ? ");
+                parameters.add(priceMin);
+            }
+            if (priceMax != null) {
+                sql.append(" AND ").append(priceColumn).append(" <= ? ");
+                parameters.add(priceMax);
+            }
+        }
+        sql.append(" ORDER BY v.VehicleID ASC");
+        
+        try (Connection con = DbUtils.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql.toString())) {
+            
+            for (int i = 0; i < parameters.size(); i++) {
+                ps.setObject(i + 1, parameters.get(i));
+            }
+            
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> vehicle = new HashMap<>();
+                    vehicle.put("vehicleId", rs.getInt("VehicleID"));
+                    vehicle.put("vehicleTypeId", rs.getInt("VehicleTypeID"));
+                    vehicle.put("vehicleType", rs.getString("TypeName"));
+                    vehicle.put("licensePlate", rs.getString("LicensePlate"));
+                    vehicle.put("brand", rs.getString("Brand"));
+                    vehicle.put("model", rs.getString("Model"));
+                    vehicle.put("seatCount", rs.getInt("SeatCount"));
+                    vehicle.put("fuelType", rs.getString("FuelType"));
+                    vehicle.put("status", rs.getString("Status"));
+                    vehicle.put("description", rs.getString("Description"));
+                    vehicle.put("imagePath", rs.getString("ImagePath"));
+                    
+                    list.add(vehicle);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        return list;
     }
 
     public int create(int vehicleTypeId, String licensePlate, String chassisNumber, String engineNumber,
