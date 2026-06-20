@@ -60,6 +60,14 @@
         <servlet-name>DriverDispatchController</servlet-name>
         <servlet-class>controller.DriverDispatchController</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>DriverTripController</servlet-name>
+        <servlet-class>controller.DriverTripController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>DispatcherMapController</servlet-name>
+        <servlet-class>controller.DispatcherMapController</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -119,6 +127,14 @@
     <servlet-mapping>
         <servlet-name>DriverDispatchController</servlet-name>
         <url-pattern>/DriverDispatchController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>DriverTripController</servlet-name>
+        <url-pattern>/DriverTripController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>DispatcherMapController</servlet-name>
+        <url-pattern>/DispatcherMapController</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>30</session-timeout>
