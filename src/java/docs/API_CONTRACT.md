@@ -1679,3 +1679,84 @@ Cập nhật thông tin xe (Phía Admin)
 - Path:
 - Input:
 - Output:
+----------------------------------------------------------------------
+Thêm luồng duyệt đơn customer và điều nhân viên của dispatcher
+Bước 0 — Login lấy token
+Dispatcher:
+POST http://localhost:8080/FleetFlow/api/v1/auth/login
+Lưu accessToken trả về → gọi là DISPATCHER_TOKEN
+Driver: login tương tự, lưu token → DRIVER_TOKEN
+
+1 — Customer tạo Booking mới (PENDING)
+path: POST http://localhost:8080/FleetFlow/api/v1/bookings
+input:
+{
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "DISTANCE",
+  "tripDirection": "ONE_WAY",
+  "pickupAddress": "123 Nguyễn Huệ, Quận 1, HCM",
+  "pickupLat": 10.776,
+  "pickupLng": 106.700,
+  "dropoffAddress": "Vũng Tàu",
+  "dropoffLat": 10.346,
+  "dropoffLng": 107.084,
+  "departureTime": "2026-07-20T08:00:00"
+}
+→ Lấy bookingId trả về, gọi là {id}
+{
+    "success": true,
+    "bookingId": 16,
+    "status": "PENDING",
+    "message": "Đặt xe thành công, chờ Dispatcher duyệt"
+}
+
+Bước 2 — Dispatcher duyệt Booking
+POST http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings/{id}/approve
+Header: Authorization: Bearer DISPATCHER_TOKEN
+
+
+Output: 200, Booking.Status chuyển PENDING → APPROVED
+{
+    "success": true,
+    "message": "Đã duyệt booking #16"
+}
+
+Bước 3 — Dispatcher dispatch driver
+POST http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings/{id}/dispatch
+Header: Authorization: Bearer DISPATCHER_TOKEN
+
+Body:
+json{ "driverId": 1 }
+→ Lấy broadcastId trả về
+Kỳ vọng: Booking.Status → DISPATCHED, tạo 1 row DriverJobBroadcast status PENDING
+{
+    "success": true,
+    "broadcastId": 1,
+    "message": "Đã dispatch driver #1 cho booking #16"
+}
+
+Bước 4 — Driver xem lệnh đang chờ
+GET http://localhost:8080/FleetFlow/api/v1/driver/dispatch/pending
+Header: Authorization: Bearer DRIVER_TOKEN
+Output: thấy broadcastId vừa tạo ở bước 3
+{
+    "success": true,
+    "data": [
+        {
+            "broadcastId": 1,
+            "bookingId": 16,
+            "dispatchedAt": "2026-06-20 14:29:16.902"
+        }
+    ]
+}
+
+Bước 5 — Driver accept
+POST http://localhost:8080/FleetFlow/api/v1/driver/dispatch/{broadcastId}/accept
+Header: Authorization: Bearer DRIVER_TOKEN
+
+Output: Booking.Status → CONFIRMED
+{
+    "success": true,
+    "message": "Đã nhận chuyến"
+}

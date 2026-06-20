@@ -260,12 +260,21 @@ public class BookingDAO {
      * Cập nhật trạng thái Booking
      */
     public void updateStatus(int bookingId, String status) throws Exception {
-        String sql = "UPDATE Booking SET Status = ? WHERE BookingID = ?";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DbUtils.getConnection()) {
+            updateStatus(conn, bookingId, status);
+        }
+    }
 
+    /**
+     * Overload dùng connection được truyền vào — để gộp transaction
+     * với việc ghi AuditLog hoặc DriverJobBroadcast cùng lúc.
+     */
+    public void updateStatus(Connection conn, int bookingId, String status) throws SQLException {
+        String sql = "UPDATE Booking SET Status = ?, UpdatedAt = ? WHERE BookingID = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, status);
-            stmt.setInt(2, bookingId);
+            stmt.setTimestamp(2, new Timestamp(System.currentTimeMillis()));
+            stmt.setInt(3, bookingId);
             stmt.executeUpdate();
         }
     }

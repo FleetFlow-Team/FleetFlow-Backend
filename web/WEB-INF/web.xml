@@ -52,6 +52,14 @@
         <servlet-name>AdminVehicleController</servlet-name>
         <servlet-class>controller.AdminVehicleController</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>DispatcherBookingController</servlet-name>
+        <servlet-class>controller.DispatcherBookingController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>DriverDispatchController</servlet-name>
+        <servlet-class>controller.DriverDispatchController</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -103,6 +111,14 @@
     <servlet-mapping>
         <servlet-name>AdminVehicleController</servlet-name>
         <url-pattern>/AdminVehicleController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>DispatcherBookingController</servlet-name>
+        <url-pattern>/DispatcherBookingController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>DriverDispatchController</servlet-name>
+        <url-pattern>/DriverDispatchController</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>30</session-timeout>
