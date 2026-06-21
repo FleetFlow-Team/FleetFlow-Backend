@@ -2,6 +2,8 @@ package dao;
 
 import java.math.BigDecimal;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import model.Booking;
 import model.BookingDetail;
 import utils.DbUtils;
@@ -280,6 +282,55 @@ public class BookingDAO {
     }
 
     // ===================== MAPPING =====================
+
+    /**
+     * Lấy danh sách Booking theo Status — dùng cho Dispatcher xem hàng chờ duyệt (PENDING),
+     * hoặc Admin/Dispatcher xem theo trạng thái khác khi cần.
+     * Kèm thông tin xe + customer cơ bản để hiển thị danh sách không cần gọi thêm API.
+     */
+    public List<java.util.Map<String, Object>> findByStatusWithDetail(String status) throws Exception {
+        List<java.util.Map<String, Object>> list = new ArrayList<>();
+        String sql = "SELECT b.BookingID, b.CustomerID, b.VehicleID, b.BookingType, "
+                + "b.TripDirection, b.Status, b.Note, b.CreatedAt, "
+                + "bd.PickupAddress, bd.DropoffAddress, bd.DepartureTime, "
+                + "v.Brand, v.Model, v.LicensePlate, "
+                + "a.FullName AS CustomerName, a.PhoneNumber AS CustomerPhone "
+                + "FROM Booking b "
+                + "LEFT JOIN BookingDetail bd ON bd.BookingID = b.BookingID "
+                + "LEFT JOIN Vehicle v ON v.VehicleID = b.VehicleID "
+                + "LEFT JOIN Customer c ON c.CustomerID = b.CustomerID "
+                + "LEFT JOIN Account a ON a.AccountID = c.AccountID "
+                + "WHERE b.Status = ? "
+                + "ORDER BY b.CreatedAt ASC";
+
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, status);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    java.util.Map<String, Object> row = new java.util.HashMap<>();
+                    row.put("bookingId", rs.getInt("BookingID"));
+                    row.put("customerId", rs.getInt("CustomerID"));
+                    row.put("customerName", rs.getString("CustomerName"));
+                    row.put("customerPhone", rs.getString("CustomerPhone"));
+                    row.put("vehicleId", rs.getInt("VehicleID"));
+                    row.put("vehicleName", rs.getString("Brand") + " " + rs.getString("Model"));
+                    row.put("licensePlate", rs.getString("LicensePlate"));
+                    row.put("bookingType", rs.getString("BookingType"));
+                    row.put("tripDirection", rs.getString("TripDirection"));
+                    row.put("status", rs.getString("Status"));
+                    row.put("note", rs.getString("Note"));
+                    row.put("pickupAddress", rs.getString("PickupAddress"));
+                    row.put("dropoffAddress", rs.getString("DropoffAddress"));
+                    Timestamp dep = rs.getTimestamp("DepartureTime");
+                    row.put("departureTime", dep != null ? dep.toString() : null);
+                    row.put("createdAt", rs.getTimestamp("CreatedAt").toString());
+                    list.add(row);
+                }
+            }
+        }
+        return list;
+    }
 
     private Booking mapBooking(ResultSet rs) throws SQLException {
         Booking b = new Booking();

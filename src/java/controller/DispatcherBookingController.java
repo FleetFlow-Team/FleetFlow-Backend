@@ -3,9 +3,12 @@ package controller;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dao.AccountDAO;
+import dao.BookingDAO;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.List;
+import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -28,6 +31,62 @@ import utils.JwtUtils;
 public class DispatcherBookingController extends HttpServlet {
 
     private final BookingWorkflowService workflowService = new BookingWorkflowService();
+    private final BookingDAO bookingDAO = new BookingDAO();
+
+    /**
+     * GET /api/v1/dispatcher/bookings/pending — danh sách booking đang chờ duyệt (PENDING)
+     * GET /api/v1/dispatcher/bookings?status=APPROVED — xem theo status khác nếu cần
+     */
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        request.setCharacterEncoding("UTF-8");
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        PrintWriter out = response.getWriter();
+
+        Account dispatcher = requireDispatcherAccount(request, response, out);
+        if (dispatcher == null) {
+            return;
+        }
+
+        String pathInfo = request.getPathInfo();
+        String status;
+
+        if ("/pending".equals(pathInfo)) {
+            status = "PENDING";
+        } else if (pathInfo == null || pathInfo.equals("/") || pathInfo.isEmpty()) {
+            String statusParam = request.getParameter("status");
+            status = (statusParam != null && !statusParam.isEmpty()) ? statusParam : "PENDING";
+        } else {
+            response.setStatus(404);
+            out.print("{\"error\": \"Endpoint không tồn tại\"}");
+            return;
+        }
+
+        try {
+            List<Map<String, Object>> bookings = bookingDAO.findByStatusWithDetail(status);
+
+            StringBuilder json = new StringBuilder();
+            json.append("{\"success\": true, \"count\": ").append(bookings.size()).append(", \"data\": [");
+
+            for (int i = 0; i < bookings.size(); i++) {
+                json.append(mapToJson(bookings.get(i)));
+                if (i < bookings.size() - 1) {
+                    json.append(",");
+                }
+            }
+            json.append("]}");
+
+            response.setStatus(200);
+            out.print(json.toString());
+
+        } catch (Exception e) {
+            response.setStatus(500);
+            out.print("{\"error\": \"Lỗi server: " + esc(e.getMessage()) + "\"}");
+        }
+    }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
@@ -177,6 +236,29 @@ public class DispatcherBookingController extends HttpServlet {
             out.print("{\"error\": \"Lỗi server khi xác thực: " + esc(e.getMessage()) + "\"}");
             return null;
         }
+    }
+
+    private String mapToJson(Map<String, Object> m) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+        int i = 0;
+        for (Map.Entry<String, Object> entry : m.entrySet()) {
+            if (i > 0) {
+                sb.append(",");
+            }
+            sb.append("\"").append(esc(entry.getKey())).append("\":");
+            Object value = entry.getValue();
+            if (value == null) {
+                sb.append("null");
+            } else if (value instanceof Number || value instanceof Boolean) {
+                sb.append(value.toString());
+            } else {
+                sb.append("\"").append(esc(value.toString())).append("\"");
+            }
+            i++;
+        }
+        sb.append("}");
+        return sb.toString();
     }
 
     private String esc(String s) {

@@ -1782,4 +1782,143 @@ Output:
     "success": true,
     "message": "Đã từ chối chuyến"
 }
+Get all list customer booking for dispatcher
+path: http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings/pending
+Header: Authorization: Bearer DISPATCHER_TOKEN
+output: 
+{
+    "success": true,
+    "count": 6,
+    "data": [
+        {
+            "dropoffAddress": "Phố cổ Hội An, Quảng Nam",
+            "departureTime": "2025-03-13 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": "Đơn đặt xe số 3",
+            "vehicleName": "Hyundai Accent",
+            "bookingId": 3,
+            "customerName": "Cường Lê",
+            "createdAt": "2025-03-13 07:30:00.0",
+            "customerPhone": "0900000003",
+            "licensePlate": "51D-103.13",
+            "pickupAddress": "Cầu Rồng, Đà Nẵng",
+            "bookingType": "DAILY",
+            "customerId": 3,
+            "vehicleId": 3,
+            "status": "PENDING"
+        },
+        {
+            "dropoffAddress": "Phố cổ Hội An, Quảng Nam",
+            "departureTime": "2025-03-18 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": "Đơn đặt xe số 8",
+            "vehicleName": "Hyundai Accent",
+            "bookingId": 8,
+            "customerName": "Linh Bùi",
+            "createdAt": "2025-03-18 07:30:00.0",
+            "customerPhone": "0900000008",
+            "licensePlate": "51C-108.18",
+            "pickupAddress": "Cầu Rồng, Đà Nẵng",
+            "bookingType": "HOURLY",
+            "customerId": 8,
+            "vehicleId": 8,
+            "status": "PENDING"
+        },
+        {
+            "dropoffAddress": "Phố cổ Hội An, Quảng Nam",
+            "departureTime": "2025-03-23 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": "Đơn đặt xe số 13",
+            "vehicleName": "Hyundai Accent",
+            "bookingId": 13,
+            "customerName": "An Nguyễn",
+            "createdAt": "2025-03-23 07:30:00.0",
+            "customerPhone": "0900000001",
+            "licensePlate": "51D-103.13",
+            "pickupAddress": "Cầu Rồng, Đà Nẵng",
+            "bookingType": "DISTANCE",
+            "customerId": 1,
+            "vehicleId": 3,
+            "status": "PENDING"
+        },
+        {
+            "dropoffAddress": "Vũng Tàu",
+            "departureTime": "2026-07-22 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": null,
+            "vehicleName": "Hyundai Accent",
+            "bookingId": 19,
+            "customerName": "Bình Trần",
+            "createdAt": "2026-06-21 10:36:30.674",
+            "customerPhone": "0900000002",
+            "licensePlate": "51D-103.13",
+            "pickupAddress": "123 Nguyễn Huệ, Quận 1, HCM",
+            "bookingType": "DISTANCE",
+            "customerId": 2,
+            "vehicleId": 3,
+            "status": "PENDING"
+        },
+        {
+            "dropoffAddress": "Vũng Tàu",
+            "departureTime": "2026-07-23 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": null,
+            "vehicleName": "Toyota Vios",
+            "bookingId": 20,
+            "customerName": "Cường Lê",
+            "createdAt": "2026-06-21 10:36:47.355",
+            "customerPhone": "0900000003",
+            "licensePlate": "51B-101.11",
+            "pickupAddress": "123 Nguyễn Huệ, Quận 1, HCM",
+            "bookingType": "DISTANCE",
+            "customerId": 3,
+            "vehicleId": 1,
+            "status": "PENDING"
+        },
+        {
+            "dropoffAddress": "Vũng Tàu",
+            "departureTime": "2026-07-24 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": null,
+            "vehicleName": "Toyota Vios",
+            "bookingId": 21,
+            "customerName": "Dung Phạm",
+            "createdAt": "2026-06-21 10:36:57.268",
+            "customerPhone": "0900000004",
+            "licensePlate": "51B-101.11",
+            "pickupAddress": "123 Nguyễn Huệ, Quận 1, HCM",
+            "bookingType": "DISTANCE",
+            "customerId": 4,
+            "vehicleId": 1,
+            "status": "PENDING"
+        }
+    ]
+}
+Get list booking customer theo status for dispatcher
+path: http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings?status=Rejected
+Header: Authorization: Bearer DISPATCHER_TOKEN
+output:
+{
+    "success": true,
+    "count": 1,
+    "data": [
+        {
+            "dropoffAddress": "Vũng Tàu",
+            "departureTime": "2026-07-22 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": null,
+            "vehicleName": "Toyota Vios",
+            "bookingId": 17,
+            "customerName": "An Nguyễn",
+            "createdAt": "2026-06-20 23:56:44.613",
+            "customerPhone": "0900000001",
+            "licensePlate": "51B-101.11",
+            "pickupAddress": "123 Nguyễn Huệ, Quận 1, HCM",
+            "bookingType": "DISTANCE",
+            "customerId": 1,
+            "vehicleId": 1,
+            "status": "REJECTED"
+        }
+    ]
+}
 
