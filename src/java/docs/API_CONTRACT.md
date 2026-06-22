@@ -1076,9 +1076,101 @@ Lọc xe 7 chỗ, Hybrid, theo giờ
     "count": 5
 }
 
+Xem chi tiết hóa đơn (Invoice minh bạch giá)
+- Path: GET http://localhost:8080/FleetFlow/api/v1/customer/invoices/12
+- Input: {bookingId} trên URL (VD: 12)
+- Output:
+{
+    "success": true,
+    "data": {
+        "InvoiceID": 1,
+        "BookingID": 12,
+        "BaseFare": 410000.00,
+        "WeekendSurcharge": 0.00,
+        "TollSurchargeTotal": 35000.00,
+        "DiscountAmount": 0.00,
+        "TotalAmount": 445000.00,
+        "Status": "ISSUED",
+        "IssuedAt": "2025-03-22 18:05:00.0"
+    }
+}
+
+Xem lịch sử ví/công nợ (CustomerWalletLedger)
+- Path: GET http://localhost:8080/FleetFlow/api/v1/customer/wallet
+- Input:
+- Output:
+{
+    "success": true,
+    "data": [
+        {
+            "TransactionID": 2,
+            "CustomerID": 1,
+            "Amount": -300000.00,
+            "TransactionType": "PAYMENT",
+            "BookingID": 1,
+            "CreatedAt": "2025-03-20 10:00:00.0"
+        },
+        {
+            "TransactionID": 1,
+            "CustomerID": 1,
+            "Amount": 500000.00,
+            "TransactionType": "REFUND",
+            "BookingID": null,
+            "CreatedAt": "2025-03-20 10:00:00.0"
+        }
+    ]
+}
+
+Danh sách thông báo của customer
+- Path: GET http://localhost:8080/FleetFlow/api/v1/customer/notifications
+- Input:
+- Output:
+{
+    "success": true,
+    "data": [
+        {
+            "NotificationID": 5,
+            "RecipientAccountID": 1,
+            "BookingID": 13,
+            "Title": "Đã tìm thấy tài xế",
+            "Message": "Tài xế Nguyễn Văn A đang di chuyển đến điểm đón.",
+            "Type": "TRIP_UPDATE",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "2026-06-22 09:15:00.0"
+        }
+    ]
+}
+
+Đánh dấu đã đọc thông báo
+- Path: POST http://localhost:8080/FleetFlow/api/v1/customer/notifications/5/read
+- Input: {id} của Notification trên URL
+- Output:
+{
+    "success": true
+}
+
 - Path:
 - Input:
 - Output:
+
+---
+
+## PAYMENTS
+
+Tạo yêu cầu thanh toán MoMo cho 1 invoice
+- Path: POST http://localhost:8080/FleetFlow/api/v1/payments/momo/create
+- Input:
+{
+  "invoiceId": 1,
+  "paymentType": "DEPOSIT",
+  "amount": 150000.00
+}
+- Output:
+{
+    "success": true,
+    "paymentUrl": "https://test-payment.momo.vn/v2/gateway/api/create?orderId=15"
+}
 
 ---
 
@@ -1331,6 +1423,86 @@ Cập nhật thông tin xe (Phía Admin)
     "description": "Kia Morning 4 chỗ, đời 2021, máy xăng, tiết kiệm nhiên liệu, phù hợp đi phố và đường ngắn.",
     "tags": "Êm ái, Mới (đời 2023+)"
   }
+}
+
+Tạo voucher mới
+- Path: POST http://localhost:8080/FleetFlow/api/v1/admin/vouchers
+- Input:
+{
+  "code": "SUMMER2026",
+  "discountType": "PERCENT",
+  "discountValue": 10.00,
+  "maxDiscountAmount": 50000.00,
+  "minBookingValue": 200000.00,
+  "applicableVehicleTypeId": 1,
+  "maxUsagePerUser": 1,
+  "validFrom": "2026-06-01T00:00:00",
+  "validTo": "2026-06-30T23:59:59"
+}
+- Output:
+{
+    "success": true
+}
+
+Danh sách voucher (Có thể filter theo trạng thái)
+- Path: GET http://localhost:8080/FleetFlow/api/v1/admin/vouchers?status=ACTIVE
+- Input: Params `status` (Optional: ACTIVE / INACTIVE)
+- Output:
+{
+    "success": true,
+    "data": [
+        {
+            "VoucherID": 1,
+            "CampaignID": null,
+            "Code": "SUMMER2026",
+            "DiscountType": "PERCENT",
+            "DiscountValue": 10.00,
+            "MaxDiscountAmount": 50000.00,
+            "MinBookingValue": 200000.00,
+            "ApplicableVehicleTypeID": 1,
+            "MaxUsagePerUser": 1,
+            "ValidFrom": "2026-06-01 00:00:00.0",
+            "ValidTo": "2026-06-30 23:59:59.0",
+            "Status": "ACTIVE",
+            "CreatedBy": 20
+        }
+    ]
+}
+
+Chi tiết 1 voucher
+- Path: GET http://localhost:8080/FleetFlow/api/v1/admin/vouchers/1
+- Input: 
+- Output:
+{
+    "success": true,
+    "data": {
+        "VoucherID": 1,
+        "Code": "SUMMER2026",
+        "DiscountType": "PERCENT",
+        "DiscountValue": 10.00,
+        "Status": "ACTIVE",
+        "ValidTo": "2026-06-30 23:59:59.0"
+    }
+}
+
+Cập nhật voucher (đổi status, hạn dùng...)
+- Path: PUT http://localhost:8080/FleetFlow/api/v1/admin/vouchers/1
+- Input:
+{
+  "validTo": "2026-12-31T23:59:59",
+  "status": "INACTIVE"
+}
+- Output:
+{
+    "success": true
+}
+
+Xóa/Deactivate voucher
+- Path: DELETE http://localhost:8080/FleetFlow/api/v1/admin/vouchers/1
+- Input: 
+- Output:
+{
+    "success": true
 }
 
 - Path:
