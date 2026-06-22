@@ -340,6 +340,22 @@ Xem lịch sử booking
             "distanceKm": 94.60,
             "createdAt": "2026-06-10 20:59:45.463"
         },
+{
+            "bookingId": 24,
+            "vehicleId": 1,
+            "vehicleName": "Toyota Vios",
+            "licensePlate": "51B-101.11",
+            "bookingType": "HOURLY",
+            "tripDirection": "ONE_WAY",
+            "status": "PENDING",
+            "pickupAddress": "",
+            "dropoffAddress": "",
+            "departureTime": "2026-08-20 08:00:00.0",
+            "distanceKm": 0,
+            "durationHours": 4,
+            "durationDays": null,
+            "createdAt": "2026-06-22 16:46:47.317"
+        },
         {
             "bookingId": 13,
             "vehicleId": 1,

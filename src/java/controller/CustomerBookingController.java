@@ -137,6 +137,8 @@ public class CustomerBookingController extends HttpServlet {
                 json.append("\"dropoffAddress\":\"").append(esc(b.dropoffAddress)).append("\",");
                 json.append("\"departureTime\":\"").append(b.departureTime).append("\",");
                 json.append("\"distanceKm\":").append(b.distanceKm != null ? b.distanceKm : 0).append(",");
+                json.append("\"durationHours\":").append(b.durationHours != null ? b.durationHours : "null").append(",");
+                json.append("\"durationDays\":").append(b.durationDays != null ? b.durationDays : "null").append(",");
                 json.append("\"createdAt\":\"").append(b.createdAt).append("\"");
                 json.append("}");
                 if (i < bookings.size() - 1) {
