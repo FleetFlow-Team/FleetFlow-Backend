@@ -1980,3 +1980,136 @@ output:
     "success": true,
     "message": "Đã hoàn thành chuyến đi"
 }
+
+Admin dashboard booking
+Header: Authorization: Bearer ADMIN_TOKEN
+path: GET http://localhost:8080/FleetFlow/api/v1/admin/bookings
+output:
+{
+    "success": true,
+    "summary": {
+        "byStatus": {
+            "CANCELLED": 3,
+            "COMPLETED": 7,
+            "CONFIRMED": 3,
+            "ONGOING": 0,
+            "PENDING": 9,
+            "APPROVED": 1,
+            "DISPATCHED": 0,
+            "REJECTED": 1
+        },
+        "totalRevenue": 1720000.00,
+        "driverRejectCount": 1
+    }
+}
+Dashboard Booking filter by Status
+Header: Authorization: Bearer ADMIN_TOKEN   
+path: GET http://localhost:8080/FleetFlow/api/v1/admin/bookings?status=
+output:
+{
+    "success": true,
+    "summary": {
+        "byStatus": {
+            "CANCELLED": 3,
+            "COMPLETED": 7,
+            "CONFIRMED": 3,
+            "ONGOING": 0,
+            "PENDING": 9,
+            "APPROVED": 1,
+            "DISPATCHED": 0,
+            "REJECTED": 1
+        },
+        "totalRevenue": 1720000.00,
+        "driverRejectCount": 1
+    },
+    "filteredStatus": "CANCELLED",
+    "count": 3,
+    "data": [
+        {
+            "tripDirection": "ONE_WAY",
+            "note": "Đơn đặt xe số 14",
+            "createdAt": "2025-03-24 07:30:00.0",
+            "customerPhone": "0900000002",
+            "vehicleName": "Mazda Mazda3",
+            "licensePlate": "51E-104.14",
+            "bookingType": "HOURLY",
+            "customerId": 2,
+            "vehicleId": 4,
+            "bookingId": 14,
+            "customerName": "Bình Trần",
+            "status": "CANCELLED"
+        },
+        {
+            "tripDirection": "ONE_WAY",
+            "note": "Đơn đặt xe số 9",
+            "createdAt": "2025-03-19 07:30:00.0",
+            "customerPhone": "0900000009",
+            "vehicleName": "Mazda Mazda3",
+            "licensePlate": "51D-109.19",
+            "bookingType": "DAILY",
+            "customerId": 9,
+            "vehicleId": 9,
+            "bookingId": 9,
+            "customerName": "Minh Đỗ",
+            "status": "CANCELLED"
+        },
+        {
+            "tripDirection": "ROUND_TRIP",
+            "note": "Đơn đặt xe số 4",
+            "createdAt": "2025-03-14 07:30:00.0",
+            "customerPhone": "0900000004",
+            "vehicleName": "Mazda Mazda3",
+            "licensePlate": "51E-104.14",
+            "bookingType": "DISTANCE",
+            "customerId": 4,
+            "vehicleId": 4,
+            "bookingId": 4,
+            "customerName": "Dung Phạm",
+            "status": "CANCELLED"
+        }
+    ]
+}
+
+Dasboard filter by status and date
+Header: Authorization: Bearer ADMIN_TOKEN 
+path: GET http://localhost:8080/FleetFlow/api/v1/admin/bookings?status=COMPLETED&fromDate=2026-06-01&toDate=2026-07-30
+output:
+{
+    "success": true,
+    "summary": {
+        "byStatus": {
+            "CANCELLED": 0,
+            "COMPLETED": 1,
+            "CONFIRMED": 0,
+            "ONGOING": 0,
+            "PENDING": 6,
+            "APPROVED": 1,
+            "DISPATCHED": 0,
+            "REJECTED": 1
+        },
+        "totalRevenue": 0,
+        "driverRejectCount": 1
+    },
+    "filteredStatus": "COMPLETED",
+    "count": 1,
+    "data": [
+        {
+            "tripDirection": "ONE_WAY",
+            "note": null,
+            "createdAt": "2026-06-20 14:26:15.81",
+            "customerPhone": "0900000001",
+            "vehicleName": "Toyota Vios",
+            "licensePlate": "51B-101.11",
+            "bookingType": "DISTANCE",
+            "customerId": 1,
+            "vehicleId": 1,
+            "bookingId": 16,
+            "customerName": "An Nguyễn",
+            "status": "COMPLETED"
+        }
+    ]
+}
+Chua xong: 
+Dashboard filter by Date
+Header: Authorization: Bearer ADMIN_TOKEN   
+path:GET http://localhost:8080/FleetFlow/api/v1/admin/bookings?fromDate=2026-06-01&toDate=2026-07-30

@@ -68,6 +68,10 @@
         <servlet-name>DispatcherMapController</servlet-name>
         <servlet-class>controller.DispatcherMapController</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>AdminDashboardController</servlet-name>
+        <servlet-class>controller.AdminDashboardController</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -135,6 +139,10 @@
     <servlet-mapping>
         <servlet-name>DispatcherMapController</servlet-name>
         <url-pattern>/DispatcherMapController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>AdminDashboardController</servlet-name>
+        <url-pattern>/AdminDashboardController</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>30</session-timeout>
