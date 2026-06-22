@@ -29,6 +29,8 @@ public class CustomerBookingDAO {
         public String dropoffAddress;
         public Timestamp departureTime;
         public BigDecimal distanceKm;
+        public Integer durationHours;
+        public Integer durationDays;
         public String brand;
         public String model;
         public String licensePlate;
@@ -39,6 +41,7 @@ public class CustomerBookingDAO {
         String sql = "SELECT b.BookingID, b.CustomerID, b.VehicleID, "
                 + "b.BookingType, b.TripDirection, b.Status, b.CreatedAt, "
                 + "bd.PickupAddress, bd.DropoffAddress, bd.DepartureTime, bd.DistanceKm, "
+                + "bd.DurationHours, bd.DurationDays, "
                 + "v.Brand, v.Model, v.LicensePlate "
                 + "FROM Booking b "
                 + "JOIN BookingDetail bd ON b.BookingID = bd.BookingID "
@@ -63,6 +66,13 @@ public class CustomerBookingDAO {
                 row.dropoffAddress = rs.getString("DropoffAddress");
                 row.departureTime = rs.getTimestamp("DepartureTime");
                 row.distanceKm = rs.getBigDecimal("DistanceKm");
+
+                int durHours = rs.getInt("DurationHours");
+                if (!rs.wasNull()) row.durationHours = durHours;
+
+                int durDays = rs.getInt("DurationDays");
+                if (!rs.wasNull()) row.durationDays = durDays;
+
                 row.brand = rs.getString("Brand");
                 row.model = rs.getString("Model");
                 row.licensePlate = rs.getString("LicensePlate");

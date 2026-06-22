@@ -646,4 +646,23 @@ public class DriverDAO {
         }
         return summary;
     }
+
+    /**
+     * Lấy DriverID đơn giản từ AccountID — dùng cho các API mới
+     * liên quan tới DriverJobBroadcast (driver xem/phản hồi lệnh dispatch).
+     * Trả về -1 nếu không tìm thấy.
+     */
+    public int getDriverIdByAccountId(int accountId) throws SQLException, ClassNotFoundException {
+        String sql = "SELECT DriverID FROM Driver WHERE AccountID = ? AND IsDeleted = 0";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, accountId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("DriverID");
+                }
+                return -1;
+            }
+        }
+    }
 }

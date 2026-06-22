@@ -13,11 +13,15 @@ public class BookingService {
 
     /**
      * Tạo booking mới — full flow:
-     * 1. Validate khoảng cách >= 20km (BR-01)
+     * 1. Validate khoảng cách >= 20km (BR-01) — CHỈ áp dụng cho bookingType = DISTANCE
      * 2. Validate thời gian đặt trước >= 120 phút (BR-02)
      * 3. Validate xe AVAILABLE (BR-22)
      * 4. Validate không trùng lịch xe (BR-27)
-     * 5. Insert Booking + BookingDetail vào DB
+     * 5. Validate ROUND_TRIP phải có returnTime
+     * 6. Insert Booking + BookingDetail vào DB
+     *
+     * @param durationHours  Số giờ thuê — chỉ áp dụng khi bookingType = HOURLY
+     * @param durationDays   Số ngày thuê — chỉ áp dụng khi bookingType = DAILY
      */
     public long createBooking(
             int customerId,
@@ -26,20 +30,71 @@ public class BookingService {
             String bookingType,
             String tripDirection,
             String pickupAddress,
-            double pickupLat,
-            double pickupLng,
+            Double pickupLat,
+            Double pickupLng,
             String dropoffAddress,
-            double dropoffLat,
-            double dropoffLng,
+            Double dropoffLat,
+            Double dropoffLng,
             Timestamp departureTime,
-            Timestamp returnTime
+            Timestamp returnTime,
+            Integer durationHours,
+            Integer durationDays,
+            // --- Chiều về (bắt buộc khi ROUND_TRIP + DISTANCE) ---
+            String returnPickupAddress,
+            Double returnPickupLat,
+            Double returnPickupLng,
+            String returnDropoffAddress,
+            Double returnDropoffLat,
+            Double returnDropoffLng
     ) throws Exception {
 
-        // ---- BR-01: Validate khoảng cách tối thiểu 20km ----
-        double distanceKm = mapsService.validateAndGetDistance(
-                pickupLat, pickupLng,
-                dropoffLat, dropoffLng
-        );
+        boolean isDistanceType = "DISTANCE".equalsIgnoreCase(bookingType);
+        boolean isHourly = "HOURLY".equalsIgnoreCase(bookingType);
+        boolean isDaily = "DAILY".equalsIgnoreCase(bookingType);
+        boolean isRoundTrip = "ROUND_TRIP".equalsIgnoreCase(tripDirection);
+
+        // ---- Vấn đề 2 fix: chỉ gọi Maps API + validate 20km khi là DISTANCE ----
+        double distanceKm = 0;
+        double returnDistanceKm = 0;
+        if (isDistanceType) {
+            if (pickupLat == null || pickupLng == null || dropoffLat == null || dropoffLng == null) {
+                throw new IllegalArgumentException(
+                    "Thiếu tọa độ điểm đón/trả — bắt buộc với loại đặt xe theo quãng đường."
+                );
+            }
+            // BR-01: Validate khoảng cách tối thiểu 20km (chiều đi)
+            distanceKm = mapsService.validateAndGetDistance(
+                    pickupLat, pickupLng,
+                    dropoffLat, dropoffLng
+            );
+
+            // ROUND_TRIP: validate + tính khoảng cách chiều về
+            if (isRoundTrip) {
+                if (returnPickupLat == null || returnPickupLng == null
+                        || returnDropoffLat == null || returnDropoffLng == null) {
+                    throw new IllegalArgumentException(
+                        "Đặt xe 2 chiều bắt buộc phải cung cấp tọa độ điểm đón/trả chiều về."
+                    );
+                }
+                // Chiều về cũng phải >= 20km (BR-01 áp dụng từng chặng)
+                returnDistanceKm = mapsService.validateAndGetDistance(
+                        returnPickupLat, returnPickupLng,
+                        returnDropoffLat, returnDropoffLng
+                );
+            }
+        }
+
+        // ---- Vấn đề 1 fix: validate duration bắt buộc theo loại booking ----
+        if (isHourly && (durationHours == null || durationHours <= 0)) {
+            throw new IllegalArgumentException(
+                "Thiếu durationHours hoặc không hợp lệ — bắt buộc với loại đặt xe theo giờ."
+            );
+        }
+        if (isDaily && (durationDays == null || durationDays <= 0)) {
+            throw new IllegalArgumentException(
+                "Thiếu durationDays hoặc không hợp lệ — bắt buộc với loại đặt xe theo ngày."
+            );
+        }
 
         // ---- BR-02: Validate thời gian đặt trước tối thiểu 120 phút ----
         long now = System.currentTimeMillis();
@@ -49,6 +104,20 @@ public class BookingService {
                 "Phải đặt xe trước giờ khởi hành tối thiểu 120 phút. "
                 + "Hiện tại chỉ còn " + diffMinutes + " phút."
             );
+        }
+
+        // ---- Vấn đề 3 fix: ROUND_TRIP bắt buộc phải có returnTime và sau departureTime ----
+        if (isRoundTrip) {
+            if (returnTime == null) {
+                throw new IllegalArgumentException(
+                    "Đặt xe 2 chiều (ROUND_TRIP) bắt buộc phải có returnTime."
+                );
+            }
+            if (!returnTime.after(departureTime)) {
+                throw new IllegalArgumentException(
+                    "returnTime phải sau departureTime."
+                );
+            }
         }
 
         // ---- BR-22: Validate xe có AVAILABLE không ----
@@ -81,14 +150,35 @@ public class BookingService {
         // ---- Tạo BookingDetail object ----
         BookingDetail detail = new BookingDetail();
         detail.setPickupAddress(pickupAddress);
-        detail.setPickupLat(BigDecimal.valueOf(pickupLat));
-        detail.setPickupLng(BigDecimal.valueOf(pickupLng));
         detail.setDropoffAddress(dropoffAddress);
-        detail.setDropoffLat(BigDecimal.valueOf(dropoffLat));
-        detail.setDropoffLng(BigDecimal.valueOf(dropoffLng));
-        detail.setDistanceKm(BigDecimal.valueOf(distanceKm));  // lưu khoảng cách
         detail.setDepartureTime(departureTime);
         detail.setReturnTime(returnTime);
+
+        if (isDistanceType) {
+            // Quãng đường: lưu tọa độ + km thật từ Maps API
+            detail.setPickupLat(BigDecimal.valueOf(pickupLat));
+            detail.setPickupLng(BigDecimal.valueOf(pickupLng));
+            detail.setDropoffLat(BigDecimal.valueOf(dropoffLat));
+            detail.setDropoffLng(BigDecimal.valueOf(dropoffLng));
+            detail.setDistanceKm(BigDecimal.valueOf(distanceKm));
+
+            // ROUND_TRIP: lưu thêm dữ liệu chiều về
+            if (isRoundTrip) {
+                detail.setReturnPickupAddress(returnPickupAddress);
+                detail.setReturnPickupLat(BigDecimal.valueOf(returnPickupLat));
+                detail.setReturnPickupLng(BigDecimal.valueOf(returnPickupLng));
+                detail.setReturnDropoffAddress(returnDropoffAddress);
+                detail.setReturnDropoffLat(BigDecimal.valueOf(returnDropoffLat));
+                detail.setReturnDropoffLng(BigDecimal.valueOf(returnDropoffLng));
+                detail.setReturnDistanceKm(BigDecimal.valueOf(returnDistanceKm));
+            }
+        } else if (isHourly) {
+            // Theo giờ: không cần tọa độ, lưu số giờ thuê vào cột DurationHours riêng
+            detail.setDurationHours(durationHours);
+        } else if (isDaily) {
+            // Theo ngày: lưu số ngày thuê vào cột DurationDays riêng
+            detail.setDurationDays(durationDays);
+        }
 
         // ---- Insert vào DB ----
         return bookingDAO.createBooking(booking, detail);

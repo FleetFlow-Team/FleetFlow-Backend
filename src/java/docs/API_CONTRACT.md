@@ -126,6 +126,198 @@ Xem chi tiết đơn booking của customer
         "departureTime": "2026-07-20 08:00:00.0"
     }
 }
+---------------------------------------------------------------------------------
+                                BỔ SUNG LUỒNG BOOKING NGÀY 19/6/2026
+Tạo đơn đặt xe — DISTANCE ROUND_TRIP
+fe làm them giao điện để customer nhập them chiều ii và về
+
+Path: POST http://localhost:8080/FleetFlow/api/v1/bookings
+Input:
+
+json{
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "DISTANCE",
+  "tripDirection": "ROUND_TRIP",
+  "pickupAddress": "123 Nguyễn Huệ Quận 1 HCM",
+  "pickupLat": 10.776,
+  "pickupLng": 106.700,
+  "dropoffAddress": "Vũng Tàu",
+  "dropoffLat": 10.346,
+  "dropoffLng": 107.084,
+  "departureTime": "2026-07-20T08:00:00",
+  "returnTime": "2026-07-20T18:00:00",
+  "returnPickupAddress": "Vũng Tàu",
+  "returnPickupLat": 10.346,
+  "returnPickupLng": 107.084,
+  "returnDropoffAddress": "123 Nguyễn Huệ Quận 1 HCM",
+  "returnDropoffLat": 10.776,
+  "returnDropoffLng": 106.700
+}
+
+Output:
+
+{
+  "success": true,
+  "bookingId": 23,
+  "status": "PENDING",
+  "message": "Đặt xe thành công, chờ Dispatcher duyệt"
+}
+Tạo đơn đặt xe — HOURLY
+
+Path: POST http://localhost:8080/FleetFlow/api/v1/bookings
+Input:
+
+{
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "HOURLY",
+  "tripDirection": "ONE_WAY",
+  "pickupAddress": "123 Nguyễn Huệ Quận 1 HCM",
+  "departureTime": "2026-07-20T08:00:00",
+  "durationHours": 4
+}
+
+Output:
+
+json{
+  "success": true,
+  "bookingId": 24,
+  "status": "PENDING",
+  "message": "Đặt xe thành công, chờ Dispatcher duyệt"
+}
+Tạo đơn đặt xe — DAILY
+
+Path: POST http://localhost:8080/FleetFlow/api/v1/bookings
+Input:
+
+json{
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "DAILY",
+  "tripDirection": "ONE_WAY",
+  "pickupAddress": "123 Nguyễn Huệ Quận 1 HCM",
+  "departureTime": "2026-07-20T08:00:00",
+  "durationDays": 2
+}
+
+Output:
+
+json{
+  "success": true,
+  "bookingId": 25,
+  "status": "PENDING",
+  "message": "Đặt xe thành công, chờ Dispatcher duyệt"
+}
+
+Tạo đơn đặt xe — INNER_CITY
+
+Path: POST http://localhost:8080/FleetFlow/api/v1/bookings
+Input:
+
+json{
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "INNER_CITY",
+  "tripDirection": "ONE_WAY",
+  "pickupAddress": "123 Nguyễn Huệ Quận 1 HCM",
+  "pickupLat": 10.776,
+  "pickupLng": 106.700,
+  "dropoffAddress": "Sân bay Tân Sơn Nhất",
+  "dropoffLat": 10.818,
+  "dropoffLng": 106.652,
+  "departureTime": "2026-07-20T08:00:00"
+}
+
+Output:
+
+json{
+  "success": true,
+  "bookingId": 26,
+  "status": "PENDING",
+  "message": "Đặt xe thành công, chờ Dispatcher duyệt"
+}
+
+Tạo đơn đặt xe — INTER_CITY
+
+Path: POST http://localhost:8080/FleetFlow/api/v1/bookings
+Input:
+
+json{
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "INTER_CITY",
+  "tripDirection": "ONE_WAY",
+  "pickupAddress": "Bến xe Miền Đông HCM",
+  "pickupLat": 10.814,
+  "pickupLng": 106.711,
+  "dropoffAddress": "Bến xe Đà Lạt",
+  "dropoffLat": 11.940,
+  "dropoffLng": 108.458,
+  "departureTime": "2026-07-20T08:00:00"
+}
+
+Output:
+
+{
+  "success": true,
+  "bookingId": 27,
+  "status": "PENDING",
+  "message": "Đặt xe thành công, chờ Dispatcher duyệt"
+}
+Xem chi tiết booking
+
+Path: GET http://localhost:8080/FleetFlow/api/v1/bookings/{bookingId}
+Output (ONE_WAY):
+
+json{
+  "bookingId": 22,
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "DISTANCE",
+  "tripDirection": "ONE_WAY",
+  "status": "PENDING",
+  "detail": {
+    "pickupAddress": "123 Nguyễn Huệ Quận 1 HCM",
+    "pickupLat": 10.776000,
+    "pickupLng": 106.700000,
+    "dropoffAddress": "Vũng Tàu",
+    "dropoffLat": 10.346000,
+    "dropoffLng": 107.084000,
+    "distanceKm": 120.5,
+    "departureTime": "2026-07-20 08:00:00.0"
+  }
+}
+
+Output (ROUND_TRIP):
+
+json{
+  "bookingId": 23,
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "DISTANCE",
+  "tripDirection": "ROUND_TRIP",
+  "status": "PENDING",
+  "detail": {
+    "pickupAddress": "123 Nguyễn Huệ Quận 1 HCM",
+    "pickupLat": 10.776000,
+    "pickupLng": 106.700000,
+    "dropoffAddress": "Vũng Tàu",
+    "dropoffLat": 10.346000,
+    "dropoffLng": 107.084000,
+    "distanceKm": 120.5,
+    "departureTime": "2026-07-20 08:00:00.0",
+    "returnTime": "2026-07-20 18:00:00.0",
+    "returnPickupAddress": "Vũng Tàu",
+    "returnPickupLat": 10.346000,
+    "returnPickupLng": 107.084000,
+    "returnDropoffAddress": "123 Nguyễn Huệ Quận 1 HCM",
+    "returnDropoffLat": 10.776000,
+    "returnDropoffLng": 106.700000,
+    "returnDistanceKm": 118.0
+  }
+}
+---------------------------------------------------------------------------
 Xem lịch sử booking
 - Path: GET http://localhost:8080/FleetFlow/api/v1/customer/bookings?customerId=1
 - Input:
@@ -147,6 +339,22 @@ Xem lịch sử booking
             "departureTime": "2026-07-15 08:00:00.0",
             "distanceKm": 94.60,
             "createdAt": "2026-06-10 20:59:45.463"
+        },
+{
+            "bookingId": 24,
+            "vehicleId": 1,
+            "vehicleName": "Toyota Vios",
+            "licensePlate": "51B-101.11",
+            "bookingType": "HOURLY",
+            "tripDirection": "ONE_WAY",
+            "status": "PENDING",
+            "pickupAddress": "",
+            "dropoffAddress": "",
+            "departureTime": "2026-08-20 08:00:00.0",
+            "distanceKm": 0,
+            "durationHours": 4,
+            "durationDays": null,
+            "createdAt": "2026-06-22 16:46:47.317"
         },
         {
             "bookingId": 13,
@@ -199,6 +407,117 @@ Tính cước phí chuyến đi
     "estimatedTotal": 1857500.000,
     "deposit30Percent": 557250
 }
+                    BỔ SUNG LUỒNG BOOKING NGÀY 19/6/2026
+-------------------------------------------------------------------------------
+Tính cước phí — DISTANCE ROUND_TRIP(Phí cước đi 2 chiều )
+Path: POST http://localhost:8080/FleetFlow/api/v1/customer/bookings/check-price
+Input:
+
+json{
+  "vehicleId": 1,
+  "bookingType": "DISTANCE",
+  "tripDirection": "ROUND_TRIP",
+  "distanceKm": 120.5,
+  "returnDistanceKm": 118.0,
+  "departureTime": "2026-07-20T08:00:00"
+}
+
+Output:
+
+json{
+  "success": true,
+  "ruleId": 1,
+  "baseFare": 3672500.000,
+  "weekendSurcharge": 0,
+  "estimatedTotal": 3672500.000,
+  "deposit30Percent": 1101750,
+  "legDistanceKm": 120.5,
+  "returnDistanceKm": 118.0,
+  "totalDistanceKm": 238.5
+}
+
+Tính cước phí — HOURLY
+
+Path: POST http://localhost:8080/FleetFlow/api/v1/customer/bookings/check-price
+Input:
+
+json{
+  "vehicleId": 1,
+  "bookingType": "HOURLY",
+  "tripDirection": "ONE_WAY",
+  "durationHours": 4,
+  "departureTime": "2026-07-20T08:00:00"
+}
+
+Output:
+
+{
+  "success": true,
+  "ruleId": 2,
+  "baseFare": 600000.000,
+  "weekendSurcharge": 0,
+  "estimatedTotal": 600000.000,
+  "deposit30Percent": 180000,
+  "legDistanceKm": 0.0,
+  "returnDistanceKm": 0.0,
+  "totalDistanceKm": 0.0
+}
+
+Tính cước phí — DAILY(THUÊ XE THEO NGÀY)
+
+Path: POST http://localhost:8080/FleetFlow/api/v1/customer/bookings/check-price
+Input:
+
+json{
+  "vehicleId": 1,
+  "bookingType": "DAILY",
+  "tripDirection": "ONE_WAY",
+  "durationDays": 2,
+  "departureTime": "2026-07-20T08:00:00"
+}
+
+Output:
+
+{
+  "success": true,
+  "ruleId": 3,
+  "baseFare": 2000000.000,
+  "weekendSurcharge": 0,
+  "estimatedTotal": 2000000.000,
+  "deposit30Percent": 600000,
+  "legDistanceKm": 0.0,
+  "returnDistanceKm": 0.0,
+  "totalDistanceKm": 0.0
+}
+
+Tính cước phí — Cuối tuần (weekend surcharge +10%)
+
+Path: POST http://localhost:8080/FleetFlow/api/v1/customer/bookings/check-price
+Input:
+
+json{
+  "vehicleId": 1,
+  "bookingType": "DISTANCE",
+  "tripDirection": "ONE_WAY",
+  "distanceKm": 120.5,
+  "departureTime": "2026-07-18T08:00:00"
+}
+(2026-07-18 là thứ 7)
+
+Output:
+
+json{
+  "success": true,
+  "ruleId": 1,
+  "baseFare": 1857500.000,
+  "weekendSurcharge": 185750,
+  "estimatedTotal": 2043250.000,
+  "deposit30Percent": 612975,
+  "legDistanceKm": 120.5,
+  "returnDistanceKm": 0.0,
+  "totalDistanceKm": 120.5
+}
+-------------------------------------------------------------------------------
 Áp mã voucher
 - Path: POST http://localhost:8080/FleetFlow/api/v1/customer/vouchers/apply
 - Input:
@@ -1554,3 +1873,421 @@ Xóa/Deactivate voucher
 - Path:
 - Input:
 - Output:
+----------------------------------------------------------------------
+Thêm luồng duyệt đơn customer và điều nhân viên của dispatcher
+Bước 0 — Login lấy token
+Dispatcher:
+POST http://localhost:8080/FleetFlow/api/v1/auth/login
+Lưu accessToken trả về → gọi là DISPATCHER_TOKEN
+Driver: login tương tự, lưu token → DRIVER_TOKEN
+
+1 — Customer tạo Booking mới (PENDING)
+path: POST http://localhost:8080/FleetFlow/api/v1/bookings
+input:
+{
+  "customerId": 1,
+  "vehicleId": 1,
+  "bookingType": "DISTANCE",
+  "tripDirection": "ONE_WAY",
+  "pickupAddress": "123 Nguyễn Huệ, Quận 1, HCM",
+  "pickupLat": 10.776,
+  "pickupLng": 106.700,
+  "dropoffAddress": "Vũng Tàu",
+  "dropoffLat": 10.346,
+  "dropoffLng": 107.084,
+  "departureTime": "2026-07-20T08:00:00"
+}
+→ Lấy bookingId trả về, gọi là {id}
+{
+    "success": true,
+    "bookingId": 16,
+    "status": "PENDING",
+    "message": "Đặt xe thành công, chờ Dispatcher duyệt"
+}
+
+Bước 2.1 — Dispatcher duyệt Booking
+POST http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings/{id}/approve
+Header: Authorization: Bearer DISPATCHER_TOKEN
+
+
+Output: 200, Booking.Status chuyển PENDING → APPROVED
+{
+    "success": true,
+    "message": "Đã duyệt booking #16"
+}
+
+Bước 2.2 — Dispatcher duyệt Booking
+POST http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings/{id}/reject
+Header: Authorization: Bearer DISPATCHER_TOKEN
+Input: 
+{ "reason" : string; } 
+
+Output: 200, Booking.Status chuyển PENDING → REJECTED
+{
+    "success": true,
+    "message": string
+}
+
+Bước 3 — Dispatcher dispatch driver
+POST http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings/{id}/dispatch
+Header: Authorization: Bearer DISPATCHER_TOKEN
+
+Body:
+json{ "driverId": 1 }
+→ Lấy broadcastId trả về
+Kỳ vọng: Booking.Status → DISPATCHED, tạo 1 row DriverJobBroadcast status PENDING
+{
+    "success": true,
+    "broadcastId": 1,
+    "message": "Đã dispatch driver #1 cho booking #16"
+}
+
+Bước 4 — Driver xem lệnh đang chờ
+GET http://localhost:8080/FleetFlow/api/v1/driver/dispatch/pending
+Header: Authorization: Bearer DRIVER_TOKEN
+Output: thấy broadcastId vừa tạo ở bước 3
+{
+    "success": true,
+    "data": [
+        {
+            "broadcastId": 1,
+            "bookingId": 16,
+            "dispatchedAt": "2026-06-20 14:29:16.902"
+        }
+    ]
+}
+
+Bước 5 — Driver accept
+POST http://localhost:8080/FleetFlow/api/v1/driver/dispatch/{broadcastId}/accept
+Header: Authorization: Bearer DRIVER_TOKEN
+
+Output: Booking.Status → CONFIRMED
+{
+    "success": true,
+    "message": "Đã nhận chuyến"
+}
+Bước 6 — Driver reject
+POST http://localhost:8080/FleetFlow/api/v1/driver/dispatch/{broadcastId}/reject
+Header: Authorization: Bearer DRIVER_TOKEN
+Input: 
+{ "reason": "Xe đang bận chuyến khác" }
+Output: 
+{
+    "success": true,
+    "message": "Đã từ chối chuyến"
+}
+Get all list customer booking for dispatcher
+path: http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings/pending
+Header: Authorization: Bearer DISPATCHER_TOKEN
+output: 
+{
+    "success": true,
+    "count": 6,
+    "data": [
+        {
+            "dropoffAddress": "Phố cổ Hội An, Quảng Nam",
+            "departureTime": "2025-03-13 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": "Đơn đặt xe số 3",
+            "vehicleName": "Hyundai Accent",
+            "bookingId": 3,
+            "customerName": "Cường Lê",
+            "createdAt": "2025-03-13 07:30:00.0",
+            "customerPhone": "0900000003",
+            "licensePlate": "51D-103.13",
+            "pickupAddress": "Cầu Rồng, Đà Nẵng",
+            "bookingType": "DAILY",
+            "customerId": 3,
+            "vehicleId": 3,
+            "status": "PENDING"
+        },
+        {
+            "dropoffAddress": "Phố cổ Hội An, Quảng Nam",
+            "departureTime": "2025-03-18 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": "Đơn đặt xe số 8",
+            "vehicleName": "Hyundai Accent",
+            "bookingId": 8,
+            "customerName": "Linh Bùi",
+            "createdAt": "2025-03-18 07:30:00.0",
+            "customerPhone": "0900000008",
+            "licensePlate": "51C-108.18",
+            "pickupAddress": "Cầu Rồng, Đà Nẵng",
+            "bookingType": "HOURLY",
+            "customerId": 8,
+            "vehicleId": 8,
+            "status": "PENDING"
+        },
+        {
+            "dropoffAddress": "Phố cổ Hội An, Quảng Nam",
+            "departureTime": "2025-03-23 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": "Đơn đặt xe số 13",
+            "vehicleName": "Hyundai Accent",
+            "bookingId": 13,
+            "customerName": "An Nguyễn",
+            "createdAt": "2025-03-23 07:30:00.0",
+            "customerPhone": "0900000001",
+            "licensePlate": "51D-103.13",
+            "pickupAddress": "Cầu Rồng, Đà Nẵng",
+            "bookingType": "DISTANCE",
+            "customerId": 1,
+            "vehicleId": 3,
+            "status": "PENDING"
+        },
+        {
+            "dropoffAddress": "Vũng Tàu",
+            "departureTime": "2026-07-22 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": null,
+            "vehicleName": "Hyundai Accent",
+            "bookingId": 19,
+            "customerName": "Bình Trần",
+            "createdAt": "2026-06-21 10:36:30.674",
+            "customerPhone": "0900000002",
+            "licensePlate": "51D-103.13",
+            "pickupAddress": "123 Nguyễn Huệ, Quận 1, HCM",
+            "bookingType": "DISTANCE",
+            "customerId": 2,
+            "vehicleId": 3,
+            "status": "PENDING"
+        },
+        {
+            "dropoffAddress": "Vũng Tàu",
+            "departureTime": "2026-07-23 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": null,
+            "vehicleName": "Toyota Vios",
+            "bookingId": 20,
+            "customerName": "Cường Lê",
+            "createdAt": "2026-06-21 10:36:47.355",
+            "customerPhone": "0900000003",
+            "licensePlate": "51B-101.11",
+            "pickupAddress": "123 Nguyễn Huệ, Quận 1, HCM",
+            "bookingType": "DISTANCE",
+            "customerId": 3,
+            "vehicleId": 1,
+            "status": "PENDING"
+        },
+        {
+            "dropoffAddress": "Vũng Tàu",
+            "departureTime": "2026-07-24 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": null,
+            "vehicleName": "Toyota Vios",
+            "bookingId": 21,
+            "customerName": "Dung Phạm",
+            "createdAt": "2026-06-21 10:36:57.268",
+            "customerPhone": "0900000004",
+            "licensePlate": "51B-101.11",
+            "pickupAddress": "123 Nguyễn Huệ, Quận 1, HCM",
+            "bookingType": "DISTANCE",
+            "customerId": 4,
+            "vehicleId": 1,
+            "status": "PENDING"
+        }
+    ]
+}
+Get list booking customer theo status for dispatcher
+path: http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings?status=Rejected
+Header: Authorization: Bearer DISPATCHER_TOKEN
+output:
+{
+    "success": true,
+    "count": 1,
+    "data": [
+        {
+            "dropoffAddress": "Vũng Tàu",
+            "departureTime": "2026-07-22 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": null,
+            "vehicleName": "Toyota Vios",
+            "bookingId": 17,
+            "customerName": "An Nguyễn",
+            "createdAt": "2026-06-20 23:56:44.613",
+            "customerPhone": "0900000001",
+            "licensePlate": "51B-101.11",
+            "pickupAddress": "123 Nguyễn Huệ, Quận 1, HCM",
+            "bookingType": "DISTANCE",
+            "customerId": 1,
+            "vehicleId": 1,
+            "status": "REJECTED"
+        }
+    ]
+}
+-------------------------------------------------------------------------
+Update 22/6/2026
+Driver start trip
+Header: Authorization: Bearer DRIVER_TOKEN
+path: POST http://localhost:8080/FleetFlow/api/v1/driver/trips/{bookingId}/start
+Output: 
+{
+    "success": true,
+    "message": "Đã bắt đầu chuyến đi"
+}
+Track gps of driver 30s/time
+Header: Authorization: Bearer DRIVER_TOKEN
+path: POST http://localhost:8080/FleetFlow/api/v1/driver/trips/{bookingId}/gps
+input: 
+ { "latitude": 10.776, "longitude": 106.700 }
+output:
+{
+
+    "success": true,
+    "message": "Đã ghi nhận vị trí"
+}
+Follow the new gps of all booking with status ONGOING 
+Header: Authorization: Bearer DISPATCHER_TOKEN
+path: http://localhost:8080/FleetFlow/api/v1/dispatcher/map
+output:
+{
+    "success": true,
+    "data": [
+        {
+            "bookingId": 16,
+            "latitude": 10.7760000,
+            "longitude": 106.7000000,
+            "recordedAt": "2026-06-22 17:07:33.329"
+        }
+    ]
+}
+Driver bấm hoàn thành chuyến
+Header: Authorization: Bearer DRIVER_TOKEN
+output:
+{
+    "success": true,
+    "message": "Đã hoàn thành chuyến đi"
+}
+
+Admin dashboard booking
+Header: Authorization: Bearer ADMIN_TOKEN
+path: GET http://localhost:8080/FleetFlow/api/v1/admin/bookings
+output:
+{
+    "success": true,
+    "summary": {
+        "byStatus": {
+            "CANCELLED": 3,
+            "COMPLETED": 7,
+            "CONFIRMED": 3,
+            "ONGOING": 0,
+            "PENDING": 9,
+            "APPROVED": 1,
+            "DISPATCHED": 0,
+            "REJECTED": 1
+        },
+        "totalRevenue": 1720000.00,
+        "driverRejectCount": 1
+    }
+}
+Dashboard Booking filter by Status
+Header: Authorization: Bearer ADMIN_TOKEN   
+path: GET http://localhost:8080/FleetFlow/api/v1/admin/bookings?status=
+output:
+{
+    "success": true,
+    "summary": {
+        "byStatus": {
+            "CANCELLED": 3,
+            "COMPLETED": 7,
+            "CONFIRMED": 3,
+            "ONGOING": 0,
+            "PENDING": 9,
+            "APPROVED": 1,
+            "DISPATCHED": 0,
+            "REJECTED": 1
+        },
+        "totalRevenue": 1720000.00,
+        "driverRejectCount": 1
+    },
+    "filteredStatus": "CANCELLED",
+    "count": 3,
+    "data": [
+        {
+            "tripDirection": "ONE_WAY",
+            "note": "Đơn đặt xe số 14",
+            "createdAt": "2025-03-24 07:30:00.0",
+            "customerPhone": "0900000002",
+            "vehicleName": "Mazda Mazda3",
+            "licensePlate": "51E-104.14",
+            "bookingType": "HOURLY",
+            "customerId": 2,
+            "vehicleId": 4,
+            "bookingId": 14,
+            "customerName": "Bình Trần",
+            "status": "CANCELLED"
+        },
+        {
+            "tripDirection": "ONE_WAY",
+            "note": "Đơn đặt xe số 9",
+            "createdAt": "2025-03-19 07:30:00.0",
+            "customerPhone": "0900000009",
+            "vehicleName": "Mazda Mazda3",
+            "licensePlate": "51D-109.19",
+            "bookingType": "DAILY",
+            "customerId": 9,
+            "vehicleId": 9,
+            "bookingId": 9,
+            "customerName": "Minh Đỗ",
+            "status": "CANCELLED"
+        },
+        {
+            "tripDirection": "ROUND_TRIP",
+            "note": "Đơn đặt xe số 4",
+            "createdAt": "2025-03-14 07:30:00.0",
+            "customerPhone": "0900000004",
+            "vehicleName": "Mazda Mazda3",
+            "licensePlate": "51E-104.14",
+            "bookingType": "DISTANCE",
+            "customerId": 4,
+            "vehicleId": 4,
+            "bookingId": 4,
+            "customerName": "Dung Phạm",
+            "status": "CANCELLED"
+        }
+    ]
+}
+
+Dasboard filter by status and date
+Header: Authorization: Bearer ADMIN_TOKEN 
+path: GET http://localhost:8080/FleetFlow/api/v1/admin/bookings?status=COMPLETED&fromDate=2026-06-01&toDate=2026-07-30
+output:
+{
+    "success": true,
+    "summary": {
+        "byStatus": {
+            "CANCELLED": 0,
+            "COMPLETED": 1,
+            "CONFIRMED": 0,
+            "ONGOING": 0,
+            "PENDING": 6,
+            "APPROVED": 1,
+            "DISPATCHED": 0,
+            "REJECTED": 1
+        },
+        "totalRevenue": 0,
+        "driverRejectCount": 1
+    },
+    "filteredStatus": "COMPLETED",
+    "count": 1,
+    "data": [
+        {
+            "tripDirection": "ONE_WAY",
+            "note": null,
+            "createdAt": "2026-06-20 14:26:15.81",
+            "customerPhone": "0900000001",
+            "vehicleName": "Toyota Vios",
+            "licensePlate": "51B-101.11",
+            "bookingType": "DISTANCE",
+            "customerId": 1,
+            "vehicleId": 1,
+            "bookingId": 16,
+            "customerName": "An Nguyễn",
+            "status": "COMPLETED"
+        }
+    ]
+}
+Chua xong: 
+Dashboard filter by Date
+Header: Authorization: Bearer ADMIN_TOKEN   
+path:GET http://localhost:8080/FleetFlow/api/v1/admin/bookings?fromDate=2026-06-01&toDate=2026-07-30

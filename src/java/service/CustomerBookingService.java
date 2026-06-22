@@ -49,16 +49,25 @@ public class CustomerBookingService {
         }
 
         // Tính phạt
+        // Grace period: hủy trong vòng 10 phút sau khi tạo booking thì luôn miễn phí,
+        // không phụ thuộc còn bao lâu tới giờ khởi hành — tránh xung đột với rule đặt xe
+        // tối thiểu trước 120 phút (BR-02), vì user có thể bấm nhầm ngay sau khi đặt.
         int penaltyPercent = 0;
         if (departureTime != null) {
             long now = System.currentTimeMillis();
-            long hoursUntilDeparture = (departureTime.getTime() - now) / (1000 * 60 * 60);
-            if (hoursUntilDeparture >= 24) {
+            long minutesSinceCreated = (now - booking.getCreatedAt().getTime()) / (1000 * 60);
+
+            if (minutesSinceCreated <= 10) {
                 penaltyPercent = 0;
-            } else if (hoursUntilDeparture >= 12) {
-                penaltyPercent = 30;
             } else {
-                penaltyPercent = 50;
+                long hoursUntilDeparture = (departureTime.getTime() - now) / (1000 * 60 * 60);
+                if (hoursUntilDeparture >= 12) {       // BR-12: >=12h không phạt
+                    penaltyPercent = 0;
+                } else if (hoursUntilDeparture >= 6) { // BR-12: 6-12h phạt 30%
+                    penaltyPercent = 30;
+                } else {                                // BR-12: <6h phạt 50%
+                    penaltyPercent = 50;
+                }
             }
         }
 
@@ -85,8 +94,15 @@ public class CustomerBookingService {
     }
 
     // ===================== BE-26: Tính giá ước tính =====================
+    //
+    // ROUND_TRIP + DISTANCE: tổng = PricePerKm × (distanceKm + returnDistanceKm)
+    // ONE_WAY  + DISTANCE  : tổng = PricePerKm × distanceKm
+    // HOURLY               : tổng = PricePerHour × durationHours
+    // DAILY                : tổng = PricePerDay  × durationDays
+    //
     public PriceResult checkPrice(int vehicleId, String bookingType, String tripDirection,
-            double distanceKm, int durationHours, int durationDays,
+            double distanceKm, double returnDistanceKm,
+            int durationHours, int durationDays,
             Timestamp departureTime) throws Exception {
 
         PricingRule rule = dao.getPricingRule(vehicleId, bookingType, tripDirection);
@@ -94,15 +110,18 @@ public class CustomerBookingService {
             throw new IllegalArgumentException("Không tìm thấy bảng giá cho xe và loại booking này");
         }
 
+        boolean isRoundTrip = "ROUND_TRIP".equalsIgnoreCase(tripDirection);
+
         BigDecimal base = rule.getBasePrice() != null ? rule.getBasePrice() : BigDecimal.ZERO;
         BigDecimal fare = BigDecimal.ZERO;
 
-        switch (bookingType) {
+        switch (bookingType.toUpperCase()) {
             case "DISTANCE":
             case "INNER_CITY":
             case "INTER_CITY":
                 if (rule.getPricePerKm() != null) {
-                    fare = rule.getPricePerKm().multiply(BigDecimal.valueOf(distanceKm));
+                    double totalKm = isRoundTrip ? (distanceKm + returnDistanceKm) : distanceKm;
+                    fare = rule.getPricePerKm().multiply(BigDecimal.valueOf(totalKm));
                 }
                 break;
             case "HOURLY":
@@ -136,7 +155,8 @@ public class CustomerBookingService {
         BigDecimal deposit = estimatedTotal.multiply(new BigDecimal("0.30"))
                 .setScale(0, RoundingMode.HALF_UP);
 
-        return new PriceResult(rule.getId(), baseFare, weekendSurcharge, estimatedTotal, deposit);
+        return new PriceResult(rule.getId(), baseFare, weekendSurcharge, estimatedTotal, deposit,
+                distanceKm, returnDistanceKm);
     }
 
     public static class PriceResult {
@@ -146,14 +166,20 @@ public class CustomerBookingService {
         public final BigDecimal weekendSurcharge;
         public final BigDecimal estimatedTotal;
         public final BigDecimal deposit30Percent;
+        // --- breakdown khoảng cách để frontend hiển thị ---
+        public final double legDistanceKm;      // chiều đi
+        public final double returnDistanceKm;   // chiều về (0 nếu ONE_WAY)
 
         public PriceResult(int ruleId, BigDecimal baseFare, BigDecimal weekendSurcharge,
-                BigDecimal estimatedTotal, BigDecimal deposit30Percent) {
+                BigDecimal estimatedTotal, BigDecimal deposit30Percent,
+                double legDistanceKm, double returnDistanceKm) {
             this.ruleId = ruleId;
             this.baseFare = baseFare;
             this.weekendSurcharge = weekendSurcharge;
             this.estimatedTotal = estimatedTotal;
             this.deposit30Percent = deposit30Percent;
+                this.legDistanceKm = legDistanceKm;
+            this.returnDistanceKm = returnDistanceKm;
         }
     }
 

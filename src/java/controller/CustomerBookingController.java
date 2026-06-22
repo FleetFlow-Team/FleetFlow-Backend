@@ -137,6 +137,8 @@ public class CustomerBookingController extends HttpServlet {
                 json.append("\"dropoffAddress\":\"").append(esc(b.dropoffAddress)).append("\",");
                 json.append("\"departureTime\":\"").append(b.departureTime).append("\",");
                 json.append("\"distanceKm\":").append(b.distanceKm != null ? b.distanceKm : 0).append(",");
+                json.append("\"durationHours\":").append(b.durationHours != null ? b.durationHours : "null").append(",");
+                json.append("\"durationDays\":").append(b.durationDays != null ? b.durationDays : "null").append(",");
                 json.append("\"createdAt\":\"").append(b.createdAt).append("\"");
                 json.append("}");
                 if (i < bookings.size() - 1) {
@@ -192,9 +194,14 @@ public class CustomerBookingController extends HttpServlet {
     }
 
     // ===================== BE-26: POST /api/v1/customer/bookings/check-price =====================
-    // Body: { "vehicleId": 3, "bookingType": "DISTANCE", "tripDirection": "ONE_WAY",
-    //         "distanceKm": 120.5, "durationHours": 0, "durationDays": 0,
-    //         "departureTime": "2026-06-20T08:00:00" }
+    // Body: {
+    //   "vehicleId": 3,
+    //   "bookingType": "DISTANCE", "tripDirection": "ROUND_TRIP",
+    //   "distanceKm": 120.5,        ← chiều đi
+    //   "returnDistanceKm": 115.0,  ← chiều về (bắt buộc khi ROUND_TRIP+DISTANCE, mặc định 0)
+    //   "durationHours": 0, "durationDays": 0,
+    //   "departureTime": "2026-06-20T08:00:00"
+    // }
     private void handleCheckPrice(HttpServletRequest request,
             HttpServletResponse response, PrintWriter out) throws IOException {
         try {
@@ -203,6 +210,7 @@ public class CustomerBookingController extends HttpServlet {
             String bookingType = body.get("bookingType").getAsString();
             String tripDirection = body.get("tripDirection").getAsString();
             double distanceKm = body.has("distanceKm") ? body.get("distanceKm").getAsDouble() : 0;
+            double returnDistanceKm = body.has("returnDistanceKm") ? body.get("returnDistanceKm").getAsDouble() : 0;
             int durationHours = body.has("durationHours") ? body.get("durationHours").getAsInt() : 0;
             int durationDays = body.has("durationDays") ? body.get("durationDays").getAsInt() : 0;
 
@@ -213,7 +221,7 @@ public class CustomerBookingController extends HttpServlet {
             }
 
             PriceResult result = service.checkPrice(vehicleId, bookingType, tripDirection,
-                    distanceKm, durationHours, durationDays, departureTime);
+                    distanceKm, returnDistanceKm, durationHours, durationDays, departureTime);
 
             response.setStatus(200);
             out.print("{\"success\": true,"
@@ -221,7 +229,10 @@ public class CustomerBookingController extends HttpServlet {
                     + "\"baseFare\":" + result.baseFare + ","
                     + "\"weekendSurcharge\":" + result.weekendSurcharge + ","
                     + "\"estimatedTotal\":" + result.estimatedTotal + ","
-                    + "\"deposit30Percent\":" + result.deposit30Percent + "}");
+                    + "\"deposit30Percent\":" + result.deposit30Percent + ","
+                    + "\"legDistanceKm\":" + result.legDistanceKm + ","
+                    + "\"returnDistanceKm\":" + result.returnDistanceKm + ","
+                    + "\"totalDistanceKm\":" + (result.legDistanceKm + result.returnDistanceKm) + "}");
 
         } catch (IllegalArgumentException e) {
             response.setStatus(400);

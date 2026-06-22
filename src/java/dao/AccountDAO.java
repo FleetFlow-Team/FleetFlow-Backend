@@ -31,6 +31,40 @@ public class AccountDAO {
     // =========================================================================
     // ======================== PHÂN HỆ XỬ LÝ LOGIC NGHIỆP VỤ =========================
     // =========================================================================
+    private static final String FIND_BY_EMAIL = "SELECT * FROM Account WHERE Email = ?";
+
+    public Account findByEmail(String email) throws SQLException, ClassNotFoundException {
+        Account account = null;
+        Connection conn = null;
+        PreparedStatement ptm = null;
+        ResultSet rs = null;
+        try {
+            conn = DbUtils.getConnection();
+            ptm = conn.prepareStatement(FIND_BY_EMAIL);
+            ptm.setString(1, email);
+            rs = ptm.executeQuery();
+
+            if (rs.next()) {
+                int accountId = rs.getInt("AccountID");
+                String roleName = rs.getString("RoleName");
+                String userEmail = rs.getString("Email");
+                String fullName = rs.getString("FullName");
+                String phoneNumber = rs.getString("PhoneNumber");
+                String status = rs.getString("Status");
+                Timestamp createdAt = rs.getTimestamp("CreatedAt");
+                Timestamp updatedAt = rs.getTimestamp("UpdatedAt");
+
+                account = new Account(roleName, userEmail, "***", fullName, phoneNumber, status, createdAt, updatedAt);
+                account.setId(accountId);
+            }
+            return account;
+        } finally {
+            if (rs != null) rs.close();
+            if (ptm != null) ptm.close();
+            if (conn != null) conn.close();
+        }
+    }
+
     public Account checkLogin(String email, String password) throws SQLException {
         Account account = null;
         Connection conn = null;

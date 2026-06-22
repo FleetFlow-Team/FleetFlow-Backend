@@ -81,9 +81,28 @@ public class BookingController extends HttpServlet {
                 json.append("\"dropoffAddress\":\"").append(detail.getDropoffAddress()).append("\",");
                 json.append("\"dropoffLat\":").append(detail.getDropoffLat()).append(",");
                 json.append("\"dropoffLng\":").append(detail.getDropoffLng()).append(",");
+                json.append("\"distanceKm\":").append(detail.getDistanceKm()).append(",");
                 json.append("\"departureTime\":\"").append(detail.getDepartureTime()).append("\"");
+                // durationHours — chỉ có với bookingType = HOURLY
+                if (detail.getDurationHours() != null) {
+                    json.append(",\"durationHours\":").append(detail.getDurationHours());
+                }
+                // durationDays — chỉ có với bookingType = DAILY
+                if (detail.getDurationDays() != null) {
+                    json.append(",\"durationDays\":").append(detail.getDurationDays());
+                }
                 if (detail.getReturnTime() != null) {
                     json.append(",\"returnTime\":\"").append(detail.getReturnTime()).append("\"");
+                }
+                // --- Chiều về ---
+                if (detail.getReturnPickupAddress() != null) {
+                    json.append(",\"returnPickupAddress\":\"").append(detail.getReturnPickupAddress()).append("\"");
+                    json.append(",\"returnPickupLat\":").append(detail.getReturnPickupLat());
+                    json.append(",\"returnPickupLng\":").append(detail.getReturnPickupLng());
+                    json.append(",\"returnDropoffAddress\":\"").append(detail.getReturnDropoffAddress()).append("\"");
+                    json.append(",\"returnDropoffLat\":").append(detail.getReturnDropoffLat());
+                    json.append(",\"returnDropoffLng\":").append(detail.getReturnDropoffLng());
+                    json.append(",\"returnDistanceKm\":").append(detail.getReturnDistanceKm());
                 }
                 json.append("}");
             }
@@ -111,127 +130,158 @@ public class BookingController extends HttpServlet {
      * "2026-06-15T08:00:00", "returnTime": null }
      */
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
+        protected void doPost(HttpServletRequest request, HttpServletResponse response)
+                throws ServletException, IOException {
 
-        setAccessControlHeaders(response);
-        request.setCharacterEncoding("UTF-8");
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        PrintWriter out = response.getWriter();
+            setAccessControlHeaders(response);
+            request.setCharacterEncoding("UTF-8");
+            response.setContentType("application/json");
+            response.setCharacterEncoding("UTF-8");
+            PrintWriter out = response.getWriter();
 
-        try {
-            // Đọc request body
-            BufferedReader reader = request.getReader();
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
-            }
+            try {
+                // Đọc request body
+                BufferedReader reader = request.getReader();
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    sb.append(line);
+                }
 
-            JsonObject body = JsonParser.parseString(sb.toString()).getAsJsonObject();
+                JsonObject body = JsonParser.parseString(sb.toString()).getAsJsonObject();
 
-            // Parse các field bắt buộc
-            int customerId = body.get("customerId").getAsInt();
-            int vehicleId = body.get("vehicleId").getAsInt();
-            String bookingType = body.get("bookingType").getAsString();
-            String tripDirection = body.get("tripDirection").getAsString();
-            String pickupAddress = body.get("pickupAddress").getAsString();
-            double pickupLat = body.get("pickupLat").getAsDouble();
-            double pickupLng = body.get("pickupLng").getAsDouble();
-            String dropoffAddress = body.get("dropoffAddress").getAsString();
-            double dropoffLat = body.get("dropoffLat").getAsDouble();
-            double dropoffLng = body.get("dropoffLng").getAsDouble();
-            String departureTimeStr = body.get("departureTime").getAsString();
+                // Parse cac field bat buoc chung cho moi loai booking
+                int customerId = body.get("customerId").getAsInt();
+                int vehicleId = body.get("vehicleId").getAsInt();
+                String bookingType = body.get("bookingType").getAsString();
+                String tripDirection = body.get("tripDirection").getAsString();
+                String departureTimeStr = body.get("departureTime").getAsString();
 
-            // Parse optional fields
-            Integer voucherId = null;
-            if (body.has("voucherId") && !body.get("voucherId").isJsonNull()) {
-                voucherId = body.get("voucherId").getAsInt();
-            }
+                // Parse optional fields
+                Integer voucherId = null;
+                if (body.has("voucherId") && !body.get("voucherId").isJsonNull()) {
+                    voucherId = body.get("voucherId").getAsInt();
+                }
 
-            Timestamp returnTime = null;
-            if (body.has("returnTime") && !body.get("returnTime").isJsonNull()) {
-                returnTime = Timestamp.valueOf(
-                        body.get("returnTime").getAsString().replace("T", " ")
+                Timestamp returnTime = null;
+                if (body.has("returnTime") && !body.get("returnTime").isJsonNull()) {
+                    returnTime = Timestamp.valueOf(
+                            body.get("returnTime").getAsString().replace("T", " ")
+                    );
+                }
+
+                // Pickup/dropoff - chi bat buoc khi bookingType = DISTANCE, parse optional o day
+                String pickupAddress = body.has("pickupAddress") && !body.get("pickupAddress").isJsonNull()
+                        ? body.get("pickupAddress").getAsString() : null;
+                Double pickupLat = body.has("pickupLat") && !body.get("pickupLat").isJsonNull()
+                        ? body.get("pickupLat").getAsDouble() : null;
+                Double pickupLng = body.has("pickupLng") && !body.get("pickupLng").isJsonNull()
+                        ? body.get("pickupLng").getAsDouble() : null;
+                String dropoffAddress = body.has("dropoffAddress") && !body.get("dropoffAddress").isJsonNull()
+                        ? body.get("dropoffAddress").getAsString() : null;
+                Double dropoffLat = body.has("dropoffLat") && !body.get("dropoffLat").isJsonNull()
+                        ? body.get("dropoffLat").getAsDouble() : null;
+                Double dropoffLng = body.has("dropoffLng") && !body.get("dropoffLng").isJsonNull()
+                        ? body.get("dropoffLng").getAsDouble() : null;
+
+                // durationHours/durationDays - bat buoc khi bookingType = HOURLY/DAILY
+                Integer durationHours = body.has("durationHours") && !body.get("durationHours").isJsonNull()
+                        ? body.get("durationHours").getAsInt() : null;
+                Integer durationDays = body.has("durationDays") && !body.get("durationDays").isJsonNull()
+                        ? body.get("durationDays").getAsInt() : null;
+
+                // --- Chiều về (bắt buộc khi tripDirection=ROUND_TRIP + bookingType=DISTANCE) ---
+                String returnPickupAddress = body.has("returnPickupAddress") && !body.get("returnPickupAddress").isJsonNull()
+                        ? body.get("returnPickupAddress").getAsString() : null;
+                Double returnPickupLat = body.has("returnPickupLat") && !body.get("returnPickupLat").isJsonNull()
+                        ? body.get("returnPickupLat").getAsDouble() : null;
+                Double returnPickupLng = body.has("returnPickupLng") && !body.get("returnPickupLng").isJsonNull()
+                        ? body.get("returnPickupLng").getAsDouble() : null;
+                String returnDropoffAddress = body.has("returnDropoffAddress") && !body.get("returnDropoffAddress").isJsonNull()
+                        ? body.get("returnDropoffAddress").getAsString() : null;
+                Double returnDropoffLat = body.has("returnDropoffLat") && !body.get("returnDropoffLat").isJsonNull()
+                        ? body.get("returnDropoffLat").getAsDouble() : null;
+                Double returnDropoffLng = body.has("returnDropoffLng") && !body.get("returnDropoffLng").isJsonNull()
+                        ? body.get("returnDropoffLng").getAsDouble() : null;
+
+                // Parse departureTime
+                Timestamp departureTime = Timestamp.valueOf(
+                        departureTimeStr.replace("T", " ")
                 );
-            }
 
-            // Parse departureTime
-            Timestamp departureTime = Timestamp.valueOf(
-                    departureTimeStr.replace("T", " ")
-            );
+                // Goi BookingService - validate theo loai booking + insert DB
+                long bookingId = bookingService.createBooking(
+                        customerId, vehicleId, voucherId,
+                        bookingType, tripDirection,
+                        pickupAddress, pickupLat, pickupLng,
+                        dropoffAddress, dropoffLat, dropoffLng,
+                        departureTime, returnTime,
+                        durationHours, durationDays,
+                        returnPickupAddress, returnPickupLat, returnPickupLng,
+                        returnDropoffAddress, returnDropoffLat, returnDropoffLng
+                );
 
-            // Gọi BookingService — validate maps + insert DB
-            long bookingId = bookingService.createBooking(
-                    customerId, vehicleId, voucherId,
-                    bookingType, tripDirection,
-                    pickupAddress, pickupLat, pickupLng,
-                    dropoffAddress, dropoffLat, dropoffLng,
-                    departureTime, returnTime
-            );
+                // Trả về response thành công
+                out.print("{\"success\": true, \"bookingId\": " + bookingId + ", "
+                        + "\"status\": \"PENDING\", "
+                        + "\"message\": \"Đặt xe thành công, chờ Dispatcher duyệt\"}");
 
-            // Trả về response thành công
-            out.print("{\"success\": true, \"bookingId\": " + bookingId + ", "
-                    + "\"status\": \"PENDING\", "
-                    + "\"message\": \"Đặt xe thành công, chờ Dispatcher duyệt\"}");
-
-        } catch (IllegalArgumentException e) {
-            // Lỗi validate (khoảng cách, thời gian)
-            response.setStatus(400);
-            out.print("{\"success\": false, \"error\": \"" + e.getMessage() + "\"}");
-        } catch (Exception e) {
-            response.setStatus(500);
-            out.print("{\"success\": false, \"error\": \"" + e.getMessage() + "\"}");
-        }
-
-        out.flush();
-    }
-
-    /**
-     * PATCH /api/v1/bookings/{id}/status — cập nhật trạng thái Body: {
-     * "status": "APPROVED" }
-     */
-    protected void doPatch(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-
-        request.setCharacterEncoding("UTF-8");
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        PrintWriter out = response.getWriter();
-
-        try {
-            String pathInfo = request.getPathInfo();
-            if (pathInfo == null || !pathInfo.contains("/")) {
+            } catch (IllegalArgumentException e) {
+                // Lỗi validate (khoảng cách, thời gian)
                 response.setStatus(400);
-                out.print("{\"error\": \"Thiếu BookingID\"}");
-                return;
+                out.print("{\"success\": false, \"error\": \"" + e.getMessage() + "\"}");
+            } catch (Exception e) {
+                response.setStatus(500);
+                out.print("{\"success\": false, \"error\": \"" + e.getMessage() + "\"}");
             }
 
-            // Path: /{id}/status
-            String[] parts = pathInfo.split("/");
-            int bookingId = Integer.parseInt(parts[1]);
-
-            BufferedReader reader = request.getReader();
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
-            }
-
-            JsonObject body = JsonParser.parseString(sb.toString()).getAsJsonObject();
-            String status = body.get("status").getAsString();
-
-            bookingService.updateBookingStatus(bookingId, status);
-
-            out.print("{\"success\": true, \"bookingId\": " + bookingId
-                    + ", \"status\": \"" + status + "\"}");
-
-        } catch (Exception e) {
-            response.setStatus(500);
-            out.print("{\"error\": \"" + e.getMessage() + "\"}");
+            out.flush();
         }
 
-        out.flush();
-    }
+        /**
+         * PATCH /api/v1/bookings/{id}/status — cập nhật trạng thái Body: {
+         * "status": "APPROVED" }
+         */
+        protected void doPatch(HttpServletRequest request, HttpServletResponse response)
+                throws ServletException, IOException {
+
+            request.setCharacterEncoding("UTF-8");
+            response.setContentType("application/json");
+            response.setCharacterEncoding("UTF-8");
+            PrintWriter out = response.getWriter();
+
+            try {
+                String pathInfo = request.getPathInfo();
+                if (pathInfo == null || !pathInfo.contains("/")) {
+                    response.setStatus(400);
+                    out.print("{\"error\": \"Thiếu BookingID\"}");
+                    return;
+                }
+
+                // Path: /{id}/status
+                String[] parts = pathInfo.split("/");
+                int bookingId = Integer.parseInt(parts[1]);
+
+                BufferedReader reader = request.getReader();
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    sb.append(line);
+                }
+
+                JsonObject body = JsonParser.parseString(sb.toString()).getAsJsonObject();
+                String status = body.get("status").getAsString();
+
+                bookingService.updateBookingStatus(bookingId, status);
+
+                out.print("{\"success\": true, \"bookingId\": " + bookingId
+                        + ", \"status\": \"" + status + "\"}");
+
+            } catch (Exception e) {
+                response.setStatus(500);
+                out.print("{\"error\": \"" + e.getMessage() + "\"}");
+            }
+
+            out.flush();
+        }
 }

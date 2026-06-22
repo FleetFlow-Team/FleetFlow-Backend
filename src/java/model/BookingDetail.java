@@ -16,6 +16,17 @@ public class BookingDetail extends BaseEntity {
     private BigDecimal dropoffLng;
     private Timestamp departureTime;
     private Timestamp returnTime;
+    private Integer durationHours;
+    private Integer durationDays;
+
+    // --- Chiều về (chỉ có giá trị khi tripDirection = ROUND_TRIP) ---
+    private String returnPickupAddress;
+    private BigDecimal returnPickupLat;
+    private BigDecimal returnPickupLng;
+    private String returnDropoffAddress;
+    private BigDecimal returnDropoffLat;
+    private BigDecimal returnDropoffLng;
+    private BigDecimal returnDistanceKm;
 
     public BookingDetail() {
     }
@@ -113,5 +124,78 @@ public class BookingDetail extends BaseEntity {
 
     public void setDistanceKm(BigDecimal distanceKm) {
         this.distanceKm = distanceKm;
+    }
+
+    public Integer getDurationHours() {
+        return durationHours;
+    }
+
+    public void setDurationHours(Integer durationHours) {
+        this.durationHours = durationHours;
+    }
+
+    public Integer getDurationDays() {
+        return durationDays;
+    }
+
+    public void setDurationDays(Integer durationDays) {
+        this.durationDays = durationDays;
+    }
+
+    // --- Getters / Setters chiều về (ROUND_TRIP) ---
+    public String getReturnPickupAddress() {
+        return returnPickupAddress;
+    }
+
+    public void setReturnPickupAddress(String v) {
+        this.returnPickupAddress = v;
+    }
+
+    public BigDecimal getReturnPickupLat() {
+        return returnPickupLat;
+    }
+
+    public void setReturnPickupLat(BigDecimal v) {
+        this.returnPickupLat = v;
+    }
+
+    public BigDecimal getReturnPickupLng() {
+        return returnPickupLng;
+    }
+
+    public void setReturnPickupLng(BigDecimal v) {
+        this.returnPickupLng = v;
+    }
+
+    public String getReturnDropoffAddress() {
+        return returnDropoffAddress;
+    }
+
+    public void setReturnDropoffAddress(String v) {
+        this.returnDropoffAddress = v;
+    }
+
+    public BigDecimal getReturnDropoffLat() {
+        return returnDropoffLat;
+    }
+
+    public void setReturnDropoffLat(BigDecimal v) {
+        this.returnDropoffLat = v;
+    }
+
+    public BigDecimal getReturnDropoffLng() {
+        return returnDropoffLng;
+    }
+
+    public void setReturnDropoffLng(BigDecimal v) {
+        this.returnDropoffLng = v;
+    }
+
+    public BigDecimal getReturnDistanceKm() {
+        return returnDistanceKm;
+    }
+
+    public void setReturnDistanceKm(BigDecimal v) {
+        this.returnDistanceKm = v;
     }
 }
