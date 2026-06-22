@@ -1937,4 +1937,46 @@ output:
         }
     ]
 }
+-------------------------------------------------------------------------
+Update 22/6/2026
+Driver start trip
+Header: Authorization: Bearer DRIVER_TOKEN
+path: POST http://localhost:8080/FleetFlow/api/v1/driver/trips/{bookingId}/start
+Output: 
+{
+    "success": true,
+    "message": "Đã bắt đầu chuyến đi"
+}
+Track gps of driver 30s/time
+Header: Authorization: Bearer DRIVER_TOKEN
+path: POST http://localhost:8080/FleetFlow/api/v1/driver/trips/{bookingId}/gps
+input: 
+ { "latitude": 10.776, "longitude": 106.700 }
+output:
+{
 
+    "success": true,
+    "message": "Đã ghi nhận vị trí"
+}
+Follow the new gps of all booking with status ONGOING 
+Header: Authorization: Bearer DISPATCHER_TOKEN
+path: http://localhost:8080/FleetFlow/api/v1/dispatcher/map
+output:
+{
+    "success": true,
+    "data": [
+        {
+            "bookingId": 16,
+            "latitude": 10.7760000,
+            "longitude": 106.7000000,
+            "recordedAt": "2026-06-22 17:07:33.329"
+        }
+    ]
+}
+Driver bấm hoàn thành chuyến
+Header: Authorization: Bearer DRIVER_TOKEN
+output:
+{
+    "success": true,
+    "message": "Đã hoàn thành chuyến đi"
+}
