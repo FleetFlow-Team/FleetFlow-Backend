@@ -83,6 +83,14 @@ public class BookingController extends HttpServlet {
                 json.append("\"dropoffLng\":").append(detail.getDropoffLng()).append(",");
                 json.append("\"distanceKm\":").append(detail.getDistanceKm()).append(",");
                 json.append("\"departureTime\":\"").append(detail.getDepartureTime()).append("\"");
+                // durationHours — chỉ có với bookingType = HOURLY
+                if (detail.getDurationHours() != null) {
+                    json.append(",\"durationHours\":").append(detail.getDurationHours());
+                }
+                // durationDays — chỉ có với bookingType = DAILY
+                if (detail.getDurationDays() != null) {
+                    json.append(",\"durationDays\":").append(detail.getDurationDays());
+                }
                 if (detail.getReturnTime() != null) {
                     json.append(",\"returnTime\":\"").append(detail.getReturnTime()).append("\"");
                 }
