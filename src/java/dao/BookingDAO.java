@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import model.Booking;
 import model.BookingDetail;
+import model.BookingPricing;
 import utils.DbUtils;
 
 public class BookingDAO {
@@ -14,7 +15,7 @@ public class BookingDAO {
      * Insert Booking + BookingDetail trong 1 transaction Trả về BookingID vừa
      * tạo
      */
-    public long createBooking(Booking booking, BookingDetail detail) throws Exception {
+    public long createBooking(Booking booking, BookingDetail detail, BookingPricing pricing) throws Exception {
         Connection conn = null;
         PreparedStatement stmtBooking = null;
         PreparedStatement stmtDetail = null;
@@ -151,6 +152,40 @@ public class BookingDAO {
             }
 
             stmtDetail.executeUpdate();
+            String sqlPricing
+                    = "INSERT INTO BookingPricing "
+                    + "(BookingID, RuleID, BaseFare, "
+                    + "WeekendSurcharge, DiscountAmount, EstimatedTotal) "
+                    + "VALUES (?, ?, ?, ?, ?, ?)";
+
+            PreparedStatement stmtPricing
+                    = conn.prepareStatement(sqlPricing);
+
+            stmtPricing.setInt(1, bookingId);
+
+            stmtPricing.setInt(2, pricing.getRuleId());
+
+            stmtPricing.setBigDecimal(
+                    3,
+                    pricing.getBaseFare()
+            );
+
+            stmtPricing.setBigDecimal(
+                    4,
+                    pricing.getWeekendSurcharge()
+            );
+
+            stmtPricing.setBigDecimal(
+                    5,
+                    pricing.getDiscountAmount()
+            );
+
+            stmtPricing.setBigDecimal(
+                    6,
+                    pricing.getEstimatedTotal()
+            );
+
+            stmtPricing.executeUpdate();
 
             conn.commit();
             return bookingId;
@@ -400,5 +435,9 @@ public class BookingDAO {
         d.setReturnDistanceKm(rs.getBigDecimal("ReturnDistanceKm"));
 
         return d;
+    }
+
+    public long createBooking(Booking booking, BookingDetail detail) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
 }

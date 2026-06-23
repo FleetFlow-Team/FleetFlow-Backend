@@ -1,4 +1,5 @@
 package dao;
+
 import model.Booking;
 import java.math.BigDecimal;
 import java.sql.*;
@@ -11,13 +12,12 @@ import model.PricingRule;
 import model.Voucher;
 import utils.DbUtils;
 
-
 public class CustomerBookingDAO {
 
     // ===================== BE-23: Lịch sử đặt xe =====================
-
     // Inner class chứa đầy đủ thông tin booking + join
     public static class BookingRow {
+
         public int bookingId;
         public int customerId;
         public int vehicleId;
@@ -49,8 +49,7 @@ public class CustomerBookingDAO {
                 + "WHERE b.CustomerID = ? "
                 + "ORDER BY b.CreatedAt DESC";
 
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, customerId);
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
@@ -68,10 +67,14 @@ public class CustomerBookingDAO {
                 row.distanceKm = rs.getBigDecimal("DistanceKm");
 
                 int durHours = rs.getInt("DurationHours");
-                if (!rs.wasNull()) row.durationHours = durHours;
+                if (!rs.wasNull()) {
+                    row.durationHours = durHours;
+                }
 
                 int durDays = rs.getInt("DurationDays");
-                if (!rs.wasNull()) row.durationDays = durDays;
+                if (!rs.wasNull()) {
+                    row.durationDays = durDays;
+                }
 
                 row.brand = rs.getString("Brand");
                 row.model = rs.getString("Model");
@@ -83,13 +86,11 @@ public class CustomerBookingDAO {
     }
 
     // ===================== BE-25: Cancel + tính phạt =====================
-
     public Booking findBookingById(int bookingId) throws Exception {
         String sql = "SELECT b.*, bd.DepartureTime FROM Booking b "
                 + "JOIN BookingDetail bd ON b.BookingID = bd.BookingID "
                 + "WHERE b.BookingID = ?";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, bookingId);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
@@ -122,7 +123,9 @@ public class CustomerBookingDAO {
             psBook.setInt(2, customerId);
             int rows = psBook.executeUpdate();
             psBook.close();
-            if (rows == 0) throw new IllegalArgumentException("Booking không tồn tại hoặc không thuộc customer này");
+            if (rows == 0) {
+                throw new IllegalArgumentException("Booking không tồn tại hoặc không thuộc customer này");
+            }
 
             // 2. Insert Cancellation
             PreparedStatement psCancel = conn.prepareStatement(
@@ -138,21 +141,24 @@ public class CustomerBookingDAO {
 
             conn.commit();
         } catch (Exception e) {
-            if (conn != null) conn.rollback();
+            if (conn != null) {
+                conn.rollback();
+            }
             throw e;
         } finally {
-            if (conn != null) { conn.setAutoCommit(true); conn.close(); }
+            if (conn != null) {
+                conn.setAutoCommit(true);
+                conn.close();
+            }
         }
     }
 
     // ===================== BE-26: Check price =====================
-
     public PricingRule getPricingRule(int vehicleId, String bookingType, String tripDirection) throws Exception {
         String sql = "SELECT pr.* FROM PricingRule pr "
                 + "JOIN Vehicle v ON v.VehicleTypeID = pr.VehicleTypeID "
                 + "WHERE v.VehicleID = ? AND pr.BookingType = ? AND pr.TripDirection = ?";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, vehicleId);
             ps.setString(2, bookingType);
             ps.setString(3, tripDirection);
@@ -175,12 +181,10 @@ public class CustomerBookingDAO {
     }
 
     // ===================== BE-27: Apply Voucher =====================
-
     public Voucher findVoucherByCode(String code) throws Exception {
         String sql = "SELECT * FROM Voucher WHERE Code = ? AND Status = 'ACTIVE' "
                 + "AND ValidFrom <= GETDATE() AND ValidTo >= GETDATE()";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, code);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
@@ -205,13 +209,74 @@ public class CustomerBookingDAO {
     public int countVoucherUsageByCustomer(int voucherId, int customerId) throws Exception {
         String sql = "SELECT COUNT(*) FROM Booking "
                 + "WHERE VoucherID = ? AND CustomerID = ? AND Status != 'CANCELLED'";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, voucherId);
             ps.setInt(2, customerId);
             ResultSet rs = ps.executeQuery();
-            if (rs.next()) return rs.getInt(1);
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
             return 0;
+        }
+    }
+
+    public Voucher findVoucherById(int voucherId) throws Exception {
+        String sql = "SELECT * FROM Voucher "
+                + "WHERE VoucherID = ? "
+                + "AND Status = 'ACTIVE' "
+                + "AND ValidFrom <= GETDATE() "
+                + "AND ValidTo >= GETDATE()";
+
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, voucherId);
+
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                Voucher v = new Voucher();
+
+                v.setId(rs.getInt("VoucherID"));
+                v.setCode(rs.getString("Code"));
+                v.setDiscountType(rs.getString("DiscountType"));
+                v.setDiscountValue(rs.getBigDecimal("DiscountValue"));
+                v.setMaxDiscountAmount(rs.getBigDecimal("MaxDiscountAmount"));
+                v.setMinBookingValue(rs.getBigDecimal("MinBookingValue"));
+                v.setApplicableVehicleTypeId(
+                        rs.getInt("ApplicableVehicleTypeID")
+                );
+
+                v.setMaxUsagePerUser(
+                        (Integer) rs.getObject("MaxUsagePerUser")
+                );
+
+                return v;
+            }
+
+            return null;
+        }
+    }
+
+    public int getVehicleTypeId(int vehicleId) throws Exception {
+
+        String sql
+                = "SELECT VehicleTypeID "
+                + "FROM Vehicle "
+                + "WHERE VehicleID = ?";
+
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, vehicleId);
+
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                return rs.getInt("VehicleTypeID");
+            }
+
+            throw new IllegalArgumentException(
+                    "Không tìm thấy xe"
+            );
         }
     }
 }
