@@ -2287,7 +2287,25 @@ output:
         }
     ]
 }
-Chua xong: 
+--------------------------------------------------
+23/6/2026
 Dashboard filter by Date
 Header: Authorization: Bearer ADMIN_TOKEN   
-path:GET http://localhost:8080/FleetFlow/api/v1/admin/bookings?fromDate=2026-06-01&toDate=2026-07-30
+path:GET http://localhost:8080/FleetFlow/api/v1/admin/bookings?fromDate=2025-03-01&toDate=2025-03-31
+{
+    "success": true,
+    "summary": {
+        "byStatus": {
+            "CANCELLED": 3,
+            "COMPLETED": 6,
+            "CONFIRMED": 3,
+            "ONGOING": 0,
+            "PENDING": 3,
+            "APPROVED": 0,
+            "DISPATCHED": 0,
+            "REJECTED": 0
+        },
+        "totalRevenue": 1720000.00,
+        "driverRejectCount": 0
+    }
+}
