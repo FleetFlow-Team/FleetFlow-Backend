@@ -11,8 +11,8 @@ import utils.DbUtils;
 public class BookingDAO {
 
     /**
-     * Insert Booking + BookingDetail trong 1 transaction
-     * Trả về BookingID vừa tạo
+     * Insert Booking + BookingDetail trong 1 transaction Trả về BookingID vừa
+     * tạo
      */
     public long createBooking(Booking booking, BookingDetail detail) throws Exception {
         Connection conn = null;
@@ -156,12 +156,20 @@ public class BookingDAO {
             return bookingId;
 
         } catch (Exception e) {
-            if (conn != null) conn.rollback();
+            if (conn != null) {
+                conn.rollback();
+            }
             throw e;
         } finally {
-            if (rs != null) rs.close();
-            if (stmtBooking != null) stmtBooking.close();
-            if (stmtDetail != null) stmtDetail.close();
+            if (rs != null) {
+                rs.close();
+            }
+            if (stmtBooking != null) {
+                stmtBooking.close();
+            }
+            if (stmtDetail != null) {
+                stmtDetail.close();
+            }
             if (conn != null) {
                 conn.setAutoCommit(true);
                 conn.close();
@@ -173,14 +181,22 @@ public class BookingDAO {
      * Tìm Booking theo ID
      */
     public Booking findById(int bookingId) throws Exception {
-        String sql = "SELECT * FROM Booking WHERE BookingID = ?";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        String sql
+                = "SELECT b.*, "
+                + "a.FullName AS CustomerName, "
+                + "a.PhoneNumber AS CustomerPhone "
+                + "FROM Booking b "
+                + "LEFT JOIN Customer c ON b.CustomerID = c.CustomerID "
+                + "LEFT JOIN Account a ON c.AccountID = a.AccountID "
+                + "WHERE b.BookingID = ?";
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, bookingId);
             ResultSet rs = stmt.executeQuery();
 
-            if (rs.next()) return mapBooking(rs);
+            if (rs.next()) {
+                return mapBooking(rs);
+            }
             return null;
         }
     }
@@ -190,13 +206,14 @@ public class BookingDAO {
      */
     public BookingDetail findDetailByBookingId(int bookingId) throws Exception {
         String sql = "SELECT * FROM BookingDetail WHERE BookingID = ?";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, bookingId);
             ResultSet rs = stmt.executeQuery();
 
-            if (rs.next()) return mapBookingDetail(rs);
+            if (rs.next()) {
+                return mapBookingDetail(rs);
+            }
             return null;
         }
     }
@@ -206,8 +223,7 @@ public class BookingDAO {
      */
     public boolean isVehicleAvailable(int vehicleId) throws Exception {
         String sql = "SELECT Status FROM Vehicle WHERE VehicleID = ?";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, vehicleId);
             ResultSet rs = stmt.executeQuery();
@@ -220,8 +236,8 @@ public class BookingDAO {
     }
 
     /**
-     * Check xe có bị trùng lịch không (BR-27)
-     * Xe phải cách chuyến cũ ít nhất 60 phút
+     * Check xe có bị trùng lịch không (BR-27) Xe phải cách chuyến cũ ít nhất 60
+     * phút
      */
     public boolean isVehicleScheduleConflict(int vehicleId, Timestamp departureTime) throws Exception {
         String sql = "SELECT bd.DepartureTime, bd.ReturnTime "
@@ -231,8 +247,7 @@ public class BookingDAO {
                 + "AND b.Status NOT IN ('CANCELLED', 'COMPLETED') "
                 + "AND bd.DepartureTime IS NOT NULL";
 
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, vehicleId);
             ResultSet rs = stmt.executeQuery();
@@ -262,18 +277,18 @@ public class BookingDAO {
      * Cập nhật trạng thái Booking
      */
     public void updateStatus(int bookingId, String status) throws Exception {
-        try (Connection conn = DbUtils.getConnection()) {
+        try ( Connection conn = DbUtils.getConnection()) {
             updateStatus(conn, bookingId, status);
         }
     }
 
     /**
-     * Overload dùng connection được truyền vào — để gộp transaction
-     * với việc ghi AuditLog hoặc DriverJobBroadcast cùng lúc.
+     * Overload dùng connection được truyền vào — để gộp transaction với việc
+     * ghi AuditLog hoặc DriverJobBroadcast cùng lúc.
      */
     public void updateStatus(Connection conn, int bookingId, String status) throws SQLException {
         String sql = "UPDATE Booking SET Status = ?, UpdatedAt = ? WHERE BookingID = ?";
-        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try ( PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, status);
             stmt.setTimestamp(2, new Timestamp(System.currentTimeMillis()));
             stmt.setInt(3, bookingId);
@@ -282,11 +297,11 @@ public class BookingDAO {
     }
 
     // ===================== MAPPING =====================
-
     /**
-     * Lấy danh sách Booking theo Status — dùng cho Dispatcher xem hàng chờ duyệt (PENDING),
-     * hoặc Admin/Dispatcher xem theo trạng thái khác khi cần.
-     * Kèm thông tin xe + customer cơ bản để hiển thị danh sách không cần gọi thêm API.
+     * Lấy danh sách Booking theo Status — dùng cho Dispatcher xem hàng chờ
+     * duyệt (PENDING), hoặc Admin/Dispatcher xem theo trạng thái khác khi cần.
+     * Kèm thông tin xe + customer cơ bản để hiển thị danh sách không cần gọi
+     * thêm API.
      */
     public List<java.util.Map<String, Object>> findByStatusWithDetail(String status) throws Exception {
         List<java.util.Map<String, Object>> list = new ArrayList<>();
@@ -303,10 +318,9 @@ public class BookingDAO {
                 + "WHERE b.Status = ? "
                 + "ORDER BY b.CreatedAt ASC";
 
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, status);
-            try (ResultSet rs = ps.executeQuery()) {
+            try ( ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     java.util.Map<String, Object> row = new java.util.HashMap<>();
                     row.put("bookingId", rs.getInt("BookingID"));
@@ -336,10 +350,14 @@ public class BookingDAO {
         Booking b = new Booking();
         b.setId((int) rs.getInt("BookingID"));
         b.setCustomerId(rs.getInt("CustomerID"));
+        b.setCustomerName(rs.getString("CustomerName"));
+        b.setCustomerPhone(rs.getString("CustomerPhone"));
         b.setVehicleId(rs.getInt("VehicleID"));
 
         long voucherId = rs.getInt("VoucherID");
-        if (!rs.wasNull()) b.setVoucherId((int) voucherId);
+        if (!rs.wasNull()) {
+            b.setVoucherId((int) voucherId);
+        }
 
         b.setBookingType(rs.getString("BookingType"));
         b.setTripDirection(rs.getString("TripDirection"));
@@ -363,10 +381,14 @@ public class BookingDAO {
         d.setReturnTime(rs.getTimestamp("ReturnTime"));
 
         int durationHours = rs.getInt("DurationHours");
-        if (!rs.wasNull()) d.setDurationHours(durationHours);
+        if (!rs.wasNull()) {
+            d.setDurationHours(durationHours);
+        }
 
         int durationDays = rs.getInt("DurationDays");
-        if (!rs.wasNull()) d.setDurationDays(durationDays);
+        if (!rs.wasNull()) {
+            d.setDurationDays(durationDays);
+        }
 
         // --- Chiều về ---
         d.setReturnPickupAddress(rs.getString("ReturnPickupAddress"));

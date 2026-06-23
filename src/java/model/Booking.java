@@ -15,6 +15,8 @@ public class Booking extends BaseEntity implements IAuditableEntity {
     private String note;
     private Timestamp createdAt;
     private Timestamp updatedAt;
+    private String customerName;
+    private String customerPhone;
 
     public Booking() {
     }
@@ -31,6 +33,23 @@ public class Booking extends BaseEntity implements IAuditableEntity {
         this.createdAt = createdAt;
     }
 
+    public String getCustomerName() {
+        return customerName;
+    }
+
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
+    }
+
+    public String getCustomerPhone() {
+        return customerPhone;
+    }
+
+    public void setCustomerPhone(String customerPhone) {
+        this.customerPhone = customerPhone;
+    }
+
+    
     public int getCustomerId() {
         return customerId;
     }
