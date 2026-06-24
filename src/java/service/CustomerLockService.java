@@ -121,8 +121,16 @@ public class CustomerLockService {
      * lock.
      */
     public void requireCustomerNotLocked(int customerId) throws Exception {
+
         int accountId = lockDAO.getAccountIdByCustomerId(customerId);
-        requireAccountNotLocked(accountId);
+
+        boolean locked = lockDAO.isAccountLocked(accountId);
+
+        if (locked) {
+            throw new IllegalArgumentException(
+                "Tài khoản đang bị khóa, không thể tạo booking"
+            );
+        }
     }
 
     public BigDecimal getCurrentDebt(int customerId) throws Exception {
