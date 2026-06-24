@@ -14,12 +14,13 @@ import javax.servlet.http.HttpServletResponse;
 import model.Booking;
 import model.BookingDetail;
 import service.BookingService;
+import service.CustomerLockService;
 
 @WebServlet("/api/v1/bookings/*")
 public class BookingController extends HttpServlet {
 
     private final BookingService bookingService = new BookingService();
-
+private final CustomerLockService customerLockService = new CustomerLockService();
     private void setAccessControlHeaders(HttpServletResponse response) {
         response.setHeader("Access-Control-Allow-Origin", "*");
         response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -162,6 +163,10 @@ public class BookingController extends HttpServlet {
 
             // Parse cac field bat buoc chung cho moi loai booking
             int customerId = body.get("customerId").getAsInt();
+
+            // Chặn tạo booking mới nếu account đang bị Admin khóa do công nợ
+            customerLockService.requireCustomerNotLocked(customerId);
+
             int vehicleId = body.get("vehicleId").getAsInt();
             String bookingType = body.get("bookingType").getAsString();
             String tripDirection = body.get("tripDirection").getAsString();
@@ -180,13 +185,14 @@ public class BookingController extends HttpServlet {
                 );
             }
 
-            // Pickup/dropoff - chi bat buoc khi bookingType = DISTANCE, parse optional o day
+            // Pickup/dropoff - chi bat buoc khi bookingType = DISTANCE
             String pickupAddress = body.has("pickupAddress") && !body.get("pickupAddress").isJsonNull()
                     ? body.get("pickupAddress").getAsString() : null;
             Double pickupLat = body.has("pickupLat") && !body.get("pickupLat").isJsonNull()
                     ? body.get("pickupLat").getAsDouble() : null;
             Double pickupLng = body.has("pickupLng") && !body.get("pickupLng").isJsonNull()
                     ? body.get("pickupLng").getAsDouble() : null;
+
             String dropoffAddress = body.has("dropoffAddress") && !body.get("dropoffAddress").isJsonNull()
                     ? body.get("dropoffAddress").getAsString() : null;
             Double dropoffLat = body.has("dropoffLat") && !body.get("dropoffLat").isJsonNull()
@@ -194,23 +200,29 @@ public class BookingController extends HttpServlet {
             Double dropoffLng = body.has("dropoffLng") && !body.get("dropoffLng").isJsonNull()
                     ? body.get("dropoffLng").getAsDouble() : null;
 
-            // durationHours/durationDays - bat buoc khi bookingType = HOURLY/DAILY
+            // durationHours/durationDays
             Integer durationHours = body.has("durationHours") && !body.get("durationHours").isJsonNull()
                     ? body.get("durationHours").getAsInt() : null;
+
             Integer durationDays = body.has("durationDays") && !body.get("durationDays").isJsonNull()
                     ? body.get("durationDays").getAsInt() : null;
 
-            // --- Chiều về (bắt buộc khi tripDirection=ROUND_TRIP + bookingType=DISTANCE) ---
+            // Chiều về
             String returnPickupAddress = body.has("returnPickupAddress") && !body.get("returnPickupAddress").isJsonNull()
                     ? body.get("returnPickupAddress").getAsString() : null;
+
             Double returnPickupLat = body.has("returnPickupLat") && !body.get("returnPickupLat").isJsonNull()
                     ? body.get("returnPickupLat").getAsDouble() : null;
+
             Double returnPickupLng = body.has("returnPickupLng") && !body.get("returnPickupLng").isJsonNull()
                     ? body.get("returnPickupLng").getAsDouble() : null;
+
             String returnDropoffAddress = body.has("returnDropoffAddress") && !body.get("returnDropoffAddress").isJsonNull()
                     ? body.get("returnDropoffAddress").getAsString() : null;
+
             Double returnDropoffLat = body.has("returnDropoffLat") && !body.get("returnDropoffLat").isJsonNull()
                     ? body.get("returnDropoffLat").getAsDouble() : null;
+
             Double returnDropoffLng = body.has("returnDropoffLng") && !body.get("returnDropoffLng").isJsonNull()
                     ? body.get("returnDropoffLng").getAsDouble() : null;
 
@@ -219,7 +231,7 @@ public class BookingController extends HttpServlet {
                     departureTimeStr.replace("T", " ")
             );
 
-            // Goi BookingService - validate theo loai booking + insert DB
+            // Gọi service tạo booking
             long bookingId = bookingService.createBooking(
                     customerId, vehicleId, voucherId,
                     bookingType, tripDirection,
@@ -231,65 +243,16 @@ public class BookingController extends HttpServlet {
                     returnDropoffAddress, returnDropoffLat, returnDropoffLng
             );
 
-            // Trả về response thành công
             out.print("{\"success\": true, \"bookingId\": " + bookingId + ", "
                     + "\"status\": \"PENDING\", "
                     + "\"message\": \"Đặt xe thành công, chờ Dispatcher duyệt\"}");
 
         } catch (IllegalArgumentException e) {
-            // Lỗi validate (khoảng cách, thời gian)
             response.setStatus(400);
             out.print("{\"success\": false, \"error\": \"" + e.getMessage() + "\"}");
         } catch (Exception e) {
             response.setStatus(500);
             out.print("{\"success\": false, \"error\": \"" + e.getMessage() + "\"}");
-        }
-
-        out.flush();
-    }
-
-    /**
-     * PATCH /api/v1/bookings/{id}/status — cập nhật trạng thái Body: {
-     * "status": "APPROVED" }
-     */
-    protected void doPatch(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-
-        request.setCharacterEncoding("UTF-8");
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        PrintWriter out = response.getWriter();
-
-        try {
-            String pathInfo = request.getPathInfo();
-            if (pathInfo == null || !pathInfo.contains("/")) {
-                response.setStatus(400);
-                out.print("{\"error\": \"Thiếu BookingID\"}");
-                return;
-            }
-
-            // Path: /{id}/status
-            String[] parts = pathInfo.split("/");
-            int bookingId = Integer.parseInt(parts[1]);
-
-            BufferedReader reader = request.getReader();
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
-            }
-
-            JsonObject body = JsonParser.parseString(sb.toString()).getAsJsonObject();
-            String status = body.get("status").getAsString();
-
-            bookingService.updateBookingStatus(bookingId, status);
-
-            out.print("{\"success\": true, \"bookingId\": " + bookingId
-                    + ", \"status\": \"" + status + "\"}");
-
-        } catch (Exception e) {
-            response.setStatus(500);
-            out.print("{\"error\": \"" + e.getMessage() + "\"}");
         }
 
         out.flush();

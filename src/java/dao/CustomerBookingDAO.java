@@ -138,6 +138,25 @@ public class CustomerBookingDAO {
             psCancel.setTimestamp(5, new Timestamp(System.currentTimeMillis()));
             psCancel.executeUpdate();
             psCancel.close();
+            // 3. Ghi nhận tiền phạt vào CustomerWalletLedger
+// Amount âm = làm tăng công nợ khách hàng
+            if (penaltyAmount != null
+                    && penaltyAmount.compareTo(BigDecimal.ZERO) >= 0
+                    && penaltyPercent > 0) {
+                PreparedStatement psLedger = conn.prepareStatement(
+                        "INSERT INTO CustomerWalletLedger "
+                        + "(CustomerID, Amount, TransactionType, BookingID, CreatedAt) "
+                        + "VALUES (?, ?, 'PENALTY', ?, ?)");
+
+                psLedger.setInt(1, customerId);
+                psLedger.setBigDecimal(2, penaltyAmount.negate()); // âm để thành công nợ
+                psLedger.setInt(3, bookingId);
+                psLedger.setTimestamp(4,
+                        new Timestamp(System.currentTimeMillis()));
+
+                psLedger.executeUpdate();
+                psLedger.close();
+            }
 
             conn.commit();
         } catch (Exception e) {
@@ -278,5 +297,32 @@ public class CustomerBookingDAO {
                     "Không tìm thấy xe"
             );
         }
+    }
+
+    public BigDecimal getBookingTotalAmount(int bookingId) throws Exception {
+
+        String sql
+                = "SELECT EstimatedTotal "
+                + "FROM BookingPricing "
+                + "WHERE BookingID = ?";
+
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, bookingId);
+
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+
+                BigDecimal amount
+                        = rs.getBigDecimal("EstimatedTotal");
+
+                if (amount != null) {
+                    return amount;
+                }
+            }
+        }
+
+        return BigDecimal.ZERO;
     }
 }

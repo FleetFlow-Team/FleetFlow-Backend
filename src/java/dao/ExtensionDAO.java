@@ -184,4 +184,30 @@ public class ExtensionDAO {
         }
         return -1;
     }
+
+    /**
+     * Tạo 1 Notification mới — dùng cho cảnh báo nợ xấu, thông báo khóa/mở tài khoản, v.v.
+     * bookingId truyền null nếu thông báo không gắn với booking cụ thể nào.
+     */
+    public void createNotification(int recipientAccountId, Integer bookingId, String title,
+            String message, String type, String channel) throws Exception {
+        String sql = "INSERT INTO Notification "
+                + "(RecipientAccountID, BookingID, Title, Message, Type, Channel, IsRead, CreatedAt) "
+                + "VALUES (?, ?, ?, ?, ?, ?, 0, ?)";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, recipientAccountId);
+            if (bookingId != null) {
+                ps.setInt(2, bookingId);
+            } else {
+                ps.setNull(2, Types.INTEGER);
+            }
+            ps.setString(3, title);
+            ps.setString(4, message);
+            ps.setString(5, type);
+            ps.setString(6, channel);
+            ps.setTimestamp(7, new Timestamp(System.currentTimeMillis()));
+            ps.executeUpdate();
+        }
+    }
 }

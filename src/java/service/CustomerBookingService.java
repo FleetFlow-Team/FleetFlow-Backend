@@ -10,10 +10,12 @@ import java.util.List;
 import dao.CustomerBookingDAO.BookingRow;
 import model.PricingRule;
 import model.Voucher;
+import service.CustomerLockService;
 
 public class CustomerBookingService {
 
     private final CustomerBookingDAO dao = new CustomerBookingDAO();
+    private final CustomerLockService customerLockService = new CustomerLockService();
 
     // ===================== BE-23: Lịch sử đặt xe =====================
     public List<BookingRow> getBookingHistory(int customerId) throws Exception {
@@ -71,13 +73,49 @@ public class CustomerBookingService {
             }
         }
 
-        // Tính tiền phạt dựa trên estimated total từ BookingPricing nếu có
-        // Tạm tính phạt = 0 nếu chưa có giá xác nhận
-        BigDecimal penaltyAmount = BigDecimal.ZERO;
+        // Tính tiền phạt
+// Lấy giá booking hiện tại
+        BigDecimal totalAmount = BigDecimal.ZERO;
 
-        dao.cancelBookingWithPenalty(bookingId, customerId, penaltyPercent, penaltyAmount, reason);
+        try {
+            totalAmount = dao.getBookingTotalAmount(bookingId);
+        } catch (Exception e) {
+            System.err.println("Không lấy được giá booking: " + e.getMessage());
+        }
 
-        return new CancelResult(bookingId, penaltyPercent, penaltyAmount);
+// penalty = tổng tiền * %
+        BigDecimal penaltyAmount = totalAmount
+                .multiply(BigDecimal.valueOf(penaltyPercent))
+                .divide(BigDecimal.valueOf(100));
+
+        dao.cancelBookingWithPenalty(
+                bookingId,
+                customerId,
+                penaltyPercent,
+                penaltyAmount,
+                reason
+        );
+
+// Sau khi ghi nhận tiền phạt vào CustomerWalletLedger,
+// kiểm tra công nợ có vượt ngưỡng cảnh báo hay không
+        try {
+            customerLockService.checkAndWarnIfDebtExceeded(
+                    customerId,
+                    1 // AdminID mặc định
+            );
+        } catch (Exception e) {
+            // Không để lỗi cảnh báo làm fail API hủy booking
+            System.err.println(
+                    "Lỗi khi kiểm tra cảnh báo nợ: "
+                    + e.getMessage()
+            );
+        }
+
+        return new CancelResult(
+                bookingId,
+                penaltyPercent,
+                penaltyAmount
+        );
     }
 
     public static class CancelResult {
@@ -178,7 +216,7 @@ public class CustomerBookingService {
             this.weekendSurcharge = weekendSurcharge;
             this.estimatedTotal = estimatedTotal;
             this.deposit30Percent = deposit30Percent;
-                this.legDistanceKm = legDistanceKm;
+            this.legDistanceKm = legDistanceKm;
             this.returnDistanceKm = returnDistanceKm;
         }
     }

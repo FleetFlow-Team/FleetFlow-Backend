@@ -2309,3 +2309,39 @@ path:GET http://localhost:8080/FleetFlow/api/v1/admin/bookings?fromDate=2025-03-
         "driverRejectCount": 0
     }
 }
+------------------------------------------------------------
+Update 24/6/2026
+Customer cancel booking tính penalty(API cũ chỉ bổ sung them field ouput)
+path : POST http://localhost:8080/FleetFlow/api/v1/customer/bookings/cancel
+input: 
+{
+  "bookingId": 26,
+  "customerId": 2,
+  "reason": "Thay đổi kế hoạch cần gì báo trước lêu lêu"
+}
+output: 
+{
+    "success": true,
+    "bookingId": 26,
+    "penaltyPercent": 50,
+    "penaltyAmount": 184000.00,(Thêm field này)
+    "message": "Hủy booking thành công"
+}
+Admin khóa tk customer th? công
+Header: Authorization: Bearer ADMIN_TOKEN 
+path POST 
+http://localhost:8080/FleetFlow/api/v1/admin/customers/2/lock
+output:
+{
+    "success": true,
+    "message": "Đã khóa tài khoản customer #2"
+}
+Admin unlock tk customer th? công
+Header: Authorization: Bearer ADMIN_TOKEN 
+path POST 
+http://localhost:8080/FleetFlow/api/v1/admin/customers/2/unlock
+output:
+{
+    "success": true,
+    "message": "Đã mở khóa tài khoản customer #2"
+}

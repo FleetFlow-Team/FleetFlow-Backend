@@ -73,7 +73,6 @@
         <servlet-name>AdminVoucherController</servlet-name>
         <servlet-class>controller.AdminVoucherController</servlet-class>
     </servlet>
-
     <servlet>
         <servlet-name>DispatcherBookingController</servlet-name>
         <servlet-class>controller.DispatcherBookingController</servlet-class>
@@ -94,7 +93,10 @@
         <servlet-name>AdminDashboardController</servlet-name>
         <servlet-class>controller.AdminDashboardController</servlet-class>
     </servlet>
-
+    <servlet>
+        <servlet-name>AdminCustomerLockController</servlet-name>
+        <servlet-class>controller.AdminCustomerLockController</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -168,7 +170,6 @@
         <servlet-name>AdminVoucherController</servlet-name>
         <url-pattern>/AdminVoucherController</url-pattern>
     </servlet-mapping>
-
     <servlet-mapping>
         <servlet-name>DispatcherBookingController</servlet-name>
         <url-pattern>/DispatcherBookingController</url-pattern>
@@ -189,7 +190,10 @@
         <servlet-name>AdminDashboardController</servlet-name>
         <url-pattern>/AdminDashboardController</url-pattern>
     </servlet-mapping>
-
+    <servlet-mapping>
+        <servlet-name>AdminCustomerLockController</servlet-name>
+        <url-pattern>/AdminCustomerLockController</url-pattern>
+    </servlet-mapping>
     <session-config>
         <session-timeout>30</session-timeout>
     </session-config>
