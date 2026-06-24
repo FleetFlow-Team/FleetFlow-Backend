@@ -3,6 +3,7 @@ package service;
 import dao.CustomerLockDAO;
 import dao.ExtensionDAO;
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Quy tắc đã chốt: - Nợ >= 1,000,000đ → tự động ghi nhận + thông báo cho
@@ -130,4 +131,11 @@ public class CustomerLockService {
 
         return dao.getCurrentDebt(customerId);
     }
+    public List<CustomerLockDAO.CustomerInfo> getAllCustomers()
+        throws Exception {
+
+    CustomerLockDAO dao = new CustomerLockDAO();
+
+    return dao.getAllCustomers();
+}
 }

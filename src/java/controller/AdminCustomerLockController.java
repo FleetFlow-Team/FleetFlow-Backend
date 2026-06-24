@@ -1,7 +1,9 @@
 package controller;
 
+import dao.CustomerLockDAO;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.List;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -13,8 +15,9 @@ import utils.JwtUtils;
 /**
  * BE-62: Admin khóa/mở khóa tài khoản Customer (FR-5.3)
  *
- * POST /api/v1/admin/customers/{id}/lock    — khóa tài khoản (id = CustomerID)
- * POST /api/v1/admin/customers/{id}/unlock  — mở khóa (chỉ khi nợ đã về dưới ngưỡng)
+ * POST /api/v1/admin/customers/{id}/lock — khóa tài khoản (id = CustomerID)
+ * POST /api/v1/admin/customers/{id}/unlock — mở khóa (chỉ khi nợ đã về dưới
+ * ngưỡng)
  */
 @WebServlet("/api/v1/admin/customers/*")
 public class AdminCustomerLockController extends HttpServlet {
@@ -88,7 +91,6 @@ public class AdminCustomerLockController extends HttpServlet {
     }
 
     // ===================== Helpers =====================
-
     private String extractToken(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
@@ -119,5 +121,69 @@ public class AdminCustomerLockController extends HttpServlet {
         }
         return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
-    
+
+    @Override
+    protected void doGet(
+            HttpServletRequest request,
+            HttpServletResponse response)
+            throws IOException {
+
+        response.setContentType("application/json;charset=UTF-8");
+
+        PrintWriter out = response.getWriter();
+
+        // CHECK ADMIN TOKEN
+        String adminEmail = requireAdminEmail(request, response, out);
+
+        if (adminEmail == null) {
+            return;
+        }
+
+        try {
+
+            List<CustomerLockDAO.CustomerInfo> list
+                    = lockService.getAllCustomers();
+
+            StringBuilder json = new StringBuilder();
+
+            json.append("[");
+
+            for (int i = 0; i < list.size(); i++) {
+
+                CustomerLockDAO.CustomerInfo c = list.get(i);
+
+                json.append("{")
+                        .append("\"customerId\":")
+                        .append(c.customerId)
+                        .append(",")
+                        .append("\"email\":\"")
+                        .append(c.email)
+                        .append("\",")
+                        .append("\"status\":\"")
+                        .append(c.status)
+                        .append("\",")
+                        .append("\"debt\":")
+                        .append(c.debt)
+                        .append("}");
+
+                if (i < list.size() - 1) {
+                    json.append(",");
+                }
+            }
+
+            json.append("]");
+
+            out.print(json.toString());
+
+        } catch (Exception e) {
+
+            response.setStatus(500);
+
+            out.print(
+                    "{\"error\":\""
+                    + esc(e.getMessage())
+                    + "\"}"
+            );
+        }
+    }
 }

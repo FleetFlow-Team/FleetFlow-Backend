@@ -5,10 +5,24 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
 import utils.DbUtils;
 
 public class CustomerLockDAO {
 
+    public static class CustomerInfo {
+
+        public int customerId;
+
+        public int accountId;
+
+        public String email;
+
+        public String status;
+
+        public BigDecimal debt;
+    }
     /**
      * Ngưỡng nợ để tự động cảnh báo (không tự khóa) — đúng theo quyết định: nợ
      * >= 1,000,000đ
@@ -99,5 +113,43 @@ public class CustomerLockDAO {
                 return false;
             }
         }
+    }
+
+    public List<CustomerInfo> getAllCustomers() throws Exception {
+
+        List<CustomerInfo> list = new ArrayList<>();
+
+        String sql
+                = "SELECT c.CustomerID, "
+                + "c.AccountID, "
+                + "a.Email, "
+                + "a.Status, "
+                + "ISNULL(SUM(cwl.Amount),0) AS Debt "
+                + "FROM Customer c "
+                + "JOIN Account a ON c.AccountID = a.AccountID "
+                + "LEFT JOIN CustomerWalletLedger cwl "
+                + "ON c.CustomerID = cwl.CustomerID "
+                + "GROUP BY "
+                + "c.CustomerID, c.AccountID, a.Email, a.Status";
+
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql);  ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+
+                CustomerInfo c = new CustomerInfo();
+
+                c.customerId = rs.getInt("CustomerID");
+                c.accountId = rs.getInt("AccountID");
+                c.email = rs.getString("Email");
+                c.status = rs.getString("Status");
+
+                c.debt = rs.getBigDecimal("Debt")
+                        .abs();
+
+                list.add(c);
+            }
+        }
+
+        return list;
     }
 }

@@ -2347,3 +2347,81 @@ output:
 }
 Có them thông báo khi công nợ account khách vượt quá 1 triệu vnđ và có thông báo khi admin lock tài khoản khách.
 Bên cạnh đó còn xử lý chặn khách đặt chuyến mới khi công nợ chưa được thanh toán.
+Admin get list Customer
+Header: Authorization: Bearer ADMIN_TOKEN 
+path: GET http://localhost:8080/FleetFlow/api/v1/admin/customers
+output:
+[
+    {
+        "customerId": 1,
+        "email": "an1@example.com",
+        "status": "ACTIVE",
+        "debt": 200000.00(tiền nợ của customer)
+    },
+    {
+        "customerId": 2,
+        "email": "binh2@example.com",
+        "status": "ACTIVE",
+        "debt": 334000.00
+    },
+    {
+        "customerId": 3,
+        "email": "cuong3@example.com",
+        "status": "ACTIVE",
+        "debt": 200000.00
+    },
+    {
+        "customerId": 4,
+        "email": "dung4@example.com",
+        "status": "ACTIVE",
+        "debt": 0.00
+    },
+    {
+        "customerId": 5,
+        "email": "giang5@example.com",
+        "status": "ACTIVE",
+        "debt": 200000.00
+    },
+    {
+        "customerId": 6,
+        "email": "ha6@example.com",
+        "status": "ACTIVE",
+        "debt": 0.00
+    },
+    {
+        "customerId": 7,
+        "email": "khoa7@example.com",
+        "status": "ACTIVE",
+        "debt": 0.00
+    },
+    {
+        "customerId": 8,
+        "email": "linh8@example.com",
+        "status": "ACTIVE",
+        "debt": 0.00
+    },
+    {
+        "customerId": 9,
+        "email": "minh9@example.com",
+        "status": "ACTIVE",
+        "debt": 0.00
+    },
+    {
+        "customerId": 10,
+        "email": "nga10@example.com",
+        "status": "ACTIVE",
+        "debt": 0.00
+    },
+    {
+        "customerId": 11,
+        "email": "phuc11@example.com",
+        "status": "ACTIVE",
+        "debt": 0.00
+    },
+    {
+        "customerId": 12,
+        "email": "mai12@example.com",
+        "status": "ACTIVE",
+        "debt": 0.00
+    }
+]
