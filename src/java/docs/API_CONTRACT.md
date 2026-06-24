@@ -2345,3 +2345,5 @@ output:
     "success": true,
     "message": "Đã mở khóa tài khoản customer #2"
 }
+Có them thông báo khi công nợ account khách vượt quá 1 triệu vnđ và có thông báo khi admin lock tài khoản khách.
+Bên cạnh đó còn xử lý chặn khách đặt chuyến mới khi công nợ chưa được thanh toán.
