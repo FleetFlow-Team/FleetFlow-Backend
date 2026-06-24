@@ -4,12 +4,14 @@
  */
 package controller;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dao.VehicleDAO;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.servlet.ServletException;
@@ -85,6 +87,33 @@ public class AdminVehicleController extends HttpServlet {
                 response.setStatus(200);
                 out.print(json.toString());
  
+            } else if (isTagsPath(pathInfo)) {
+                Integer id = parseId(pathInfo);
+                if (id == null) {
+                    response.setStatus(400);
+                    out.print("{\"error\": \"VehicleID không hợp lệ\"}");
+                    return;
+                }
+                if (vehicleDAO.findById(id) == null) {
+                    response.setStatus(404);
+                    out.print("{\"error\": \"Không tìm thấy xe #" + id + "\"}");
+                    return;
+                }
+
+                List<Map<String, Object>> tags = vehicleDAO.getTagsByVehicleId(id);
+                StringBuilder tagsJson = new StringBuilder();
+                tagsJson.append("{\"success\": true, \"vehicleId\": ").append(id).append(", \"data\": [");
+                for (int i = 0; i < tags.size(); i++) {
+                    if (i > 0) {
+                        tagsJson.append(",");
+                    }
+                    tagsJson.append(mapToJson(tags.get(i)));
+                }
+                tagsJson.append("]}");
+
+                response.setStatus(200);
+                out.print(tagsJson.toString());
+
             } else {
                 Integer id = parseId(pathInfo);
                 if (id == null) {
@@ -184,6 +213,61 @@ public class AdminVehicleController extends HttpServlet {
             return;
         }
  
+        String pathInfo = request.getPathInfo();
+
+        if (isTagsPath(pathInfo)) {
+            Integer tagsVehicleId = parseId(pathInfo);
+            if (tagsVehicleId == null) {
+                response.setStatus(400);
+                out.print("{\"error\": \"Thiếu hoặc sai VehicleID\"}");
+                return;
+            }
+            try {
+                if (vehicleDAO.findById(tagsVehicleId) == null) {
+                    response.setStatus(404);
+                    out.print("{\"error\": \"Không tìm thấy xe #" + tagsVehicleId + "\"}");
+                    return;
+                }
+
+                JsonObject tagsBody = readJsonBody(request);
+                if (!tagsBody.has("tags") || !tagsBody.get("tags").isJsonArray()) {
+                    response.setStatus(400);
+                    out.print("{\"error\": \"Thiếu trường 'tags' (dạng array string), ví dụ: [\\\"êm ái\\\", \\\"cốp rộng\\\"]\"}");
+                    return;
+                }
+
+                JsonArray tagsArr = tagsBody.getAsJsonArray("tags");
+                List<String> tagNames = new ArrayList<>();
+                for (int i = 0; i < tagsArr.size(); i++) {
+                    if (!tagsArr.get(i).isJsonNull()) {
+                        tagNames.add(tagsArr.get(i).getAsString());
+                    }
+                }
+
+                vehicleDAO.updateVehicleTags(tagsVehicleId, tagNames);
+
+                List<Map<String, Object>> updatedTags = vehicleDAO.getTagsByVehicleId(tagsVehicleId);
+                StringBuilder tagsJsonOut = new StringBuilder();
+                tagsJsonOut.append("{\"success\": true, \"message\": \"Cập nhật tags thành công\", \"vehicleId\": ")
+                    .append(tagsVehicleId).append(", \"data\": [");
+                for (int i = 0; i < updatedTags.size(); i++) {
+                    if (i > 0) {
+                        tagsJsonOut.append(",");
+                    }
+                    tagsJsonOut.append(mapToJson(updatedTags.get(i)));
+                }
+                tagsJsonOut.append("]}");
+
+                response.setStatus(200);
+                out.print(tagsJsonOut.toString());
+
+            } catch (Exception e) {
+                response.setStatus(500);
+                out.print("{\"error\": \"Lỗi server: " + esc(e.getMessage()) + "\"}");
+            }
+            return;
+        }
+
         Integer id = parseId(request.getPathInfo());
         if (id == null) {
             response.setStatus(400);
@@ -321,6 +405,10 @@ public class AdminVehicleController extends HttpServlet {
         return null;
     }
  
+    private boolean isTagsPath(String pathInfo) {
+        return pathInfo != null && pathInfo.matches("^/\\d+/tags/?$");
+    }
+
     private Integer parseId(String pathInfo) {
         if (pathInfo == null || pathInfo.equals("/")) {
             return null;

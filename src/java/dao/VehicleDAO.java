@@ -382,6 +382,101 @@ public class VehicleDAO {
         return m;
     }
 
+    /**
+     * BE-68: GET /api/v1/admin/vehicles/{id}/tags — Xem tags AI của 1 xe.
+     */
+    public List<Map<String, Object>> getTagsByVehicleId(int vehicleId) throws Exception {
+        List<Map<String, Object>> list = new ArrayList<>();
+        String sql = "SELECT t.TagID, t.TagName, t.Description "
+                + "FROM VehicleTag vtg JOIN Tag t ON t.TagID = vtg.TagID "
+                + "WHERE vtg.VehicleID = ? ORDER BY t.TagName";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, vehicleId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("tagId", rs.getInt("TagID"));
+                    m.put("tagName", rs.getString("TagName"));
+                    m.put("description", rs.getString("Description"));
+                    list.add(m);
+                }
+            }
+        }
+        return list;
+    }
+
+    /**
+     * BE-69: PUT /api/v1/admin/vehicles/{id}/tags — Cập nhật tags AI cho xe
+     * (ví dụ: "êm ái", "cốp rộng"...). Ghi đè toàn bộ danh sách tag hiện tại.
+     * Tag chưa tồn tại trong bảng Tag sẽ được tự tạo mới.
+     */
+    public void updateVehicleTags(int vehicleId, List<String> tagNames) throws Exception {
+        Connection conn = null;
+        try {
+            conn = DbUtils.getConnection();
+            conn.setAutoCommit(false);
+
+            try (PreparedStatement del = conn.prepareStatement(
+                    "DELETE FROM VehicleTag WHERE VehicleID = ?")) {
+                del.setInt(1, vehicleId);
+                del.executeUpdate();
+            }
+
+            if (tagNames != null) {
+                for (String rawName : tagNames) {
+                    if (rawName == null || rawName.trim().isEmpty()) {
+                        continue;
+                    }
+                    String tagName = rawName.trim();
+                    int tagId = findOrCreateTag(conn, tagName);
+
+                    try (PreparedStatement ins = conn.prepareStatement(
+                            "INSERT INTO VehicleTag (VehicleID, TagID) VALUES (?, ?)")) {
+                        ins.setInt(1, vehicleId);
+                        ins.setInt(2, tagId);
+                        ins.executeUpdate();
+                    }
+                }
+            }
+
+            conn.commit();
+        } catch (Exception e) {
+            if (conn != null) {
+                conn.rollback();
+            }
+            throw e;
+        } finally {
+            if (conn != null) {
+                conn.setAutoCommit(true);
+                conn.close();
+            }
+        }
+    }
+
+    private int findOrCreateTag(Connection conn, String tagName) throws Exception {
+        try (PreparedStatement find = conn.prepareStatement(
+                "SELECT TagID FROM Tag WHERE TagName = ?")) {
+            find.setString(1, tagName);
+            try (ResultSet rs = find.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("TagID");
+                }
+            }
+        }
+        try (PreparedStatement ins = conn.prepareStatement(
+                "INSERT INTO Tag (TagName) VALUES (?)", Statement.RETURN_GENERATED_KEYS)) {
+            ins.setString(1, tagName);
+            ins.executeUpdate();
+            try (ResultSet rs = ins.getGeneratedKeys()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+        throw new Exception("Không thể tạo Tag mới: " + tagName);
+    }
+
     public List<VehicleAIData> getVehiclesForAI() {
 
         List<VehicleAIData> list = new ArrayList<>();

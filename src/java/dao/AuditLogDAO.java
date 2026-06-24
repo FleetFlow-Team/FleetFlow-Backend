@@ -2,7 +2,12 @@ package dao;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import utils.DbUtils;
 
 public class AuditLogDAO {
@@ -38,6 +43,135 @@ public class AuditLogDAO {
             String entityId, String oldValue, String newValue, String ipAddress) throws Exception {
         try (Connection conn = DbUtils.getConnection()) {
             log(conn, accountId, action, entityName, entityId, oldValue, newValue, ipAddress);
+        }
+    }
+
+    /**
+     * BE-61: GET /api/v1/admin/audit-log — Xem nhật ký kiểm toán hệ thống (BR-20)
+     * Tất cả filter đều optional (truyền null/empty = không áp dụng).
+     * page bắt đầu từ 1.
+     */
+    public List<Map<String, Object>> findAll(String action, String entityName, Integer accountId,
+            String fromDate, String toDate, int page, int pageSize) throws Exception {
+
+        List<Map<String, Object>> list = new ArrayList<>();
+
+        StringBuilder sql = new StringBuilder(
+                "SELECT al.AuditID, al.AccountID, acc.Email, acc.FullName, al.Action, "
+              + "al.EntityName, al.EntityID, al.OldValue, al.NewValue, al.IpAddress, al.CreatedAt "
+              + "FROM AuditLog al "
+              + "LEFT JOIN Account acc ON acc.AccountID = al.AccountID "
+              + "WHERE 1=1 ");
+        List<Object> params = new ArrayList<>();
+
+        if (action != null && !action.trim().isEmpty()) {
+            sql.append("AND al.Action = ? ");
+            params.add(action.trim());
+        }
+        if (entityName != null && !entityName.trim().isEmpty()) {
+            sql.append("AND al.EntityName = ? ");
+            params.add(entityName.trim());
+        }
+        if (accountId != null) {
+            sql.append("AND al.AccountID = ? ");
+            params.add(accountId);
+        }
+        if (fromDate != null && !fromDate.trim().isEmpty()) {
+            sql.append("AND al.CreatedAt >= ? ");
+            params.add(fromDate.trim());
+        }
+        if (toDate != null && !toDate.trim().isEmpty()) {
+            sql.append("AND al.CreatedAt <= ? ");
+            params.add(toDate.trim());
+        }
+
+        sql.append("ORDER BY al.CreatedAt DESC, al.AuditID DESC ")
+           .append("OFFSET ? ROWS FETCH NEXT ? ROWS ONLY");
+
+        int safePage = page < 1 ? 1 : page;
+        int safeSize = pageSize < 1 ? 50 : pageSize;
+
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            int idx = 1;
+            for (Object p : params) {
+                if (p instanceof Integer) {
+                    ps.setInt(idx++, (Integer) p);
+                } else {
+                    ps.setString(idx++, (String) p);
+                }
+            }
+            ps.setInt(idx++, (safePage - 1) * safeSize);
+            ps.setInt(idx, safeSize);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("auditLogId", rs.getLong("AuditID"));
+                    m.put("accountId", rs.getInt("AccountID"));
+                    m.put("email", rs.getString("Email"));
+                    m.put("fullName", rs.getString("FullName"));
+                    m.put("action", rs.getString("Action"));
+                    m.put("entityName", rs.getString("EntityName"));
+                    m.put("entityId", rs.getString("EntityID"));
+                    m.put("oldValue", rs.getString("OldValue"));
+                    m.put("newValue", rs.getString("NewValue"));
+                    m.put("ipAddress", rs.getString("IpAddress"));
+                    Timestamp ts = rs.getTimestamp("CreatedAt");
+                    m.put("createdAt", ts == null ? null : ts.toString());
+                    list.add(m);
+                }
+            }
+        }
+        return list;
+    }
+
+    public int countAll(String action, String entityName, Integer accountId,
+            String fromDate, String toDate) throws Exception {
+
+        StringBuilder sql = new StringBuilder(
+                "SELECT COUNT(*) AS Cnt FROM AuditLog al WHERE 1=1 ");
+        List<Object> params = new ArrayList<>();
+
+        if (action != null && !action.trim().isEmpty()) {
+            sql.append("AND al.Action = ? ");
+            params.add(action.trim());
+        }
+        if (entityName != null && !entityName.trim().isEmpty()) {
+            sql.append("AND al.EntityName = ? ");
+            params.add(entityName.trim());
+        }
+        if (accountId != null) {
+            sql.append("AND al.AccountID = ? ");
+            params.add(accountId);
+        }
+        if (fromDate != null && !fromDate.trim().isEmpty()) {
+            sql.append("AND al.CreatedAt >= ? ");
+            params.add(fromDate.trim());
+        }
+        if (toDate != null && !toDate.trim().isEmpty()) {
+            sql.append("AND al.CreatedAt <= ? ");
+            params.add(toDate.trim());
+        }
+
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            int idx = 1;
+            for (Object p : params) {
+                if (p instanceof Integer) {
+                    ps.setInt(idx++, (Integer) p);
+                } else {
+                    ps.setString(idx++, (String) p);
+                }
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("Cnt");
+                }
+                return 0;
+            }
         }
     }
 }

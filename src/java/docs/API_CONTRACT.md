@@ -2425,3 +2425,171 @@ output:
         "debt": 0.00
     }
 ]
+---------------------------------------------------------------------------
+Admin get Auditlog
+Header: Authorization: Bearer ADMIN_TOKEN 
+path: GET http://localhost:8080/FleetFlow/api/v1/admin/audit-log
+output:
+{
+    "success": true,
+    "page": 1,
+    "pageSize": 50,
+    "total": 9,
+    "data": [
+        {
+            "auditLogId": 9,
+            "accountId": 1,
+            "email": "an1@example.com",
+            "fullName": "An Nguyễn",
+            "action": "COMPLETE_TRIP",
+            "entityName": "Booking",
+            "entityId": "16",
+            "oldValue": "ONGOING",
+            "newValue": "COMPLETED",
+            "ipAddress": "0:0:0:0:0:0:0:1",
+            "createdAt": "2026-06-22 17:14:10.793"
+        },
+        {
+            "auditLogId": 8,
+            "accountId": 1,
+            "email": "an1@example.com",
+            "fullName": "An Nguyễn",
+            "action": "START_TRIP",
+            "entityName": "Booking",
+            "entityId": "16",
+            "oldValue": "CONFIRMED",
+            "newValue": "ONGOING",
+            "ipAddress": "0:0:0:0:0:0:0:1",
+            "createdAt": "2026-06-22 17:06:23.214"
+        },
+        {
+            "auditLogId": 7,
+            "accountId": 2,
+            "email": "binh2@example.com",
+            "fullName": "Bình Trần",
+            "action": "DRIVER_REJECT",
+            "entityName": "Booking",
+            "entityId": "18",
+            "oldValue": "DISPATCHED",
+            "newValue": "APPROVED (lý do: Xe đang bận chuyến khác)",
+            "ipAddress": "0:0:0:0:0:0:0:1",
+            "createdAt": "2026-06-21 00:14:31.673"
+        },
+        {
+            "auditLogId": 6,
+            "accountId": 19,
+            "email": "thao19@example.com",
+            "fullName": "Thảo Mạc",
+            "action": "DISPATCH_DRIVER",
+            "entityName": "Booking",
+            "entityId": "18",
+            "oldValue": "APPROVED",
+            "newValue": "DISPATCHED (driverId=2)",
+            "ipAddress": "0:0:0:0:0:0:0:1",
+            "createdAt": "2026-06-21 00:12:09.029"
+        },
+        {
+            "auditLogId": 5,
+            "accountId": 19,
+            "email": "thao19@example.com",
+            "fullName": "Thảo Mạc",
+            "action": "APPROVE_BOOKING",
+            "entityName": "Booking",
+            "entityId": "18",
+            "oldValue": "PENDING",
+            "newValue": "APPROVED",
+            "ipAddress": "0:0:0:0:0:0:0:1",
+            "createdAt": "2026-06-21 00:11:19.571"
+        },
+        {
+            "auditLogId": 4,
+            "accountId": 19,
+            "email": "thao19@example.com",
+            "fullName": "Thảo Mạc",
+            "action": "REJECT_BOOKING",
+            "entityName": "Booking",
+            "entityId": "17",
+            "oldValue": "PENDING",
+            "newValue": "REJECTED (KhÃ´ng Äá»§ xe)",
+            "ipAddress": "0:0:0:0:0:0:0:1",
+            "createdAt": "2026-06-20 23:58:55.053"
+        },
+        {
+            "auditLogId": 3,
+            "accountId": 1,
+            "email": "an1@example.com",
+            "fullName": "An Nguyễn",
+            "action": "DRIVER_ACCEPT",
+            "entityName": "Booking",
+            "entityId": "16",
+            "oldValue": "DISPATCHED",
+            "newValue": "CONFIRMED",
+            "ipAddress": "0:0:0:0:0:0:0:1",
+            "createdAt": "2026-06-20 14:40:05.091"
+        },
+        {
+            "auditLogId": 2,
+            "accountId": 19,
+            "email": "thao19@example.com",
+            "fullName": "Thảo Mạc",
+            "action": "DISPATCH_DRIVER",
+            "entityName": "Booking",
+            "entityId": "16",
+            "oldValue": "APPROVED",
+            "newValue": "DISPATCHED (driverId=1)",
+            "ipAddress": "0:0:0:0:0:0:0:1",
+            "createdAt": "2026-06-20 14:29:16.911"
+        },
+        {
+            "auditLogId": 1,
+            "accountId": 19,
+            "email": "thao19@example.com",
+            "fullName": "Thảo Mạc",
+            "action": "APPROVE_BOOKING",
+            "entityName": "Booking",
+            "entityId": "16",
+            "oldValue": "PENDING",
+            "newValue": "APPROVED",
+            "ipAddress": "0:0:0:0:0:0:0:1",
+            "createdAt": "2026-06-20 14:28:03.897"
+        }
+    ]
+}
+Admin get Auditlog phân trang, theo status
+Header: Authorization: Bearer ADMIN_TOKEN 
+path: GET http://localhost:8080/FleetFlow/api/v1/admin/audit-log?action=APPROVE_BOOKING&entityName=Booking&page=1&pageSize=20"
+output:
+{
+    "success": true,
+    "page": 1,
+    "pageSize": 50,
+    "total": 2,
+    "data": [
+        {
+            "auditLogId": 5,
+            "accountId": 19,
+            "email": "thao19@example.com",
+            "fullName": "Thảo Mạc",
+            "action": "APPROVE_BOOKING",
+            "entityName": "Booking",
+            "entityId": "18",
+            "oldValue": "PENDING",
+            "newValue": "APPROVED",
+            "ipAddress": "0:0:0:0:0:0:0:1",
+            "createdAt": "2026-06-21 00:11:19.571"
+        },
+        {
+            "auditLogId": 1,
+            "accountId": 19,
+            "email": "thao19@example.com",
+            "fullName": "Thảo Mạc",
+            "action": "APPROVE_BOOKING",
+            "entityName": "Booking",
+            "entityId": "16",
+            "oldValue": "PENDING",
+            "newValue": "APPROVED",
+            "ipAddress": "0:0:0:0:0:0:0:1",
+            "createdAt": "2026-06-20 14:28:03.897"
+        }
+    ]
+}
