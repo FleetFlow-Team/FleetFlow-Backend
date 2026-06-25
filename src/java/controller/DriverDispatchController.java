@@ -9,6 +9,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
+import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -22,9 +23,9 @@ import utils.JwtUtils;
 /**
  * Driver xem lệnh dispatch đang chờ + accept/reject
  *
- * GET  /api/v1/driver/dispatch/pending          — danh sách lệnh PENDING của driver đang login
- * POST /api/v1/driver/dispatch/{broadcastId}/accept  — accept lệnh
- * POST /api/v1/driver/dispatch/{broadcastId}/reject  — reject lệnh
+ * GET /api/v1/driver/dispatch/pending — danh sách lệnh PENDING của driver đang
+ * login POST /api/v1/driver/dispatch/{broadcastId}/accept — accept lệnh POST
+ * /api/v1/driver/dispatch/{broadcastId}/reject — reject lệnh
  */
 @WebServlet("/api/v1/driver/dispatch/*")
 public class DriverDispatchController extends HttpServlet {
@@ -166,6 +167,41 @@ public class DriverDispatchController extends HttpServlet {
     }
 
     // ===================== Helpers =====================
+    private String mapsToJson(List<java.util.Map<String, Object>> list, String key) {
+        StringBuilder json = new StringBuilder();
+        json.append("{\"success\": true, \"")
+                .append(key)
+                .append("\": [");
+        for (int i = 0; i < list.size(); i++) {
+            json.append("{");
+            java.util.Map<String, Object> row = list.get(i);
+            int j = 0;
+            for (java.util.Map.Entry<String, Object> entry : row.entrySet()) {
+                if (j++ > 0) {
+                    json.append(",");
+                }
+                json.append("{\"success\": true, \"")
+                        .append(key)
+                        .append("\": [");
+                Object val = entry.getValue();
+                if (val == null) {
+                    json.append("null");
+                } else if (val instanceof Number) {
+                    json.append(val);
+                } else {
+                    json.append("{\"success\": true, \"")
+                            .append(key)
+                            .append("\": [");
+                }
+            }
+            json.append("}");
+            if (i < list.size() - 1) {
+                json.append(",");
+            }
+        }
+        json.append("]}");
+        return json.toString();
+    }
 
     private String readReason(HttpServletRequest request) throws IOException {
         JsonObject body = readJsonBody(request);

@@ -56,6 +56,24 @@ public class DispatcherBookingController extends HttpServlet {
 
         if ("/pending".equals(pathInfo)) {
             status = "PENDING";
+        } else if ("/unassigned".equals(pathInfo)) {
+            // Polling endpoint: dispatcher dashboard check booking hết driver
+            try {
+                List<Map<String, Object>> unassigned = bookingDAO.findUnassignedBookings();
+                StringBuilder json = new StringBuilder();
+                json.append("{\"success\": true, \"count\": ").append(unassigned.size()).append(", \"data\": [");
+                for (int i = 0; i < unassigned.size(); i++) {
+                    json.append(mapToJson(unassigned.get(i)));
+                    if (i < unassigned.size() - 1) json.append(",");
+                }
+                json.append("]}");
+                response.setStatus(200);
+                out.print(json.toString());
+            } catch (Exception e) {
+                response.setStatus(500);
+                out.print("{\"error\": \"Lỗi server: " + esc(e.getMessage()) + "\"}");
+            }
+            return;
         } else if (pathInfo == null || pathInfo.equals("/") || pathInfo.isEmpty()) {
             String statusParam = request.getParameter("status");
             status = (statusParam != null && !statusParam.isEmpty()) ? statusParam : "PENDING";
@@ -131,9 +149,13 @@ public class DispatcherBookingController extends HttpServlet {
         try {
             switch (action) {
                 case "approve":
+                case "confirm":
+                    // "confirm" = alias thân thiện hơn cho FE dispatcher
+                    // Sau khi approve, hệ thống tự auto-dispatch driver → dispatcher không cần làm gì thêm
                     workflowService.approveBooking(bookingId, (int) dispatcher.getId(), ip);
                     response.setStatus(200);
-                    out.print("{\"success\": true, \"message\": \"Đã duyệt booking #" + bookingId + "\"}");
+                    out.print("{\"success\": true, \"message\": \"Đã confirm booking #" + bookingId
+                            + " — hệ thống đang tự tìm tài xế\"}");
                     break;
 
                 case "reject": {

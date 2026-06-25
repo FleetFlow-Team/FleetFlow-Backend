@@ -2607,3 +2607,29 @@ Xem chi tiết đơn booking của customer
         "estimatedTotal": 288000.00
     }
 }
+---------------------------------
+Sửa lại luồng booking
+Sau khi khách booking xong trả bookingId và Status: pending
+Dispatcher coi toàn bộ thông tin đặt xe(nên hiển thị danh sách cho dễ coi). Dispatcher bấm vào coi thông tin chi  tiết r confirm
+http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings/30/confirm
+(Sau 60s k nhận phản hồi từ dispatcher tự động approve )
+Sau khi approve booking xong tự động gán tài xê(Cần them notification cho tài xế biết)
+Tài xế có quyền approve hoặc reject
+Header: Authorization: Bearer DRIVER_TOKEN 
+path: http://localhost:8080/FleetFlow/api/v1/driver/dispatch/{BroadcastID}/accept
+{
+    "success": true,
+    "message": "Đã nhận chuyến"
+}
+Tài xế có quyền reject
+Header: Authorization: Bearer DRIVER_TOKEN 
+http://localhost:8080/FleetFlow/api/v1/driver/dispatch/{BroadcastID}/reject
+input:
+{
+  "reason": "Bận việc cá nhân"
+}
+{
+    "success": true,
+    "message": "Đã từ chối chuyến"
+}
+Khi driver hủy chuyến hệ thống sẽ tự động tìm tài khác r gửi notification lại

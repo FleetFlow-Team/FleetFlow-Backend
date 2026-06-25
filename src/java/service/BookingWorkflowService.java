@@ -5,7 +5,10 @@ import dao.AuditLogDAO;
 import dao.BookingDAO;
 import dao.DriverJobBroadcastDAO;
 import java.sql.Connection;
+import java.util.ArrayList;
+import java.util.List;
 import model.Booking;
+import model.BookingDetail;
 import model.DriverJobBroadcast;
 import utils.DbUtils;
 
@@ -13,19 +16,16 @@ import utils.DbUtils;
  * Service điều phối toàn bộ luồng sau khi Customer tạo Booking:
  *
  *   PENDING (Customer tạo xong)
- *     → Dispatcher APPROVE  → APPROVED
- *     → Dispatcher REJECT   → REJECTED
- *
- *   APPROVED
- *     → Dispatcher dispatch driver → DriverJobBroadcast (PENDING) → Booking.Status = DISPATCHED
+ *     → Dispatcher CONFIRM (hoặc auto sau timeout) → APPROVED
+ *     → Hệ thống tự AUTO-DISPATCH driver rảnh lâu nhất → DISPATCHED
+ *     → Dispatcher REJECT → REJECTED
  *
  *   DISPATCHED
  *     → Driver ACCEPT  → DriverJobBroadcast.Status=ACCEPTED → Booking.Status = CONFIRMED
- *     → Driver REJECT  → DriverJobBroadcast.Status=REJECTED → Booking.Status quay lại APPROVED
- *                         (để Dispatcher dispatch driver khác)
+ *     → Driver REJECT  → DriverJobBroadcast.Status=REJECTED → tự động dispatch driver tiếp theo
+ *                         → Nếu hết driver → Booking.Status = UNASSIGNED (alert dispatcher)
  *
- * Mọi hành động duyệt/từ chối/dispatch đều ghi vào AuditLog — không thêm cột
- * ApprovedBy/ApprovedAt riêng ở Booking.
+ * Mọi hành động đều ghi vào AuditLog.
  */
 public class BookingWorkflowService {
 
@@ -33,14 +33,15 @@ public class BookingWorkflowService {
     private final DriverJobBroadcastDAO broadcastDAO = new DriverJobBroadcastDAO();
     private final AuditLogDAO auditLogDAO = new AuditLogDAO();
 
-    // ===================== BƯỚC 1: Dispatcher duyệt/từ chối Booking =====================
+    // ===================== BƯỚC 1: Dispatcher confirm booking =====================
 
     /**
-     * Dispatcher duyệt booking — chỉ chuyển PENDING → APPROVED.
+     * Dispatcher confirm booking — PENDING → APPROVED → tự động dispatch driver.
+     * Đây là bước duy nhất dispatcher cần làm trong luồng bình thường.
      */
     public void approveBooking(int bookingId, int dispatcherAccountId, String ipAddress) throws Exception {
         Booking booking = requireBookingInStatus(bookingId, "PENDING",
-                "Chỉ duyệt được booking đang ở trạng thái PENDING");
+                "Chỉ confirm được booking đang ở trạng thái PENDING");
 
         try (Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
@@ -56,10 +57,13 @@ public class BookingWorkflowService {
                 conn.setAutoCommit(true);
             }
         }
+
+        // Sau khi approve xong, tự động dispatch driver — ngoài transaction approve
+        autoDispatchNextDriver(bookingId, new ArrayList<>(), dispatcherAccountId, ipAddress);
     }
 
     /**
-     * Dispatcher từ chối booking — chỉ chuyển PENDING → REJECTED.
+     * Dispatcher từ chối booking — PENDING → REJECTED.
      */
     public void rejectBooking(int bookingId, int dispatcherAccountId, String reason, String ipAddress) throws Exception {
         Booking booking = requireBookingInStatus(bookingId, "PENDING",
@@ -82,16 +86,94 @@ public class BookingWorkflowService {
         }
     }
 
-    // ===================== BƯỚC 2: Dispatcher dispatch driver =====================
+    // ===================== BƯỚC 2: Auto-dispatch driver =====================
 
     /**
-     * Dispatcher chỉ định 1 driver cụ thể cho booking đã APPROVED.
-     * Tạo DriverJobBroadcast (PENDING) + chuyển Booking sang DISPATCHED.
-     * Chặn dispatch trùng nếu booking đang có broadcast PENDING khác.
+     * Tự động tìm driver rảnh lâu nhất và dispatch.
+     * excludeDriverIds: danh sách driver đã từ chối trước đó — bỏ qua họ.
+     *
+     * Nếu không còn driver → chuyển booking sang UNASSIGNED để alert dispatcher.
+     */
+    public void autoDispatchNextDriver(int bookingId, List<Integer> excludeDriverIds,
+            int triggeredByAccountId, String ipAddress) throws Exception {
+
+        Booking booking = bookingDAO.findById(bookingId);
+        if (booking == null) {
+            throw new IllegalArgumentException("Không tìm thấy booking #" + bookingId);
+        }
+
+        int nextDriverId = bookingDAO.findNextAvailableDriver(booking.getVehicleId(), excludeDriverIds);
+
+        if (nextDriverId == -1) {
+            // Hết driver — chuyển sang UNASSIGNED để dispatcher xử lý
+            try (Connection conn = DbUtils.getConnection()) {
+                conn.setAutoCommit(false);
+                try {
+                    bookingDAO.updateStatus(conn, bookingId, "UNASSIGNED");
+                    auditLogDAO.log(conn, triggeredByAccountId, "AUTO_DISPATCH_FAILED", "Booking",
+                            String.valueOf(bookingId), booking.getStatus(),
+                            "UNASSIGNED — hết driver available", ipAddress);
+                    conn.commit();
+                } catch (Exception e) {
+                    conn.rollback();
+                    throw e;
+                } finally {
+                    conn.setAutoCommit(true);
+                }
+            }
+            return;
+        }
+
+        // Dispatch driver tìm được
+        try (Connection conn = DbUtils.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                broadcastDAO.dispatchDriver(conn, bookingId, nextDriverId, triggeredByAccountId);
+                bookingDAO.updateStatus(conn, bookingId, "DISPATCHED");
+                auditLogDAO.log(conn, triggeredByAccountId, "AUTO_DISPATCH_DRIVER", "Booking",
+                        String.valueOf(bookingId), booking.getStatus(),
+                        "DISPATCHED (auto → driverId=" + nextDriverId + ")", ipAddress);
+                conn.commit();
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        }
+
+        // Cập nhật LastAssignedAt để lần sau sort đúng
+        bookingDAO.updateDriverLastAssigned(nextDriverId);
+
+        // Gửi notification cho driver vừa được gán
+        try {
+            BookingDetail detail = bookingDAO.findDetailByBookingId(bookingId);
+            Booking b = bookingDAO.findById(bookingId);
+            String pickup = detail != null ? detail.getPickupAddress() : null;
+            String customerName = b != null ? b.getCustomerName() : null;
+            String depTime = (detail != null && detail.getDepartureTime() != null)
+                    ? detail.getDepartureTime().toString() : null;
+            broadcastDAO.createDriverNotification(nextDriverId, bookingId, pickup, customerName, depTime);
+        } catch (Exception e) {
+            // Notification thất bại không nên làm hỏng luồng chính
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Dispatcher dispatch thủ công — vẫn giữ cho trường hợp UNASSIGNED cần can thiệp tay.
      */
     public long dispatchDriver(int bookingId, int driverId, int dispatcherAccountId, String ipAddress) throws Exception {
-        Booking booking = requireBookingInStatus(bookingId, "APPROVED",
-                "Chỉ dispatch driver được khi booking đã APPROVED");
+        Booking booking = bookingDAO.findById(bookingId);
+        if (booking == null) {
+            throw new IllegalArgumentException("Không tìm thấy booking #" + bookingId);
+        }
+        if (!"APPROVED".equalsIgnoreCase(booking.getStatus())
+                && !"UNASSIGNED".equalsIgnoreCase(booking.getStatus())) {
+            throw new IllegalArgumentException(
+                "Chỉ dispatch thủ công được khi booking ở trạng thái APPROVED hoặc UNASSIGNED. "
+                + "Trạng thái hiện tại: " + booking.getStatus());
+        }
 
         if (broadcastDAO.hasPendingBroadcast(bookingId)) {
             throw new IllegalArgumentException(
@@ -105,8 +187,9 @@ public class BookingWorkflowService {
                 bookingDAO.updateStatus(conn, bookingId, "DISPATCHED");
                 auditLogDAO.log(conn, dispatcherAccountId, "DISPATCH_DRIVER", "Booking",
                         String.valueOf(bookingId), booking.getStatus(),
-                        "DISPATCHED (driverId=" + driverId + ")", ipAddress);
+                        "DISPATCHED (manual → driverId=" + driverId + ")", ipAddress);
                 conn.commit();
+                bookingDAO.updateDriverLastAssigned(driverId);
                 return broadcastId;
             } catch (Exception e) {
                 conn.rollback();
@@ -123,46 +206,19 @@ public class BookingWorkflowService {
      * Driver accept lệnh dispatch → Booking chuyển CONFIRMED.
      */
     public void driverAccept(int broadcastId, int driverId, String ipAddress) throws Exception {
-        respondToDispatch(broadcastId, driverId, "ACCEPTED", "CONFIRMED", ipAddress, "DRIVER_ACCEPT");
-    }
-
-    /**
-     * Driver reject lệnh dispatch → Booking quay lại APPROVED để Dispatcher dispatch driver khác.
-     */
-    /**
-     * Driver reject lệnh dispatch → Booking quay lại APPROVED để Dispatcher dispatch driver khác.
-     * Lý do reject được ghi vào AuditLog.NewValue, không thêm cột riêng ở DriverJobBroadcast.
-     */
-    public void driverReject(int broadcastId, int driverId, String reason, String ipAddress) throws Exception {
-        respondToDispatch(broadcastId, driverId, "REJECTED", "APPROVED", ipAddress, "DRIVER_REJECT", reason);
-    }
-
-    private void respondToDispatch(int broadcastId, int driverId, String broadcastStatus,
-            String bookingStatus, String ipAddress, String auditAction) throws Exception {
-        respondToDispatch(broadcastId, driverId, broadcastStatus, bookingStatus, ipAddress, auditAction, null);
-    }
-
-    private void respondToDispatch(int broadcastId, int driverId, String broadcastStatus,
-            String bookingStatus, String ipAddress, String auditAction, String reason) throws Exception {
-
-        int updated = broadcastDAO.respondToDispatch(broadcastId, driverId, broadcastStatus);
+        int updated = broadcastDAO.respondToDispatch(broadcastId, driverId, "ACCEPTED");
         if (updated == 0) {
             throw new IllegalArgumentException(
                 "Không tìm thấy lệnh dispatch hợp lệ (đã được xử lý trước đó hoặc không thuộc driver này).");
         }
 
         int bookingId = getBookingIdFromBroadcast(broadcastId);
-        // auditAction (DRIVER_REJECT/DRIVER_ACCEPT) đã thể hiện rõ hành động;
-        // newValueLog chỉ nên ghi rõ "Status mới (do hành động X, lý do: ...)" tránh hiểu lầm
-        String newValueLog = bookingStatus
-                + (reason != null && !reason.trim().isEmpty() ? " — " + auditAction + ", lý do: " + reason : "");
-
         try (Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
             try {
-                bookingDAO.updateStatus(conn, bookingId, bookingStatus);
-                auditLogDAO.log(conn, driverId, auditAction, "Booking",
-                        String.valueOf(bookingId), "DISPATCHED", newValueLog, ipAddress);
+                bookingDAO.updateStatus(conn, bookingId, "CONFIRMED");
+                auditLogDAO.log(conn, driverId, "DRIVER_ACCEPT", "Booking",
+                        String.valueOf(bookingId), "DISPATCHED", "CONFIRMED", ipAddress);
                 conn.commit();
             } catch (Exception e) {
                 conn.rollback();
@@ -173,6 +229,62 @@ public class BookingWorkflowService {
         }
     }
 
+    /**
+     * Driver reject lệnh dispatch → Hệ thống tự tìm driver tiếp theo.
+     * Nếu hết driver → UNASSIGNED để alert dispatcher.
+     */
+    public void driverReject(int broadcastId, int driverId, String reason, String ipAddress) throws Exception {
+        int updated = broadcastDAO.respondToDispatch(broadcastId, driverId, "REJECTED");
+        if (updated == 0) {
+            throw new IllegalArgumentException(
+                "Không tìm thấy lệnh dispatch hợp lệ (đã được xử lý trước đó hoặc không thuộc driver này).");
+        }
+
+        int bookingId = getBookingIdFromBroadcast(broadcastId);
+
+        // Ghi audit trước
+        try (Connection conn = DbUtils.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                bookingDAO.updateStatus(conn, bookingId, "APPROVED"); // reset để dispatch tiếp
+                auditLogDAO.log(conn, driverId, "DRIVER_REJECT", "Booking",
+                        String.valueOf(bookingId), "DISPATCHED",
+                        "APPROVED — driver từ chối" + (reason != null ? ": " + reason : ""), ipAddress);
+                conn.commit();
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        }
+
+        // Cập nhật LastAssignedAt của driver vừa reject (đẩy xuống cuối hàng)
+        bookingDAO.updateDriverLastAssigned(driverId);
+
+        // Thu thập tất cả driver đã reject booking này để bỏ qua
+        List<Integer> rejectedDriverIds = getRejectedDriverIds(bookingId);
+
+        // Tự động dispatch driver tiếp theo
+        autoDispatchNextDriver(bookingId, rejectedDriverIds, driverId, ipAddress);
+    }
+
+    // ===================== Helpers =====================
+
+    /**
+     * Lấy tất cả DriverID đã REJECT broadcast của 1 booking — để tránh gán lại.
+     */
+    private List<Integer> getRejectedDriverIds(int bookingId) throws Exception {
+        List<Integer> ids = new ArrayList<>();
+        List<DriverJobBroadcast> history = broadcastDAO.getBroadcastHistory(bookingId);
+        for (DriverJobBroadcast b : history) {
+            if ("REJECTED".equalsIgnoreCase(b.getStatus())) {
+                ids.add(b.getAssignedDriverId());
+            }
+        }
+        return ids;
+    }
+
     private int getBookingIdFromBroadcast(int broadcastId) throws Exception {
         DriverJobBroadcast broadcast = broadcastDAO.findById(broadcastId);
         if (broadcast == null) {
@@ -180,8 +292,6 @@ public class BookingWorkflowService {
         }
         return broadcast.getBookingId();
     }
-
-    // ===================== Helper =====================
 
     private Booking requireBookingInStatus(int bookingId, String expectedStatus, String errorMessage) throws Exception {
         Booking booking = bookingDAO.findById(bookingId);

@@ -479,4 +479,138 @@ public class BookingDAO {
     public long createBooking(Booking booking, BookingDetail detail) {
         throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
+
+    /**
+     * Tìm driver rảnh lâu nhất cho xe được chọn trong booking,
+     * bỏ qua các driver đã từ chối trước đó (excludeDriverIds).
+     *
+     * Logic: driver thuộc cùng VehicleType với xe trong booking,
+     * AvailabilityStatus = 'AVAILABLE', ApprovalStatus = 'APPROVED',
+     * sort theo LastAssignedAt ASC (null lên đầu = chưa được gán bao giờ).
+     *
+     * Trả về DriverID hoặc -1 nếu không còn driver nào phù hợp.
+     */
+    public int findNextAvailableDriver(int vehicleId, java.util.List<Integer> excludeDriverIds) throws Exception {
+        boolean hasExcludes = excludeDriverIds != null && !excludeDriverIds.isEmpty();
+
+        String sql;
+        if (hasExcludes) {
+            StringBuilder placeholders = new StringBuilder();
+            for (int i = 0; i < excludeDriverIds.size(); i++) {
+                placeholders.append(i == 0 ? "?" : ",?");
+            }
+            // SQL Server: TOP 1, ISNULL để driver chưa gán bao giờ lên đầu
+            sql = "SELECT TOP 1 d.DriverID "
+                    + "FROM Driver d "
+                    + "WHERE d.AvailabilityStatus = 'AVAILABLE' "
+                    + "AND d.IsDeleted = 0 "
+                    + "AND d.DriverID NOT IN (" + placeholders + ") "
+                    + "ORDER BY ISNULL(d.LastAssignedAt, '1900-01-01') ASC";
+        } else {
+            sql = "SELECT TOP 1 d.DriverID "
+                    + "FROM Driver d "
+                    + "WHERE d.AvailabilityStatus = 'AVAILABLE' "
+                    + "AND d.IsDeleted = 0 "
+                    + "ORDER BY ISNULL(d.LastAssignedAt, '1900-01-01') ASC";
+        }
+
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            if (hasExcludes) {
+                int idx = 1;
+                for (int dId : excludeDriverIds) {
+                    ps.setInt(idx++, dId);
+                }
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("DriverID");
+                }
+            }
+        }
+        return -1; // không còn driver
+    }
+
+    /**
+     * Cập nhật LastAssignedAt của driver sau khi được gán — để sort "rảnh lâu nhất" đúng.
+     */
+    public void updateDriverLastAssigned(int driverId) throws Exception {
+        String sql = "UPDATE Driver SET LastAssignedAt = ? WHERE DriverID = ?";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setTimestamp(1, new Timestamp(System.currentTimeMillis()));
+            ps.setInt(2, driverId);
+            ps.executeUpdate();
+        }
+    }
+
+    /**
+     * Lấy danh sách booking PENDING quá timeout chưa được dispatcher xử lý.
+     * Dùng cho auto-confirm scheduler.
+     */
+    public List<Booking> findPendingOverTimeout(int timeoutSeconds) throws Exception {
+        List<Booking> list = new ArrayList<>();
+        String sql = "SELECT b.*, "
+                + "a.FullName AS CustomerName, a.PhoneNumber AS CustomerPhone "
+                + "FROM Booking b "
+                + "LEFT JOIN Customer c ON b.CustomerID = c.CustomerID "
+                + "LEFT JOIN Account a ON c.AccountID = a.AccountID "
+                + "WHERE b.Status = 'PENDING' "
+                + "AND DATEDIFF(SECOND, b.CreatedAt, GETDATE()) >= ?";
+
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, timeoutSeconds);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(mapBooking(rs));
+                }
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Lấy danh sách booking UNASSIGNED (hết driver, cần dispatcher xử lý tay).
+     * Dùng cho polling notification của dispatcher dashboard.
+     */
+    public List<java.util.Map<String, Object>> findUnassignedBookings() throws Exception {
+        List<java.util.Map<String, Object>> list = new ArrayList<>();
+        String sql = "SELECT b.BookingID, b.CustomerID, b.VehicleID, b.BookingType, "
+                + "b.TripDirection, b.Status, b.CreatedAt, b.UpdatedAt, "
+                + "bd.PickupAddress, bd.DropoffAddress, bd.DepartureTime, "
+                + "a.FullName AS CustomerName, a.PhoneNumber AS CustomerPhone "
+                + "FROM Booking b "
+                + "LEFT JOIN BookingDetail bd ON bd.BookingID = b.BookingID "
+                + "LEFT JOIN Customer c ON c.CustomerID = b.CustomerID "
+                + "LEFT JOIN Account a ON a.AccountID = c.AccountID "
+                + "WHERE b.Status = 'UNASSIGNED' "
+                + "ORDER BY b.UpdatedAt DESC";
+
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    java.util.Map<String, Object> row = new java.util.HashMap<>();
+                    row.put("bookingId", rs.getInt("BookingID"));
+                    row.put("customerId", rs.getInt("CustomerID"));
+                    row.put("customerName", rs.getString("CustomerName"));
+                    row.put("customerPhone", rs.getString("CustomerPhone"));
+                    row.put("vehicleId", rs.getInt("VehicleID"));
+                    row.put("bookingType", rs.getString("BookingType"));
+                    row.put("tripDirection", rs.getString("TripDirection"));
+                    row.put("status", rs.getString("Status"));
+                    row.put("pickupAddress", rs.getString("PickupAddress"));
+                    row.put("dropoffAddress", rs.getString("DropoffAddress"));
+                    Timestamp dep = rs.getTimestamp("DepartureTime");
+                    row.put("departureTime", dep != null ? dep.toString() : null);
+                    row.put("updatedAt", rs.getTimestamp("UpdatedAt").toString());
+                    list.add(row);
+                }
+            }
+        }
+        return list;
+    }
 }
