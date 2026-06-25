@@ -254,6 +254,45 @@ public class BookingDAO {
     }
 
     /**
+     * Lấy thông tin giá (BaseFare, WeekendSurcharge, DiscountAmount, EstimatedTotal...)
+     * của 1 booking — dùng cho GET /api/v1/bookings/{id} để FE hiển thị đúng giá
+     * sau khi áp voucher (không bị lệch về giá gốc lúc checkout).
+     */
+    public BookingPricing findPricingByBookingId(int bookingId) throws Exception {
+        String sql = "SELECT * FROM BookingPricing WHERE BookingID = ?";
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, bookingId);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                return mapBookingPricing(rs);
+            }
+            return null;
+        }
+    }
+
+    private BookingPricing mapBookingPricing(ResultSet rs) throws Exception {
+        BookingPricing p = new BookingPricing();
+        p.setBookingId(rs.getInt("BookingID"));
+        p.setRuleId(rs.getInt("RuleID"));
+        p.setBaseFare(rs.getBigDecimal("BaseFare"));
+        p.setWeekendSurcharge(rs.getBigDecimal("WeekendSurcharge"));
+        p.setDiscountAmount(rs.getBigDecimal("DiscountAmount"));
+        p.setEstimatedTotal(rs.getBigDecimal("EstimatedTotal"));
+        try {
+            p.setApprovedBy(rs.getInt("ApprovedBy"));
+        } catch (Exception ignore) {
+            // cột có thể NULL/không tồn tại tùy giai đoạn booking, bỏ qua nếu lỗi
+        }
+        try {
+            p.setApprovedAt(rs.getTimestamp("ApprovedAt"));
+        } catch (Exception ignore) {
+        }
+        return p;
+    }
+
+    /**
      * Check xe có đang AVAILABLE không (BR-22)
      */
     public boolean isVehicleAvailable(int vehicleId) throws Exception {

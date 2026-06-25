@@ -105,27 +105,7 @@ Customer tạo đơn đặt xe
     "status": "PENDING",
     "message": "Đặt xe thành công, chờ Dispatcher duyệt"
 }
-Xem chi tiết đơn booking của customer
-- Path: GET http://localhost:8080/FleetFlow/api/v1/bookings/22
-- Input:
-- Output:
-{
-    "bookingId": 22,
-    "customerId": 1,
-    "vehicleId": 1,
-    "bookingType": "DISTANCE",
-    "tripDirection": "ONE_WAY",
-    "status": "PENDING",
-    "detail": {
-        "pickupAddress": string,
-        "pickupLat": 10.776000,
-        "pickupLng": 106.700000,
-        "dropoffAddress": string,
-        "dropoffLat": 10.346000,
-        "dropoffLng": 107.084000,
-        "departureTime": "2026-07-20 08:00:00.0"
-    }
-}
+
 ---------------------------------------------------------------------------------
                                 BỔ SUNG LUỒNG BOOKING NGÀY 19/6/2026
 Tạo đơn đặt xe — DISTANCE ROUND_TRIP
@@ -2592,4 +2572,38 @@ output:
             "createdAt": "2026-06-20 14:28:03.897"
         }
     ]
+}
+------------------------------------------------------
+Update 25/6/2026
+Xem chi tiết đơn booking của customer
+- Path: GET http://localhost:8080/FleetFlow/api/v1/bookings/27
+- Input:
+- Output:
+{
+    "bookingId": 27,
+    "customerId": 2,
+    "customerName": "Bình Trần",
+    "customerPhone": "0900000002",
+    "vehicleId": 3,
+    "bookingType": "HOURLY",
+    "tripDirection": "ONE_WAY",
+    "status": "CANCELLED",
+    "detail": {
+        "pickupAddress": "null",
+        "pickupLat": null,
+        "pickupLng": null,
+        "dropoffAddress": "null",
+        "dropoffLat": null,
+        "dropoffLng": null,
+        "distanceKm": null,
+        "departureTime": "2026-06-24 20:37:00.0",
+        "durationHours": 4
+    },
+    "pricing": {
+        "ruleId": 3,
+        "baseFare": 320000.00,
+        "weekendSurcharge": 0.00,
+        "discountAmount": 32000.00,
+        "estimatedTotal": 288000.00
+    }
 }

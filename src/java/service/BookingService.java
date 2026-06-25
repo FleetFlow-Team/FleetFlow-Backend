@@ -267,6 +267,14 @@ public class BookingService {
     }
 
     /**
+     * Lấy BookingPricing theo BookingID (BaseFare, WeekendSurcharge,
+     * DiscountAmount, EstimatedTotal — giá đã áp voucher nếu có)
+     */
+    public BookingPricing getBookingPricing(int bookingId) throws Exception {
+        return bookingDAO.findPricingByBookingId(bookingId);
+    }
+
+    /**
      * Cập nhật trạng thái booking
      */
     public void updateBookingStatus(int bookingId, String status) throws Exception {

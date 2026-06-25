@@ -118,6 +118,19 @@ private final CustomerLockService customerLockService = new CustomerLockService(
                 json.append("}");
             }
 
+            model.BookingPricing pricing = bookingService.getBookingPricing(bookingId);
+            if (pricing != null) {
+                json.append(",\"pricing\":{");
+                json.append("\"ruleId\":").append(pricing.getRuleId()).append(",");
+                json.append("\"baseFare\":").append(pricing.getBaseFare()).append(",");
+                json.append("\"weekendSurcharge\":").append(
+                        pricing.getWeekendSurcharge() == null ? 0 : pricing.getWeekendSurcharge()).append(",");
+                json.append("\"discountAmount\":").append(
+                        pricing.getDiscountAmount() == null ? 0 : pricing.getDiscountAmount()).append(",");
+                json.append("\"estimatedTotal\":").append(pricing.getEstimatedTotal());
+                json.append("}");
+            }
+
             json.append("}");
             out.print(json.toString());
 
