@@ -16,16 +16,14 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import model.Account;
-import model.DriverJobBroadcast;
 import service.BookingWorkflowService;
 import utils.JwtUtils;
 
 /**
- * Driver xem lệnh dispatch đang chờ + accept/reject
- *
- * GET /api/v1/driver/dispatch/pending — danh sách lệnh PENDING của driver đang
- * login POST /api/v1/driver/dispatch/{broadcastId}/accept — accept lệnh POST
- * /api/v1/driver/dispatch/{broadcastId}/reject — reject lệnh
+ * GET  /api/v1/driver/dispatch/pending       — danh sách lệnh PENDING kèm thông tin booking
+ * GET  /api/v1/driver/dispatch/notifications — notification chưa đọc (polling)
+ * POST /api/v1/driver/dispatch/{id}/accept   — nhận chuyến
+ * POST /api/v1/driver/dispatch/{id}/reject   — từ chối chuyến
  */
 @WebServlet("/api/v1/driver/dispatch/*")
 public class DriverDispatchController extends HttpServlet {
@@ -44,16 +42,9 @@ public class DriverDispatchController extends HttpServlet {
         PrintWriter out = response.getWriter();
 
         Account driverAcc = requireDriverAccount(request, response, out);
-        if (driverAcc == null) {
-            return;
-        }
+        if (driverAcc == null) return;
 
         String pathInfo = request.getPathInfo();
-        if (!"/pending".equals(pathInfo)) {
-            response.setStatus(404);
-            out.print("{\"error\": \"Endpoint không tồn tại\"}");
-            return;
-        }
 
         try {
             int driverId = driverDAO.getDriverIdByAccountId((int) driverAcc.getId());
@@ -63,25 +54,23 @@ public class DriverDispatchController extends HttpServlet {
                 return;
             }
 
-            List<DriverJobBroadcast> pending = broadcastDAO.getPendingForDriver(driverId);
+            if ("/pending".equals(pathInfo)) {
+                List<java.util.Map<String, Object>> pending =
+                        broadcastDAO.getPendingForDriverWithDetail(driverId);
+                response.setStatus(200);
+                out.print(mapsToJson(pending, "data"));
 
-            StringBuilder json = new StringBuilder();
-            json.append("{\"success\": true, \"data\": [");
-            for (int i = 0; i < pending.size(); i++) {
-                DriverJobBroadcast b = pending.get(i);
-                json.append("{");
-                json.append("\"broadcastId\":").append(b.getId()).append(",");
-                json.append("\"bookingId\":").append(b.getBookingId()).append(",");
-                json.append("\"dispatchedAt\":\"").append(b.getDispatchedAt()).append("\"");
-                json.append("}");
-                if (i < pending.size() - 1) {
-                    json.append(",");
-                }
+            } else if ("/notifications".equals(pathInfo)) {
+                List<java.util.Map<String, Object>> notifs =
+                        broadcastDAO.getUnreadNotifications(driverId);
+                broadcastDAO.markNotificationsRead(driverId);
+                response.setStatus(200);
+                out.print(mapsToJson(notifs, "notifications"));
+
+            } else {
+                response.setStatus(404);
+                out.print("{\"error\": \"Endpoint không tồn tại. Dùng /pending hoặc /notifications\"}");
             }
-            json.append("]}");
-
-            response.setStatus(200);
-            out.print(json.toString());
 
         } catch (Exception e) {
             response.setStatus(500);
@@ -99,9 +88,7 @@ public class DriverDispatchController extends HttpServlet {
         PrintWriter out = response.getWriter();
 
         Account driverAcc = requireDriverAccount(request, response, out);
-        if (driverAcc == null) {
-            return;
-        }
+        if (driverAcc == null) return;
 
         String pathInfo = request.getPathInfo(); // "/{broadcastId}/accept" | "/{broadcastId}/reject"
         if (pathInfo == null) {
@@ -167,37 +154,28 @@ public class DriverDispatchController extends HttpServlet {
     }
 
     // ===================== Helpers =====================
+
     private String mapsToJson(List<java.util.Map<String, Object>> list, String key) {
         StringBuilder json = new StringBuilder();
-        json.append("{\"success\": true, \"")
-                .append(key)
-                .append("\": [");
+        json.append("{\"success\":true,\"").append(key).append("\":[");
         for (int i = 0; i < list.size(); i++) {
             json.append("{");
             java.util.Map<String, Object> row = list.get(i);
             int j = 0;
             for (java.util.Map.Entry<String, Object> entry : row.entrySet()) {
-                if (j++ > 0) {
-                    json.append(",");
-                }
-                json.append("{\"success\": true, \"")
-                        .append(key)
-                        .append("\": [");
+                if (j++ > 0) json.append(",");
+                json.append("\"").append(entry.getKey()).append("\":");
                 Object val = entry.getValue();
                 if (val == null) {
                     json.append("null");
                 } else if (val instanceof Number) {
                     json.append(val);
                 } else {
-                    json.append("{\"success\": true, \"")
-                            .append(key)
-                            .append("\": [");
+                    json.append("\"").append(esc(val.toString())).append("\"");
                 }
             }
             json.append("}");
-            if (i < list.size() - 1) {
-                json.append(",");
-            }
+            if (i < list.size() - 1) json.append(",");
         }
         json.append("]}");
         return json.toString();
@@ -213,38 +191,31 @@ public class DriverDispatchController extends HttpServlet {
         StringBuilder sb = new StringBuilder();
         BufferedReader reader = request.getReader();
         String line;
-        while ((line = reader.readLine()) != null) {
-            sb.append(line);
-        }
-        if (sb.length() == 0) {
-            return new JsonObject();
-        }
+        while ((line = reader.readLine()) != null) sb.append(line);
+        if (sb.length() == 0) return new JsonObject();
         return JsonParser.parseString(sb.toString()).getAsJsonObject();
     }
 
     private String extractToken(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
-        if (header != null && header.startsWith("Bearer ")) {
-            return header.substring(7).trim();
-        }
+        if (header != null && header.startsWith("Bearer ")) return header.substring(7).trim();
         return null;
     }
 
-    private Account requireDriverAccount(HttpServletRequest request, HttpServletResponse response, PrintWriter out) {
+    private Account requireDriverAccount(HttpServletRequest request,
+            HttpServletResponse response, PrintWriter out) {
         String token = extractToken(request);
         if (token == null || !JwtUtils.validateToken(token)) {
             response.setStatus(401);
             out.print("{\"error\": \"Chưa đăng nhập hoặc token không hợp lệ/đã hết hạn\"}");
             return null;
         }
-
         String role = JwtUtils.getRoleFromToken(token);
         if (role == null || !role.equalsIgnoreCase("Driver")) {
             response.setStatus(403);
             out.print("{\"error\": \"Chỉ tài khoản Driver được truy cập chức năng này\"}");
             return null;
         }
-
         String email = JwtUtils.getEmailFromToken(token);
         try {
             Account acc = new AccountDAO().findByEmail(email);
@@ -262,9 +233,7 @@ public class DriverDispatchController extends HttpServlet {
     }
 
     private String esc(String s) {
-        if (s == null) {
-            return "";
-        }
+        if (s == null) return "";
         return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

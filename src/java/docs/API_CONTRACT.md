@@ -2633,3 +2633,41 @@ input:
     "message": "Đã từ chối chuyến"
 }
 Khi driver hủy chuyến hệ thống sẽ tự động tìm tài khác r gửi notification lại
+Driver get notification
+Header: Authorization: Bearer DRIVER_TOKEN 
+path GET http://localhost:8080/FleetFlow/api/v1/driver/dispatch/notifications
+output:
+{
+    "success": true,
+    "notifications": [
+        {
+            "createdAt": "2026-06-25 23:49:19.247",
+            "notificationId": 2,
+            "title": "Chuyến mới được gán!",
+            "message": "Khách: Cường Lê | Đón tại: 123 Nguyễn Huệ | Giờ đi: 2026-07-11 08:00:00.0",
+            "bookingId": 38
+        }
+    ]
+}
+Driver xem chi tiet chuyen trc khi approve or reject
+Header: Authorization: Bearer DRIVER_TOKEN 
+path: GET http://localhost:8080/FleetFlow/api/v1/driver/dispatch/pending
+output:
+{
+    "success": true,
+    "data": [
+        {
+            "dropoffAddress": "Vũng Tàu",
+            "departureTime": "2026-07-11 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "dispatchedAt": "2026-06-25 23:49:19.129",
+            "customerPhone": "0900000003",
+            "pickupAddress": "123 Nguyễn Huệ",
+            "broadcastId": 7,
+            "bookingType": "DISTANCE",
+            "distanceKm": "96.40",
+            "bookingId": 38,
+            "customerName": "Cường Lê"
+        }
+    ]
+}
