@@ -2671,3 +2671,27 @@ output:
         }
     ]
 }
+Dispatcher coi thông tin booking khi hết xe k tự auto gán đc nữa 
+Header: Authorization: Bearer DISPATCHER_TOKEN
+path: GET http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings/unassigned
+output:
+{
+    "success": true,
+    "count": 1,
+    "data": [
+        {
+            "dropoffAddress": "Vũng Tàu",
+            "departureTime": "2026-07-02 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "customerPhone": "0900000003",
+            "pickupAddress": "123 Nguyễn Huệ",
+            "bookingType": "DISTANCE",
+            "customerId": 3,
+            "vehicleId": 17,
+            "bookingId": 41,
+            "customerName": "Cường Lê",
+            "status": "UNASSIGNED",
+            "updatedAt": "2026-06-26 13:38:12.028"
+        }
+    ]
+} 
