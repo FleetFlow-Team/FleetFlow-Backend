@@ -100,6 +100,22 @@
         <servlet-name>AdminAuditLogController</servlet-name>
         <servlet-class>controller.AdminAuditLogController</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>MomoCallbackController</servlet-name>
+        <servlet-class>controller.MomoCallbackController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>CustomerRatingController</servlet-name>
+        <servlet-class>controller.CustomerRatingController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>DriverRatingController</servlet-name>
+        <servlet-class>controller.DriverRatingController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>MarketingEmailController</servlet-name>
+        <servlet-class>controller.MarketingEmailController</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -199,6 +215,22 @@
     <servlet-mapping>
         <servlet-name>AdminAuditLogController</servlet-name>
         <url-pattern>/AdminAuditLogController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>MomoCallbackController</servlet-name>
+        <url-pattern>/MomoCallbackController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>CustomerRatingController</servlet-name>
+        <url-pattern>/CustomerRatingController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>DriverRatingController</servlet-name>
+        <url-pattern>/DriverRatingController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>MarketingEmailController</servlet-name>
+        <url-pattern>/MarketingEmailController</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>30</session-timeout>
