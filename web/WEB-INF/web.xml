@@ -116,6 +116,26 @@
         <servlet-name>MarketingEmailController</servlet-name>
         <servlet-class>controller.MarketingEmailController</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>CustomerComplaintController</servlet-name>
+        <servlet-class>controller.CustomerComplaintController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>DispatcherConplaintController</servlet-name>
+        <servlet-class>controller.DispatcherConplaintController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>PricingRuleController</servlet-name>
+        <servlet-class>controller.PricingRuleController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>HolidayController</servlet-name>
+        <servlet-class>controller.HolidayController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>FinalPaymentController</servlet-name>
+        <servlet-class>controller.FinalPaymentController</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -231,6 +251,26 @@
     <servlet-mapping>
         <servlet-name>MarketingEmailController</servlet-name>
         <url-pattern>/MarketingEmailController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>CustomerComplaintController</servlet-name>
+        <url-pattern>/CustomerComplaintController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>DispatcherConplaintController</servlet-name>
+        <url-pattern>/DispatcherConplaintController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>PricingRuleController</servlet-name>
+        <url-pattern>/PricingRuleController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>HolidayController</servlet-name>
+        <url-pattern>/HolidayController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>FinalPaymentController</servlet-name>
+        <url-pattern>/FinalPaymentController</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>30</session-timeout>

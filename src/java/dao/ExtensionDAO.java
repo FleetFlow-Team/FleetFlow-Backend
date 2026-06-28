@@ -169,13 +169,12 @@ public class ExtensionDAO {
         }
     }
 
-    public int createPayment(int invoiceId, String paymentType, BigDecimal amount) throws Exception {
-        String sql = "INSERT INTO Payment (InvoiceID, PaymentType, Method, Amount, Status, PaidAt) VALUES (?, ?, 'MOMO', ?, 'PENDING', ?)";
+    public int createPayment(int bookingId, String paymentType, BigDecimal amount) throws Exception {
+        String sql = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status) VALUES (?, ?, 'MOMO', ?, 'PENDING')";
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setInt(1, invoiceId);
+            ps.setInt(1, bookingId);
             ps.setString(2, paymentType);
             ps.setBigDecimal(3, amount);
-            ps.setTimestamp(4, new Timestamp(System.currentTimeMillis()));
             ps.executeUpdate();
             ResultSet rs = ps.getGeneratedKeys();
             if (rs.next()) {
@@ -186,16 +185,16 @@ public class ExtensionDAO {
     }
 
     /**
-     * Tạo 1 Notification mới — dùng cho cảnh báo nợ xấu, thông báo khóa/mở tài khoản, v.v.
-     * bookingId truyền null nếu thông báo không gắn với booking cụ thể nào.
+     * Tạo 1 Notification mới — dùng cho cảnh báo nợ xấu, thông báo khóa/mở tài
+     * khoản, v.v. bookingId truyền null nếu thông báo không gắn với booking cụ
+     * thể nào.
      */
     public void createNotification(int recipientAccountId, Integer bookingId, String title,
             String message, String type, String channel) throws Exception {
         String sql = "INSERT INTO Notification "
                 + "(RecipientAccountID, BookingID, Title, Message, Type, Channel, IsRead, CreatedAt) "
                 + "VALUES (?, ?, ?, ?, ?, ?, 0, ?)";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, recipientAccountId);
             if (bookingId != null) {
                 ps.setInt(2, bookingId);
@@ -208,6 +207,46 @@ public class ExtensionDAO {
             ps.setString(6, channel);
             ps.setTimestamp(7, new Timestamp(System.currentTimeMillis()));
             ps.executeUpdate();
+        }
+    }
+
+    public void processSuccessfulPayment(int paymentId, String transId, String payType) throws Exception {
+        String sql = "UPDATE Payment SET Status = 'SUCCESS', TransactionRef = ?, Method = ?, PaidAt = ? WHERE PaymentID = ?";
+
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, transId);
+            ps.setString(2, payType);
+            ps.setTimestamp(3, new java.sql.Timestamp(System.currentTimeMillis()));
+            ps.setInt(4, paymentId);
+
+            ps.executeUpdate();
+        }
+    }
+
+    public BigDecimal calculateFinalPayment(int bookingId) throws Exception {
+        String sql = "SELECT (TotalAmount - DepositAmount) AS Remaining FROM Booking WHERE BookingID = ?";
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            try ( ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getBigDecimal("Remaining");
+                }
+            }
+        }
+        return BigDecimal.ZERO;
+    }
+
+    public boolean processFinalPayment(int bookingId, String paymentMethod, BigDecimal amount) throws Exception {
+        String sql = "INSERT INTO Payment (BookingID, PaymentType, Amount, Method, Status, PaidAt) VALUES (?, 'FINAL', ?, ?, 'SUCCESS', GETDATE())";
+        
+        try (Connection conn = DbUtils.getConnection(); 
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+             
+            ps.setInt(1, bookingId);
+            ps.setBigDecimal(2, amount);
+            ps.setString(3, paymentMethod);
+            return ps.executeUpdate() > 0;
         }
     }
 }
