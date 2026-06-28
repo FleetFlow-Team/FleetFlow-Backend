@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/JSP_Servlet/Servlet.java to edit this template
- */
 package controller;
 
 import com.google.gson.Gson;
@@ -9,41 +5,39 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dao.ExtensionDAO;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.security.Key;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-/**
- *
- * @author asus
- */
 @WebServlet("/api/v1/payments/momo/create")
 public class PaymentController extends HttpServlet {
 
-    private static final String SECRET_STRING = "FleetFlowProjectSuperSecretKey2026SecureBridgesString";
-    private static final Key KEY = Keys.hmacShaKeyFor(SECRET_STRING.getBytes());
     private final ExtensionDAO dao = new ExtensionDAO();
     private final Gson gson = new GsonBuilder().serializeNulls().create();
-    /**
-     * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
-     * methods.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
+
+    private static final String MOMO_API_URL = "https://test-payment.momo.vn/v2/gateway/api/create";
+    private static final String PARTNER_CODE = "MOMOBKUN20180529"; 
+    private static final String ACCESS_KEY = "klm05TvNBzhg7h7j"; 
+    private static final String SECRET_KEY = "at67qH6mk8w5Y1nAyMoYKMWACiEi2bsa";
+    
+    // Đã đưa về chuẩn localhost hoàn toàn để phục vụ demo nội bộ
+    private static final String IPN_URL = "http://localhost:8080/FleetFlow/api/v1/payments/momo/callback"; 
+    private static final String REDIRECT_URL = "http://localhost:8080/FleetFlow/customer/payment-success.html"; 
+
     private void prepare(HttpServletResponse response) {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
@@ -58,57 +52,99 @@ public class PaymentController extends HttpServlet {
         response.setStatus(HttpServletResponse.SC_OK);
     }
 
-    private String requireCustomer(HttpServletRequest request, HttpServletResponse response, Map<String, Object> apiResponse) {
-        String header = request.getHeader("Authorization");
-        String token = (header != null && header.startsWith("Bearer ")) ? header.substring(7).trim() : null;
-        if (token == null) {
-            response.setStatus(401);
-            apiResponse.put("success", false);
-            return null;
-        }
-        try {
-            Claims claims = Jwts.parserBuilder().setSigningKey(KEY).build().parseClaimsJws(token).getBody();
-            if (!"Customer".equalsIgnoreCase(claims.get("role").toString())) {
-                response.setStatus(403);
-                apiResponse.put("success", false);
-                return null;
-            }
-            return claims.getSubject();
-        } catch (Exception e) {
-            response.setStatus(401);
-            apiResponse.put("success", false);
-            return null;
-        }
-    }
-
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         prepare(response);
         request.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
         Map<String, Object> apiResponse = new HashMap<>();
+        
         try {
-            if (requireCustomer(request, response, apiResponse) == null) {
-                out.print(gson.toJson(apiResponse));
-                return;
-            }
             BufferedReader reader = request.getReader();
             StringBuilder sb = new StringBuilder();
             String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
-            }
+            while ((line = reader.readLine()) != null) sb.append(line);
             JsonObject body = JsonParser.parseString(sb.toString()).getAsJsonObject();
-            int invoiceId = body.get("invoiceId").getAsInt();
+            
+            int bookingId = body.get("bookingId").getAsInt(); 
             String paymentType = body.has("paymentType") ? body.get("paymentType").getAsString() : "FINAL";
-            int paymentId = dao.createPayment(invoiceId, paymentType, body.get("amount").getAsBigDecimal());
-            apiResponse.put("success", true);
-            apiResponse.put("paymentUrl", "https://test-payment.momo.vn/v2/gateway/api/create?orderId=" + paymentId);
+            String amountStr = body.get("amount").getAsString();
+            
+            int paymentId = dao.createPayment(bookingId, paymentType, body.get("amount").getAsBigDecimal());
+            
+            String orderId = String.valueOf(paymentId);
+            String requestId = orderId + "_" + System.currentTimeMillis();
+            String orderInfo = "Thanh toan FleetFlow don hang " + orderId;
+            String requestType = "captureWallet";
+
+            String rawSignature = "accessKey=" + ACCESS_KEY + "&amount=" + amountStr + "&extraData=&ipnUrl=" + IPN_URL +
+                    "&orderId=" + orderId + "&orderInfo=" + orderInfo + "&partnerCode=" + PARTNER_CODE +
+                    "&redirectUrl=" + REDIRECT_URL + "&requestId=" + requestId + "&requestType=" + requestType;
+
+            String signature = signHmacSHA256(rawSignature, SECRET_KEY);
+
+            JsonObject momoRequest = new JsonObject();
+            momoRequest.addProperty("partnerCode", PARTNER_CODE);
+            momoRequest.addProperty("partnerName", "FleetFlow");
+            momoRequest.addProperty("storeId", "FleetFlowStore");
+            momoRequest.addProperty("requestId", requestId);
+            momoRequest.addProperty("amount", amountStr);
+            momoRequest.addProperty("orderId", orderId);
+            momoRequest.addProperty("orderInfo", orderInfo);
+            momoRequest.addProperty("redirectUrl", REDIRECT_URL);
+            momoRequest.addProperty("ipnUrl", IPN_URL);
+            momoRequest.addProperty("lang", "vi");
+            momoRequest.addProperty("extraData", "");
+            momoRequest.addProperty("requestType", requestType);
+            momoRequest.addProperty("signature", signature);
+
+            String momoResponseStr = sendPostRequest(MOMO_API_URL, momoRequest.toString());
+            JsonObject momoResponse = JsonParser.parseString(momoResponseStr).getAsJsonObject();
+
+            if (momoResponse.get("resultCode").getAsInt() == 0) {
+                apiResponse.put("success", true);
+                apiResponse.put("paymentUrl", momoResponse.get("payUrl").getAsString());
+            } else {
+                apiResponse.put("success", false);
+                apiResponse.put("message", momoResponse.get("message").getAsString());
+            }
         } catch (Exception e) {
             response.setStatus(500);
             apiResponse.put("success", false);
-            apiResponse.put("message", e.getMessage());
+            apiResponse.put("message", "Lỗi tạo link MoMo: " + e.getMessage()); 
         }
         out.print(gson.toJson(apiResponse));
+    }
+
+    private String signHmacSHA256(String data, String secretKey) throws Exception {
+        Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
+        SecretKeySpec secret_key = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+        sha256_HMAC.init(secret_key);
+        byte[] hash = sha256_HMAC.doFinal(data.getBytes(StandardCharsets.UTF_8));
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : hash) {
+            String hex = Integer.toHexString(0xff & b);
+            if (hex.length() == 1) hexString.append('0');
+            hexString.append(hex);
+        }
+        return hexString.toString();
+    }
+
+    private String sendPostRequest(String urlStr, String jsonBody) throws Exception {
+        URL url = new URL(urlStr);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        conn.setDoOutput(true);
+        try (DataOutputStream wr = new DataOutputStream(conn.getOutputStream())) {
+            wr.write(jsonBody.getBytes(StandardCharsets.UTF_8));
+            wr.flush();
+        }
+        StringBuilder response = new StringBuilder();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+            String inputLine;
+            while ((inputLine = in.readLine()) != null) response.append(inputLine);
+        }
+        return response.toString();
     }
 }
