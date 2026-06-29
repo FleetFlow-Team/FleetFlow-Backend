@@ -423,9 +423,13 @@ public class VehicleDAO {
     /**
      * BE-69: PUT /api/v1/admin/vehicles/{id}/tags — Cập nhật tags AI cho xe
      * (ví dụ: "êm ái", "cốp rộng"...). Ghi đè toàn bộ danh sách tag hiện tại.
-     * Tag chưa tồn tại trong bảng Tag sẽ được tự tạo mới.
+     * Tag chưa tồn tại trong bảng Tag sẽ được tự tạo mới kèm description.
+     * Nếu tag đã tồn tại và description gửi lên khác null/rỗng → cập nhật
+     * luôn description mới cho Tag đó (áp dụng chung, không riêng theo xe).
+     *
+     * @param tagItems List các tag, mỗi item: {"tagName": "...", "description": "..." (optional)}
      */
-    public void updateVehicleTags(int vehicleId, List<String> tagNames) throws Exception {
+    public void updateVehicleTags(int vehicleId, List<Map<String, String>> tagItems) throws Exception {
         Connection conn = null;
         try {
             conn = DbUtils.getConnection();
@@ -437,13 +441,22 @@ public class VehicleDAO {
                 del.executeUpdate();
             }
 
-            if (tagNames != null) {
-                for (String rawName : tagNames) {
-                    if (rawName == null || rawName.trim().isEmpty()) {
+            if (tagItems != null) {
+                for (Map<String, String> item : tagItems) {
+                    String tagName = item.get("tagName");
+                    if (tagName == null || tagName.trim().isEmpty()) {
                         continue;
                     }
-                    String tagName = rawName.trim();
-                    int tagId = findOrCreateTag(conn, tagName);
+                    tagName = tagName.trim();
+                    String description = item.get("description");
+                    if (description != null) {
+                        description = description.trim();
+                        if (description.isEmpty()) {
+                            description = null;
+                        }
+                    }
+
+                    int tagId = findOrCreateTag(conn, tagName, description);
 
                     try (PreparedStatement ins = conn.prepareStatement(
                             "INSERT INTO VehicleTag (VehicleID, TagID) VALUES (?, ?)")) {
@@ -468,19 +481,30 @@ public class VehicleDAO {
         }
     }
 
-    private int findOrCreateTag(Connection conn, String tagName) throws Exception {
+    private int findOrCreateTag(Connection conn, String tagName, String description) throws Exception {
         try (PreparedStatement find = conn.prepareStatement(
                 "SELECT TagID FROM Tag WHERE TagName = ?")) {
             find.setString(1, tagName);
             try (ResultSet rs = find.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getInt("TagID");
+                    int existingTagId = rs.getInt("TagID");
+                    // Tag đã tồn tại — nếu có description mới gửi lên thì cập nhật luôn
+                    if (description != null) {
+                        try (PreparedStatement upd = conn.prepareStatement(
+                                "UPDATE Tag SET Description = ? WHERE TagID = ?")) {
+                            upd.setString(1, description);
+                            upd.setInt(2, existingTagId);
+                            upd.executeUpdate();
+                        }
+                    }
+                    return existingTagId;
                 }
             }
         }
         try (PreparedStatement ins = conn.prepareStatement(
-                "INSERT INTO Tag (TagName) VALUES (?)", Statement.RETURN_GENERATED_KEYS)) {
+                "INSERT INTO Tag (TagName, Description) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
             ins.setString(1, tagName);
+            ins.setString(2, description);
             ins.executeUpdate();
             try (ResultSet rs = ins.getGeneratedKeys()) {
                 if (rs.next()) {

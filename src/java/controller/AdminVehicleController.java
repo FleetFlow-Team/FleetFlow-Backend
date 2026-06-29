@@ -242,19 +242,37 @@ public class AdminVehicleController extends HttpServlet {
                 JsonObject tagsBody = readJsonBody(request);
                 if (!tagsBody.has("tags") || !tagsBody.get("tags").isJsonArray()) {
                     response.setStatus(400);
-                    out.print("{\"error\": \"Thiếu trường 'tags' (dạng array string), ví dụ: [\\\"êm ái\\\", \\\"cốp rộng\\\"]\"}");
+                    out.print("{\"error\": \"Thiếu trường 'tags' (dạng array), ví dụ: "
+                            + "[\\\"êm ái\\\", {\\\"tagName\\\":\\\"cốp rộng\\\",\\\"description\\\":\\\"Cốp chứa được 4 vali lớn\\\"}]\"}");
                     return;
                 }
 
                 JsonArray tagsArr = tagsBody.getAsJsonArray("tags");
-                List<String> tagNames = new ArrayList<>();
+                List<Map<String, String>> tagItems = new ArrayList<>();
                 for (int i = 0; i < tagsArr.size(); i++) {
-                    if (!tagsArr.get(i).isJsonNull()) {
-                        tagNames.add(tagsArr.get(i).getAsString());
+                    if (tagsArr.get(i).isJsonNull()) {
+                        continue;
+                    }
+                    Map<String, String> item = new java.util.LinkedHashMap<>();
+                    if (tagsArr.get(i).isJsonObject()) {
+                        // Format đầy đủ: {"tagName": "cốp rộng", "description": "..."}
+                        JsonObject obj = tagsArr.get(i).getAsJsonObject();
+                        if (obj.has("tagName") && !obj.get("tagName").isJsonNull()) {
+                            item.put("tagName", obj.get("tagName").getAsString());
+                        }
+                        if (obj.has("description") && !obj.get("description").isJsonNull()) {
+                            item.put("description", obj.get("description").getAsString());
+                        }
+                    } else {
+                        // Format ngắn: chỉ truyền tên tag dạng string, không có description
+                        item.put("tagName", tagsArr.get(i).getAsString());
+                    }
+                    if (item.get("tagName") != null && !item.get("tagName").trim().isEmpty()) {
+                        tagItems.add(item);
                     }
                 }
 
-                vehicleDAO.updateVehicleTags(tagsVehicleId, tagNames);
+                vehicleDAO.updateVehicleTags(tagsVehicleId, tagItems);
 
                 List<Map<String, Object>> updatedTags = vehicleDAO.getTagsByVehicleId(tagsVehicleId);
                 StringBuilder tagsJsonOut = new StringBuilder();

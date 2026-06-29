@@ -505,12 +505,18 @@ public class BookingDAO {
                     + "WHERE d.AvailabilityStatus = 'AVAILABLE' "
                     + "AND d.IsDeleted = 0 "
                     + "AND d.DriverID NOT IN (" + placeholders + ") "
+                    + "AND d.DriverID NOT IN ("
+                    + "    SELECT AssignedDriverID FROM DriverJobBroadcast WHERE Status = 'PENDING'"
+                    + ") "
                     + "ORDER BY ISNULL(d.LastAssignedAt, '1900-01-01') ASC";
         } else {
             sql = "SELECT TOP 1 d.DriverID "
                     + "FROM Driver d "
                     + "WHERE d.AvailabilityStatus = 'AVAILABLE' "
                     + "AND d.IsDeleted = 0 "
+                    + "AND d.DriverID NOT IN ("
+                    + "    SELECT AssignedDriverID FROM DriverJobBroadcast WHERE Status = 'PENDING'"
+                    + ") "
                     + "ORDER BY ISNULL(d.LastAssignedAt, '1900-01-01') ASC";
         }
 

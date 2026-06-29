@@ -215,21 +215,34 @@ public class DriverJobBroadcastDAO {
 
     /**
      * Tạo notification cho driver khi được gán chuyến.
-     * Lưu vào bảng DriverNotification để driver polling lấy về.
-     * Title/message được format sẵn để FE hiển thị ngay.
+     * Dùng bảng Notification chung — RecipientAccountID là AccountID của driver.
+     * Type = DISPATCH_ASSIGNED để FE filter đúng loại.
      */
     public void createDriverNotification(int driverId, int bookingId, String pickupAddress,
             String customerName, String departureTime) throws Exception {
-        String sql = "INSERT INTO DriverNotification "
-                + "(DriverID, BookingID, Title, Message, IsRead, CreatedAt) "
-                + "VALUES (?, ?, ?, ?, 0, ?)";
+        // Lấy AccountID từ DriverID
+        String getAccountSql = "SELECT AccountID FROM Driver WHERE DriverID = ?";
+        int accountId = -1;
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(getAccountSql)) {
+            ps.setInt(1, driverId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) accountId = rs.getInt("AccountID");
+            }
+        }
+        if (accountId == -1) return;
+
         String title = "Chuyến mới được gán!";
         String message = "Khách: " + (customerName != null ? customerName : "N/A")
                 + " | Đón tại: " + (pickupAddress != null ? pickupAddress : "N/A")
                 + " | Giờ đi: " + (departureTime != null ? departureTime : "N/A");
+
+        String sql = "INSERT INTO Notification "
+                + "(RecipientAccountID, BookingID, Title, Message, Type, Channel, IsRead, CreatedAt) "
+                + "VALUES (?, ?, ?, ?, 'DISPATCH_ASSIGNED', 'IN_APP', 0, ?)";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, driverId);
+            ps.setInt(1, accountId);
             ps.setInt(2, bookingId);
             ps.setString(3, title);
             ps.setString(4, message);
@@ -240,12 +253,17 @@ public class DriverJobBroadcastDAO {
 
     /**
      * Driver polling lấy notification chưa đọc.
+     * Query từ bảng Notification chung, filter theo AccountID của driver + Type DISPATCH_*.
      */
     public List<java.util.Map<String, Object>> getUnreadNotifications(int driverId) throws Exception {
         List<java.util.Map<String, Object>> list = new ArrayList<>();
-        String sql = "SELECT * FROM DriverNotification "
-                + "WHERE DriverID = ? AND IsRead = 0 "
-                + "ORDER BY CreatedAt DESC";
+        String sql = "SELECT n.NotificationID, n.BookingID, n.Title, n.Message, n.Type, n.CreatedAt "
+                + "FROM Notification n "
+                + "JOIN Driver d ON d.AccountID = n.RecipientAccountID "
+                + "WHERE d.DriverID = ? "
+                + "AND n.IsRead = 0 "
+                + "AND n.Type LIKE 'DISPATCH_%' "
+                + "ORDER BY n.CreatedAt DESC";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, driverId);
@@ -256,6 +274,7 @@ public class DriverJobBroadcastDAO {
                     row.put("bookingId", rs.getInt("BookingID"));
                     row.put("title", rs.getString("Title"));
                     row.put("message", rs.getString("Message"));
+                    row.put("type", rs.getString("Type"));
                     row.put("createdAt", rs.getTimestamp("CreatedAt").toString());
                     list.add(row);
                 }
@@ -265,10 +284,12 @@ public class DriverJobBroadcastDAO {
     }
 
     /**
-     * Đánh dấu notification đã đọc sau khi driver fetch về.
+     * Đánh dấu đã đọc tất cả notification DISPATCH của driver.
      */
     public void markNotificationsRead(int driverId) throws Exception {
-        String sql = "UPDATE DriverNotification SET IsRead = 1 WHERE DriverID = ? AND IsRead = 0";
+        String sql = "UPDATE Notification SET IsRead = 1 "
+                + "WHERE RecipientAccountID = (SELECT AccountID FROM Driver WHERE DriverID = ?) "
+                + "AND IsRead = 0 AND Type LIKE 'DISPATCH_%'";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, driverId);

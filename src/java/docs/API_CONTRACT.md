@@ -2866,4 +2866,134 @@ Xóa ngày lễ
 - Output:
 {
     "success": true
+Dispatcher coi thông tin booking khi hết xe k tự auto gán đc nữa 
+Header: Authorization: Bearer DISPATCHER_TOKEN
+path: GET http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings/unassigned
+output:
+{
+    "success": true,
+    "count": 1,
+    "data": [
+        {
+            "dropoffAddress": "Vũng Tàu",
+            "departureTime": "2026-07-02 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "customerPhone": "0900000003",
+            "pickupAddress": "123 Nguyễn Huệ",
+            "bookingType": "DISTANCE",
+            "customerId": 3,
+            "vehicleId": 17,
+            "bookingId": 41,
+            "customerName": "Cường Lê",
+            "status": "UNASSIGNED",
+            "updatedAt": "2026-06-26 13:38:12.028"
+        }
+    ]
+} 
+Admin xem tag của từng xe đang được gán
+Header: Authorization: Bearer ADMIN_TOKEN
+path GET http://localhost:8080/FleetFlow/api/v1/admin/vehicles/1/tags
+{
+    "success": true,
+    "vehicleId": 1,
+    "data": [
+        {
+          
+  "tagId": 14,
+            "tagName": "cốp rộng",
+            "description": null
+        },
+        {
+            "tagId": 13,
+            "tagName": "êm ái",
+            "description": null
+        }
+    ]
+}
+ADMIN UPDATE TAG FOR VEHICle
+Header: Authorization: Bearer ADMIN_TOKEN
+path: PUT http://localhost:8080/FleetFlow/api/v1/admin/vehicles/1/tags
+input: 
+{
+  "tags": [
+    { "tagName": "em ai", "description": "Cốp chứa được 1000 vali lớn" },
+    { "tagName": "cốp rộng", "description": "Cốp chứa được 4 vali lớn" }
+  ]
+}
+output:
+{
+    "success": true,
+    "message": "Cập nhật tags thành công",
+    "vehicleId": 1,
+    "data": [
+        {
+            "tagId": 14,
+            "tagName": "cốp rộng",
+            "description": "Cốp chứa được 4 vali lớn"
+        },
+        {
+            "tagId": 15,
+            "tagName": "em ai",
+            "description": "Cốp chứa được 1000 vali lớn"
+        }
+    ]
+}
+AI find car for customer when chat
+path POST http://localhost:8080/FleetFlow/api/v1/ai/chat
+{ "message": "tôi cần xe 7 chỗ đi Đà Lạt, cốp rộng" }
+{
+    "success": true,
+    "source": "FALLBACK",
+    "data": [
+        {
+            "vehicleId": 1,
+            "brand": "Toyota",
+            "model": "Vios",
+            "vehicleType": "Sedan 4 chỗ",
+            "seatCount": 4,
+            "tags": "êm ái, cốp rộng",
+            "reason": "Gợi ý theo từ khóa (AI tạm thời không khả dụng)",
+            "source": "FALLBACK"
+        },
+        {
+            "vehicleId": 2,
+            "brand": "Honda",
+            "model": "City",
+            "vehicleType": "Sedan 4 chỗ",
+            "seatCount": 4,
+            "tags": "Ghế da, Ghế ngả, Hợp đường dài",
+            "reason": "Gợi ý theo từ khóa (AI tạm thời không khả dụng)",
+            "source": "FALLBACK"
+        },
+        {
+            "vehicleId": 3,
+            "brand": "Hyundai",
+            "model": "Accent",
+            "vehicleType": "Sedan 4 chỗ",
+            "seatCount": 4,
+            "tags": "Màn hình giải trí, Cửa sổ trời, Khoang rộng",
+            "reason": "Gợi ý theo từ khóa (AI tạm thời không khả dụng)",
+            "source": "FALLBACK"
+        },
+        {
+            "vehicleId": 4,
+            "brand": "Mazda",
+            "model": "Mazda3",
+            "vehicleType": "Sedan 4 chỗ",
+            "seatCount": 4,
+            "tags": "Wifi, Cảm biến lùi, Mới bảo dưỡng",
+            "reason": "Gợi ý theo từ khóa (AI tạm thời không khả dụng)",
+            "source": "FALLBACK"
+        },
+        {
+            "vehicleId": 5,
+            "brand": "Kia",
+            "model": "Soluto",
+            "vehicleType": "Sedan 4 chỗ",
+            "seatCount": 4,
+            "tags": "Đời mới, Ghế ngả, Bảo hiểm đầy đủ",
+            "reason": "Gợi ý theo từ khóa (AI tạm thời không khả dụng)",
+            "source": "FALLBACK"
+        }
+    ]
 }
