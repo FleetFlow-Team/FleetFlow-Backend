@@ -387,6 +387,7 @@ Tính cước phí chuyến đi
     "estimatedTotal": 1857500.000,
     "deposit30Percent": 557250
 }
+
                     BỔ SUNG LUỒNG BOOKING NGÀY 19/6/2026
 -------------------------------------------------------------------------------
 Tính cước phí — DISTANCE ROUND_TRIP(Phí cước đi 2 chiều )
@@ -1450,6 +1451,19 @@ Danh sách thông báo của customer
     "success": true
 }
 
+Khách hàng gửi khiếu nại
+- Path: POST http://localhost:8080/FleetFlow/api/v1/complaints
+- Input:
+{
+  "bookingId": 1,
+  "customerId": 1,
+  "content": "Tài xế đến trễ 15 phút và thái độ không tốt."
+}
+- Output:
+{
+    "success": true
+}
+
 - Path:
 - Input:
 - Output:
@@ -1471,6 +1485,51 @@ Tạo yêu cầu thanh toán MoMo cho 1 invoice
     "success": true,
     "paymentUrl": "https://test-payment.momo.vn/v2/gateway/api/create?orderId=15"
 }
+
+Thanh toán cuối (Final Payment - Tiền mặt / Chuyển khoản)
+- Path: POST http://localhost:8080/FleetFlow/api/v1/payments/final
+- Input:
+{
+  "bookingId": 1,
+  "paymentMethod": "CASH"
+}
+- Output:
+{
+    "success": true,
+    "finalAmount": 59000.00
+}
+
+Tạo yêu cầu thanh toán MoMo cho 1 booking
+- Path: POST http://localhost:8080/FleetFlow/api/v1/payments/momo/create
+- Input:
+{
+  "bookingId": 3,
+  "amount": "150000"
+}
+- Output:
+{
+    "success": true,
+    "paymentUrl": "https://test-payment.momo.vn/v2/gateway/pay?t=TU9NT0JLVU4yMDE4..."
+}
+
+MoMo Callback Webhook (MoMo tự động gọi về khi thanh toán thành công)
+- Path: POST http://localhost:8080/FleetFlow/api/v1/payments/momo/callback
+- Input:
+{
+  "partnerCode": "MOMO",
+  "orderId": "1",
+  "requestId": "1_1719540000000",
+  "amount": 150000,
+  "orderInfo": "Thanh toan FleetFlow",
+  "orderType": "momo_wallet",
+  "transId": "253018274099",
+  "resultCode": 0,
+  "message": "Thành công",
+  "payType": "qr",
+  "signature": "chuoi-ma-hoa-bat-ky"
+}
+- Output: 
+Status 204 No Content
 
 - Path:
 - Input:
@@ -1524,17 +1583,44 @@ Tạo yêu cầu thanh toán MoMo cho 1 invoice
 
 ## DISPATCHER
 
-- Path:
+Xem danh sách khiếu nại (Dispatcher)
+- Path: GET http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints
 - Input:
 - Output:
+[
+    {
+        "complaintId": 4,
+        "customerId": 1,
+        "bookingId": 1,
+        "content": "Tài xế đến trễ 15 phút và thái độ không tốt.",
+        "status": "PENDING"
+    },
+    {
+        "complaintId": 3,
+        "customerId": 10,
+        "bookingId": 10,
+        "content": "Tính phí phụ thu chưa rõ ràng",
+        "status": "PENDING"
+    },
+    {
+        "complaintId": 2,
+        "customerId": 6,
+        "bookingId": 6,
+        "content": "Xe có mùi thuốc lá",
+        "status": "RESOLVED"
+    }
+]
 
-- Path:
+Dispatcher giải quyết khiếu nại
+- Path: PUT http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/{complaintId}/resolve
 - Input:
+{
+  "resolution": "Đã gọi điện xin lỗi khách hàng và tặng mã giảm giá 50k cho chuyến sau."
+}
 - Output:
-
-- Path:
-- Input:
-- Output:
+{
+    "success": true
+}
 
 - Path:
 - Input:
@@ -2633,3 +2719,151 @@ input:
     "message": "Đã từ chối chuyến"
 }
 Khi driver hủy chuyến hệ thống sẽ tự động tìm tài khác r gửi notification lại
+Driver get notification
+Header: Authorization: Bearer DRIVER_TOKEN 
+path GET http://localhost:8080/FleetFlow/api/v1/driver/dispatch/notifications
+output:
+{
+    "success": true,
+    "notifications": [
+        {
+            "createdAt": "2026-06-25 23:49:19.247",
+            "notificationId": 2,
+            "title": "Chuyến mới được gán!",
+            "message": "Khách: Cường Lê | Đón tại: 123 Nguyễn Huệ | Giờ đi: 2026-07-11 08:00:00.0",
+            "bookingId": 38
+        }
+    ]
+}
+Driver xem chi tiet chuyen trc khi approve or reject
+Header: Authorization: Bearer DRIVER_TOKEN 
+path: GET http://localhost:8080/FleetFlow/api/v1/driver/dispatch/pending
+output:
+{
+    "success": true,
+    "data": [
+        {
+            "dropoffAddress": "Vũng Tàu",
+            "departureTime": "2026-07-11 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "dispatchedAt": "2026-06-25 23:49:19.129",
+            "customerPhone": "0900000003",
+            "pickupAddress": "123 Nguyễn Huệ",
+            "broadcastId": 7,
+            "bookingType": "DISTANCE",
+            "distanceKm": "96.40",
+            "bookingId": 38,
+            "customerName": "Cường Lê"
+        }
+    ]
+}
+
+Lấy danh sách xe (phía Admin)
+- Path: GET /FleetFlow/api/v1/admin/vehicles
+- Input:
+- Output:
+{
+  "success": true,
+  "count": 50,
+  "data": [
+    {
+      "vehicleId": 1,
+      "vehicleTypeId": 1,
+      "typeName": "Xe 4 chỗ",
+      "licensePlate": "51B-137.29"
+    }
+  ]
+}
+
+Thêm xe mới (Phía Admin)
+- Path: POST /FleetFlow/api/v1/admin/vehicles/
+- Input:
+{
+  "vehicleTypeId": 2,
+  "licensePlate": "51F-999.99",
+  "chassisNumber": "CHS-TEST-001",
+  "engineNumber": "ENG-TEST-001",
+  "brand": "Toyota",
+  "model": "Innova 2024",
+  "seatCount": 7,
+  "status": "Available",
+  "accumulatedKm": 0,
+  "description": "Xe test tạo bằng Postman"
+}
+- Output:
+{
+  "success": true,
+  "message": "Tạo xe thành công"
+}
+
+Xem toàn bộ bảng giá (Pricing Rules)
+- Path: GET http://localhost:8080/FleetFlow/api/v1/admin/pricing-rules
+- Input:
+- Output:
+[
+    {
+        "tripDirection": "ONE_WAY",
+        "vehicleTypeId": 1,
+        "weekendMultiplier": 1.20,
+        "bookingType": "DISTANCE",
+        "pricePerKm": 9000.00,
+        "ruleId": 1,
+        "basePrice": 50000.00
+    },
+    {
+        "tripDirection": "ROUND_TRIP",
+        "vehicleTypeId": 1,
+        "weekendMultiplier": 1.20,
+        "bookingType": "DISTANCE",
+        "pricePerKm": 8100.00,
+        "ruleId": 2,
+        "basePrice": 50000.00
+    }
+]
+
+Cập nhật bảng giá (Pricing Rule)
+- Path: PUT http://localhost:8080/FleetFlow/api/v1/admin/pricing-rules/{ruleId}
+- Input:
+{
+  "basePrice": 50000,
+  "pricePerKm": 15000,
+  "pricePerHour": 80000,
+  "pricePerDay": 1000000,
+  "weekendMultiplier": 1.15
+}
+- Output:
+{
+    "success": true
+}
+
+Thêm ngày lễ mới
+- Path: POST http://localhost:8080/FleetFlow/api/v1/admin/holidays
+- Input:
+{
+  "holidayDate": "2026-09-02",
+  "description": "Quốc khánh Việt Nam"
+}
+- Output:
+{
+    "success": true
+}
+
+Xem danh sách ngày lễ
+- Path: GET http://localhost:8080/FleetFlow/api/v1/admin/holidays
+- Input:
+- Output:
+[
+    {
+        "description": "Quốc khánh Việt Nam",
+        "holidayId": 1,
+        "holidayDate": "2026-09-02"
+    }
+]
+
+Xóa ngày lễ
+- Path: DELETE http://localhost:8080/FleetFlow/api/v1/admin/holidays/{holidayId}
+- Input:
+- Output:
+{
+    "success": true
+}

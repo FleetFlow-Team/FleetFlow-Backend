@@ -144,7 +144,7 @@ public class VehicleDAO {
         StringBuilder sql = new StringBuilder(
             "SELECT DISTINCT v.VehicleID, v.VehicleTypeID, vt.TypeName, " +
             "v.LicensePlate, v.ChassisNumber, v.EngineNumber, v.Brand, v.Model, " +
-            "v.SeatCount, v.FuelType, v.Status, v.AccumulatedKm, v.Description, v.ImagePath " +
+            "v.SeatCount, v.FuelType, v.Status, v.AccumulatedKm, v.Description, v.ImageUrl " +
             "FROM Vehicle v " +
             "LEFT JOIN VehicleType vt ON vt.VehicleTypeID = v.VehicleTypeID " +
             "LEFT JOIN PricingRule pr ON pr.VehicleTypeID = v.VehicleTypeID " +
@@ -221,7 +221,7 @@ public class VehicleDAO {
                     vehicle.put("fuelType", rs.getString("FuelType"));
                     vehicle.put("status", rs.getString("Status"));
                     vehicle.put("description", rs.getString("Description"));
-                    vehicle.put("imagePath", rs.getString("ImagePath"));
+                    vehicle.put("imagePath", rs.getString("ImageUrl"));
                     
                     list.add(vehicle);
                 }
@@ -306,6 +306,20 @@ public class VehicleDAO {
                     return rs.getInt("AccountID");
                 }
                 return 0;
+            }
+        }
+    }
+
+    public Integer findVehicleTypeIdBySeatCount(int seatCount) throws Exception {
+        String sql = "SELECT TOP 1 VehicleTypeID FROM VehicleType WHERE SeatCount = ? ORDER BY VehicleTypeID";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, seatCount);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("VehicleTypeID");
+                }
+                return null;
             }
         }
     }

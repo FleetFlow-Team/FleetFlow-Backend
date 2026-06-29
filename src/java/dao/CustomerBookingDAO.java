@@ -144,7 +144,7 @@ public class CustomerBookingDAO {
                     && penaltyAmount.compareTo(BigDecimal.ZERO) >= 0
                     && penaltyPercent > 0) {
                 PreparedStatement psLedger = conn.prepareStatement(
-                        "INSERT INTO CustomerWalletLedger "
+                        "INSERT INTO CustomerWallet "
                         + "(CustomerID, Amount, TransactionType, BookingID, CreatedAt) "
                         + "VALUES (?, ?, 'PENALTY', ?, ?)");
 
