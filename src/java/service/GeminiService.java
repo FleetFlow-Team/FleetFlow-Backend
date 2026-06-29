@@ -17,9 +17,9 @@ import java.util.Map;
 import model.VehicleAIData;
 
 /**
- * BE-67: AI Chat & Tags — nhận câu hỏi của customer, build prompt kèm danh
- * sách xe + tags từ DB, gọi Gemini để lấy gợi ý xe đã ranking, fallback sang
- * filter thủ công (theo từ khóa) nếu gọi Gemini lỗi/timeout.
+ * BE-67: AI Chat & Tags — nhận câu hỏi của customer, build prompt kèm danh sách
+ * xe + tags từ DB, gọi Gemini để lấy gợi ý xe đã ranking, fallback sang filter
+ * thủ công (theo từ khóa) nếu gọi Gemini lỗi/timeout.
  */
 public class GeminiService {
 
@@ -29,10 +29,11 @@ public class GeminiService {
     private static final String MODEL = "gemini-2.5-flash";
 
     private static final int CONNECT_TIMEOUT_MS = 8000;
-    private static final int READ_TIMEOUT_MS = 12000;
+    private static final int READ_TIMEOUT_MS = 30000;
 
     /**
-     * Gọi Gemini với 1 prompt thuần text — giữ lại cho mục đích test nhanh (/api/v1/ai/test).
+     * Gọi Gemini với 1 prompt thuần text — giữ lại cho mục đích test nhanh
+     * (/api/v1/ai/test).
      */
     public String askGemini(String prompt) throws Exception {
         String jsonBody = "{\"contents\":[{\"parts\":[{\"text\":\""
@@ -41,10 +42,11 @@ public class GeminiService {
     }
 
     /**
-     * BE-67 — Endpoint chính: nhận câu hỏi customer, build prompt kèm context xe trong DB,
-     * gọi Gemini, parse JSON trả về thành list gợi ý xe đã ranking.
-     * Nếu Gemini lỗi (timeout, hết quota free tier, parse JSON thất bại...) → fallback
-     * sang filter thủ công theo từ khóa trên tags/description/brand/model.
+     * BE-67 — Endpoint chính: nhận câu hỏi customer, build prompt kèm context
+     * xe trong DB, gọi Gemini, parse JSON trả về thành list gợi ý xe đã
+     * ranking. Nếu Gemini lỗi (timeout, hết quota free tier, parse JSON thất
+     * bại...) → fallback sang filter thủ công theo từ khóa trên
+     * tags/description/brand/model.
      */
     public List<Map<String, Object>> recommendVehicles(String customerMessage, List<VehicleAIData> vehicles) {
         try {
@@ -63,8 +65,9 @@ public class GeminiService {
             return manualFilter(customerMessage, vehicles);
 
         } catch (Exception e) {
-            // Bất kỳ lỗi nào khi gọi Gemini (mạng, quota, parse...) đều fallback,
-            // không để lỗi AI làm hỏng trải nghiệm tìm xe của customer.
+            // THÊM DÒNG NÀY để xem lỗi thật trong Tomcat log
+            System.err.println("[GeminiService] Lỗi gọi Gemini: " + e.getMessage());
+            e.printStackTrace();
             return manualFilter(customerMessage, vehicles);
         }
     }
@@ -72,7 +75,6 @@ public class GeminiService {
     // ---------------------------------------------------------------------
     // Build prompt
     // ---------------------------------------------------------------------
-
     private String buildPrompt(String customerMessage, List<VehicleAIData> vehicles) {
         StringBuilder sb = new StringBuilder();
         sb.append("Bạn là trợ lý gợi ý xe cho nền tảng thuê xe có lái FleetFlow. ");
@@ -119,8 +121,8 @@ public class GeminiService {
     // ---------------------------------------------------------------------
     // Call Gemini API
     // ---------------------------------------------------------------------
-
     private String callGemini(String jsonBody) throws Exception {
+        System.setProperty("https.protocols", "TLSv1.2");
         String endpoint = "https://generativelanguage.googleapis.com/v1beta/models/"
                 + MODEL + ":generateContent?key=" + API_KEY;
 
@@ -132,7 +134,7 @@ public class GeminiService {
         conn.setReadTimeout(READ_TIMEOUT_MS);
         conn.setDoOutput(true);
 
-        try (OutputStream os = conn.getOutputStream()) {
+        try ( OutputStream os = conn.getOutputStream()) {
             os.write(jsonBody.getBytes("UTF-8"));
         }
 
@@ -140,7 +142,7 @@ public class GeminiService {
         InputStream is = (status >= 200 && status < 300) ? conn.getInputStream() : conn.getErrorStream();
 
         StringBuilder response = new StringBuilder();
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(is, "UTF-8"))) {
+        try ( BufferedReader br = new BufferedReader(new InputStreamReader(is, "UTF-8"))) {
             String line;
             while ((line = br.readLine()) != null) {
                 response.append(line);
@@ -172,8 +174,9 @@ public class GeminiService {
     }
 
     /**
-     * Parse JSON array gợi ý xe từ text Gemini trả về (có thể kèm code fence ```json ... ```).
-     * Trả về list map {vehicleId, reason, brand, model, vehicleType, seatCount, tags}.
+     * Parse JSON array gợi ý xe từ text Gemini trả về (có thể kèm code fence
+     * ```json ... ```). Trả về list map {vehicleId, reason, brand, model,
+     * vehicleType, seatCount, tags}.
      */
     private List<Map<String, Object>> parseRecommendationJson(String geminiText, List<VehicleAIData> vehicles) {
         try {
@@ -231,7 +234,6 @@ public class GeminiService {
     // ---------------------------------------------------------------------
     // Fallback: filter thủ công theo từ khóa khi Gemini lỗi/hết quota free tier
     // ---------------------------------------------------------------------
-
     private List<Map<String, Object>> manualFilter(String customerMessage, List<VehicleAIData> vehicles) {
         String keyword = customerMessage == null ? "" : customerMessage.toLowerCase().trim();
         List<Map<String, Object>> result = new ArrayList<>();
