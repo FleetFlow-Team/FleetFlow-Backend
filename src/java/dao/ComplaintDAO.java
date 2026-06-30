@@ -32,6 +32,16 @@ public class ComplaintDAO {
                 map.put("customerId", rs.getInt("CustomerID"));
                 map.put("content", rs.getString("Content"));
                 map.put("status", rs.getString("Status"));
+                
+                // Add missing fields for frontend
+                if (rs.getTimestamp("CreatedAt") != null) {
+                    map.put("createdAt", rs.getTimestamp("CreatedAt").toString());
+                }
+                map.put("resolution", rs.getString("Resolution"));
+                if (rs.getTimestamp("ResolvedAt") != null) {
+                    map.put("resolvedAt", rs.getTimestamp("ResolvedAt").toString());
+                }
+                
                 list.add(map);
             }
         }
