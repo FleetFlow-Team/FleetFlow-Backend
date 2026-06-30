@@ -3005,6 +3005,28 @@ output:
 {
     "data": [
         {
+            "NotificationID": 7,
+            "RecipientAccountID": 18,
+            "BookingID": 17,
+            "Title": "Booking #17 đã được gán tài xế",
+            "Message": "Hệ thống đã tự động gán booking #17 cho tài xế Tuấn Ngô (DriverID=1).",
+            "Type": "BOOKING_DRIVER_ASSIGNED",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "Jun 30, 2026 11:21:40 AM"
+        },
+        {
+            "NotificationID": 4,
+            "RecipientAccountID": 18,
+            "BookingID": 17,
+            "Title": "Booking #17 bị tài xế từ chối",
+            "Message": "Tài xế Sơn Dương (DriverID=2) đã từ chối booking #17. Lý do: Bận việc cá nhân Hệ thống đang tự tìm tài xế khác.",
+            "Type": "BOOKING_DRIVER_REJECTED",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "Jun 30, 2026 11:21:39 AM"
+        },
+        {
             "NotificationID": 2,
             "RecipientAccountID": 18,
             "BookingID": 17,
@@ -3012,7 +3034,7 @@ output:
             "Message": "Hệ thống đã tự động gán booking #17 cho tài xế Sơn Dương (DriverID=2).",
             "Type": "BOOKING_DRIVER_ASSIGNED",
             "Channel": "IN_APP",
-            "IsRead": false,
+            "IsRead": true,
             "CreatedAt": "Jun 30, 2026 10:49:51 AM"
         }
     ],
