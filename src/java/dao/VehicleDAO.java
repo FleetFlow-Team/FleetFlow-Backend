@@ -23,7 +23,7 @@ public class VehicleDAO {
     private static final String BASE_SELECT =
             "SELECT v.VehicleID, v.VehicleTypeID, vt.TypeName, "
           + "v.LicensePlate, v.ChassisNumber, v.EngineNumber, v.Brand, v.Model, "
-          + "v.SeatCount, v.Status, v.AccumulatedKm, v.Description, "
+          + "v.SeatCount, v.Status, v.AccumulatedKm, v.Description, v.FuelType, v.ImageUrl, "
           + "STRING_AGG(t.TagName, ', ') AS Tags "
           + "FROM Vehicle v "
           + "JOIN VehicleType vt ON vt.VehicleTypeID = v.VehicleTypeID "
@@ -33,7 +33,7 @@ public class VehicleDAO {
     private static final String GROUP_BY =
             " GROUP BY v.VehicleID, v.VehicleTypeID, vt.TypeName, "
           + "v.LicensePlate, v.ChassisNumber, v.EngineNumber, v.Brand, v.Model, "
-          + "v.SeatCount, v.Status, v.AccumulatedKm, v.Description ";
+          + "v.SeatCount, v.Status, v.AccumulatedKm, v.Description, v.FuelType, v.ImageUrl ";
 
     public List<Map<String, Object>> findAvailable(Integer seatCount, Integer typeId) throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
@@ -235,11 +235,11 @@ public class VehicleDAO {
 
     public int create(int vehicleTypeId, String licensePlate, String chassisNumber, String engineNumber,
             String brand, String model, int seatCount, String status, Integer accumulatedKm,
-            int createdBy, String description) throws Exception {
+            int createdBy, String description, String fuelType, String imageUrl) throws Exception {
         String sql = "INSERT INTO Vehicle "
                 + "(VehicleTypeID, LicensePlate, ChassisNumber, EngineNumber, Brand, Model, "
-                + "SeatCount, Status, AccumulatedKm, CreatedBy, CreatedAt, Description) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                + "SeatCount, Status, AccumulatedKm, CreatedBy, CreatedAt, Description, FuelType, ImageUrl) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, vehicleTypeId);
@@ -254,6 +254,8 @@ public class VehicleDAO {
             ps.setInt(10, createdBy);
             ps.setTimestamp(11, new Timestamp(System.currentTimeMillis()));
             ps.setString(12, description);
+            ps.setString(13, fuelType);
+            ps.setString(14, imageUrl);
             ps.executeUpdate();
             try (ResultSet rs = ps.getGeneratedKeys()) {
                 if (rs.next()) {
@@ -266,7 +268,7 @@ public class VehicleDAO {
 
     public boolean update(int vehicleId, Integer vehicleTypeId, String licensePlate, String chassisNumber,
             String engineNumber, String brand, String model, Integer seatCount, String status,
-            Integer accumulatedKm, String description) throws Exception {
+            Integer accumulatedKm, String description, String fuelType, String imageUrl) throws Exception {
         String sql = "UPDATE Vehicle SET "
                 + "VehicleTypeID = COALESCE(?, VehicleTypeID), "
                 + "LicensePlate = COALESCE(?, LicensePlate), "
@@ -277,7 +279,9 @@ public class VehicleDAO {
                 + "SeatCount = COALESCE(?, SeatCount), "
                 + "Status = COALESCE(?, Status), "
                 + "AccumulatedKm = COALESCE(?, AccumulatedKm), "
-                + "Description = COALESCE(?, Description) "
+                + "Description = COALESCE(?, Description), "
+                + "FuelType = COALESCE(?, FuelType), "
+                + "ImageUrl = COALESCE(?, ImageUrl) "
                 + "WHERE VehicleID = ?";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -291,7 +295,9 @@ public class VehicleDAO {
             ps.setString(8, status);
             setIntOrNull(ps, 9, accumulatedKm);
             ps.setString(10, description);
-            ps.setInt(11, vehicleId);
+            ps.setString(11, fuelType);
+            ps.setString(12, imageUrl);
+            ps.setInt(13, vehicleId);
             return ps.executeUpdate() > 0;
         }
     }
@@ -392,6 +398,8 @@ public class VehicleDAO {
         int km = rs.getInt("AccumulatedKm");
         m.put("accumulatedKm", rs.wasNull() ? null : km);
         m.put("description", rs.getString("Description"));
+        m.put("fuelType", rs.getString("FuelType"));
+        m.put("imageUrl", rs.getString("ImageUrl"));
         m.put("tags", rs.getString("Tags"));
         return m;
     }
@@ -423,9 +431,13 @@ public class VehicleDAO {
     /**
      * BE-69: PUT /api/v1/admin/vehicles/{id}/tags — Cập nhật tags AI cho xe
      * (ví dụ: "êm ái", "cốp rộng"...). Ghi đè toàn bộ danh sách tag hiện tại.
-     * Tag chưa tồn tại trong bảng Tag sẽ được tự tạo mới.
+     * Tag chưa tồn tại trong bảng Tag sẽ được tự tạo mới kèm description.
+     * Nếu tag đã tồn tại và description gửi lên khác null/rỗng → cập nhật
+     * luôn description mới cho Tag đó (áp dụng chung, không riêng theo xe).
+     *
+     * @param tagItems List các tag, mỗi item: {"tagName": "...", "description": "..." (optional)}
      */
-    public void updateVehicleTags(int vehicleId, List<String> tagNames) throws Exception {
+    public void updateVehicleTags(int vehicleId, List<Map<String, String>> tagItems) throws Exception {
         Connection conn = null;
         try {
             conn = DbUtils.getConnection();
@@ -437,13 +449,22 @@ public class VehicleDAO {
                 del.executeUpdate();
             }
 
-            if (tagNames != null) {
-                for (String rawName : tagNames) {
-                    if (rawName == null || rawName.trim().isEmpty()) {
+            if (tagItems != null) {
+                for (Map<String, String> item : tagItems) {
+                    String tagName = item.get("tagName");
+                    if (tagName == null || tagName.trim().isEmpty()) {
                         continue;
                     }
-                    String tagName = rawName.trim();
-                    int tagId = findOrCreateTag(conn, tagName);
+                    tagName = tagName.trim();
+                    String description = item.get("description");
+                    if (description != null) {
+                        description = description.trim();
+                        if (description.isEmpty()) {
+                            description = null;
+                        }
+                    }
+
+                    int tagId = findOrCreateTag(conn, tagName, description);
 
                     try (PreparedStatement ins = conn.prepareStatement(
                             "INSERT INTO VehicleTag (VehicleID, TagID) VALUES (?, ?)")) {
@@ -468,19 +489,30 @@ public class VehicleDAO {
         }
     }
 
-    private int findOrCreateTag(Connection conn, String tagName) throws Exception {
+    private int findOrCreateTag(Connection conn, String tagName, String description) throws Exception {
         try (PreparedStatement find = conn.prepareStatement(
                 "SELECT TagID FROM Tag WHERE TagName = ?")) {
             find.setString(1, tagName);
             try (ResultSet rs = find.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getInt("TagID");
+                    int existingTagId = rs.getInt("TagID");
+                    // Tag đã tồn tại — nếu có description mới gửi lên thì cập nhật luôn
+                    if (description != null) {
+                        try (PreparedStatement upd = conn.prepareStatement(
+                                "UPDATE Tag SET Description = ? WHERE TagID = ?")) {
+                            upd.setString(1, description);
+                            upd.setInt(2, existingTagId);
+                            upd.executeUpdate();
+                        }
+                    }
+                    return existingTagId;
                 }
             }
         }
         try (PreparedStatement ins = conn.prepareStatement(
-                "INSERT INTO Tag (TagName) VALUES (?)", Statement.RETURN_GENERATED_KEYS)) {
+                "INSERT INTO Tag (TagName, Description) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
             ins.setString(1, tagName);
+            ins.setString(2, description);
             ins.executeUpdate();
             try (ResultSet rs = ins.getGeneratedKeys()) {
                 if (rs.next()) {

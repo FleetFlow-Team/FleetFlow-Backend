@@ -194,9 +194,11 @@ public class AdminVehicleController extends HttpServlet {
             }
             Integer accumulatedKm = getInt(body, "accumulatedKm");
             String description = getStr(body, "description");
+            String fuelType = getStr(body, "fuelType");
+            String imageUrl = getStr(body, "imageUrl");
  
             int newId = vehicleDAO.create(vehicleTypeId, licensePlate, chassisNumber, engineNumber,
-                    brand, model, seatCount, status, accumulatedKm, createdBy, description);
+                    brand, model, seatCount, status, accumulatedKm, createdBy, description, fuelType, imageUrl);
  
             response.setStatus(201);
             out.print("{\"success\": true, \"message\": \"Tạo xe thành công\", \"vehicleId\": " + newId
@@ -242,19 +244,37 @@ public class AdminVehicleController extends HttpServlet {
                 JsonObject tagsBody = readJsonBody(request);
                 if (!tagsBody.has("tags") || !tagsBody.get("tags").isJsonArray()) {
                     response.setStatus(400);
-                    out.print("{\"error\": \"Thiếu trường 'tags' (dạng array string), ví dụ: [\\\"êm ái\\\", \\\"cốp rộng\\\"]\"}");
+                    out.print("{\"error\": \"Thiếu trường 'tags' (dạng array), ví dụ: "
+                            + "[\\\"êm ái\\\", {\\\"tagName\\\":\\\"cốp rộng\\\",\\\"description\\\":\\\"Cốp chứa được 4 vali lớn\\\"}]\"}");
                     return;
                 }
 
                 JsonArray tagsArr = tagsBody.getAsJsonArray("tags");
-                List<String> tagNames = new ArrayList<>();
+                List<Map<String, String>> tagItems = new ArrayList<>();
                 for (int i = 0; i < tagsArr.size(); i++) {
-                    if (!tagsArr.get(i).isJsonNull()) {
-                        tagNames.add(tagsArr.get(i).getAsString());
+                    if (tagsArr.get(i).isJsonNull()) {
+                        continue;
+                    }
+                    Map<String, String> item = new java.util.LinkedHashMap<>();
+                    if (tagsArr.get(i).isJsonObject()) {
+                        // Format đầy đủ: {"tagName": "cốp rộng", "description": "..."}
+                        JsonObject obj = tagsArr.get(i).getAsJsonObject();
+                        if (obj.has("tagName") && !obj.get("tagName").isJsonNull()) {
+                            item.put("tagName", obj.get("tagName").getAsString());
+                        }
+                        if (obj.has("description") && !obj.get("description").isJsonNull()) {
+                            item.put("description", obj.get("description").getAsString());
+                        }
+                    } else {
+                        // Format ngắn: chỉ truyền tên tag dạng string, không có description
+                        item.put("tagName", tagsArr.get(i).getAsString());
+                    }
+                    if (item.get("tagName") != null && !item.get("tagName").trim().isEmpty()) {
+                        tagItems.add(item);
                     }
                 }
 
-                vehicleDAO.updateVehicleTags(tagsVehicleId, tagNames);
+                vehicleDAO.updateVehicleTags(tagsVehicleId, tagItems);
 
                 List<Map<String, Object>> updatedTags = vehicleDAO.getTagsByVehicleId(tagsVehicleId);
                 StringBuilder tagsJsonOut = new StringBuilder();
@@ -303,9 +323,11 @@ public class AdminVehicleController extends HttpServlet {
             String status = getStr(body, "status");
             Integer accumulatedKm = getInt(body, "accumulatedKm");
             String description = getStr(body, "description");
+            String fuelType = getStr(body, "fuelType");
+            String imageUrl = getStr(body, "imageUrl");
  
             vehicleDAO.update(id, vehicleTypeId, licensePlate, chassisNumber, engineNumber,
-                    brand, model, seatCount, status, accumulatedKm, description);
+                    brand, model, seatCount, status, accumulatedKm, description, fuelType, imageUrl);
  
             response.setStatus(200);
             out.print("{\"success\": true, \"message\": \"Cập nhật xe thành công\", \"data\": "
