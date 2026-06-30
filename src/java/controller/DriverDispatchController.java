@@ -22,6 +22,7 @@ import utils.JwtUtils;
 /**
  * GET  /api/v1/driver/dispatch/pending       — danh sách lệnh PENDING kèm thông tin booking
  * GET  /api/v1/driver/dispatch/notifications — notification chưa đọc (polling)
+ * GET  /api/v1/driver/dispatch/history       — lịch sử chuyến đi đã nhận (?status=COMPLETED để filter)
  * POST /api/v1/driver/dispatch/{id}/accept   — nhận chuyến
  * POST /api/v1/driver/dispatch/{id}/reject   — từ chối chuyến
  */
@@ -67,9 +68,17 @@ public class DriverDispatchController extends HttpServlet {
                 response.setStatus(200);
                 out.print(mapsToJson(notifs, "notifications"));
 
+            } else if ("/history".equals(pathInfo)) {
+                // Lịch sử chuyến đi driver đã từng nhận (accept) — filter status booking nếu có
+                String statusFilter = request.getParameter("status");
+                List<java.util.Map<String, Object>> history =
+                        broadcastDAO.getTripHistoryForDriver(driverId, statusFilter);
+                response.setStatus(200);
+                out.print(mapsToJson(history, "data"));
+
             } else {
                 response.setStatus(404);
-                out.print("{\"error\": \"Endpoint không tồn tại. Dùng /pending hoặc /notifications\"}");
+                out.print("{\"error\": \"Endpoint không tồn tại. Dùng /pending, /notifications hoặc /history\"}");
             }
 
         } catch (Exception e) {

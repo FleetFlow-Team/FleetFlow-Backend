@@ -436,5 +436,20 @@ public class AccountDAO {
         return isCreated;
     }
 
-    
+    /**
+     * Lấy danh sách AccountID của tất cả Dispatcher đang ACTIVE — dùng để
+     * gửi notification khi có booking được auto-dispatch cho driver.
+     */
+    public java.util.List<Integer> getActiveDispatcherAccountIds() throws SQLException, ClassNotFoundException {
+        java.util.List<Integer> ids = new java.util.ArrayList<>();
+        String sql = "SELECT AccountID FROM Account WHERE RoleName = 'Dispatcher' AND Status = 'ACTIVE'";
+        try (Connection conn = utils.DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                ids.add(rs.getInt("AccountID"));
+            }
+        }
+        return ids;
+    }
 }

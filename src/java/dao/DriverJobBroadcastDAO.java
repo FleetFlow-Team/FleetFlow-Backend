@@ -297,6 +297,65 @@ public class DriverJobBroadcastDAO {
         }
     }
 
+    /**
+     * Lịch sử chuyến đi của driver — tất cả booking driver đã ACCEPT (đã nhận
+     * chuyến), bất kể trạng thái hiện tại (CONFIRMED, COMPLETED, CANCELLED...).
+     * Hỗ trợ filter theo status booking nếu FE cần (vd chỉ xem COMPLETED).
+     */
+    public List<java.util.Map<String, Object>> getTripHistoryForDriver(int driverId, String statusFilter) throws Exception {
+        List<java.util.Map<String, Object>> list = new ArrayList<>();
+        StringBuilder sql = new StringBuilder(
+                "SELECT djb.BroadcastID, djb.BookingID, djb.DispatchedAt, djb.RespondedAt, "
+                + "b.BookingType, b.TripDirection, b.Status AS BookingStatus, "
+                + "bd.PickupAddress, bd.DropoffAddress, bd.DepartureTime, bd.DistanceKm, "
+                + "a.FullName AS CustomerName, a.PhoneNumber AS CustomerPhone, "
+                + "bp.EstimatedTotal "
+                + "FROM DriverJobBroadcast djb "
+                + "JOIN Booking b ON b.BookingID = djb.BookingID "
+                + "LEFT JOIN BookingDetail bd ON bd.BookingID = djb.BookingID "
+                + "LEFT JOIN BookingPricing bp ON bp.BookingID = djb.BookingID "
+                + "LEFT JOIN Customer c ON c.CustomerID = b.CustomerID "
+                + "LEFT JOIN Account a ON a.AccountID = c.AccountID "
+                + "WHERE djb.AssignedDriverID = ? AND djb.Status = 'ACCEPTED' ");
+
+        boolean hasFilter = statusFilter != null && !statusFilter.isEmpty();
+        if (hasFilter) {
+            sql.append("AND b.Status = ? ");
+        }
+        sql.append("ORDER BY djb.RespondedAt DESC");
+
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            ps.setInt(1, driverId);
+            if (hasFilter) {
+                ps.setString(2, statusFilter);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    java.util.Map<String, Object> row = new java.util.HashMap<>();
+                    row.put("broadcastId", rs.getInt("BroadcastID"));
+                    row.put("bookingId", rs.getInt("BookingID"));
+                    row.put("bookingType", rs.getString("BookingType"));
+                    row.put("tripDirection", rs.getString("TripDirection"));
+                    row.put("bookingStatus", rs.getString("BookingStatus"));
+                    row.put("pickupAddress", rs.getString("PickupAddress"));
+                    row.put("dropoffAddress", rs.getString("DropoffAddress"));
+                    row.put("customerName", rs.getString("CustomerName"));
+                    row.put("customerPhone", rs.getString("CustomerPhone"));
+                    java.sql.Timestamp dep = rs.getTimestamp("DepartureTime");
+                    row.put("departureTime", dep != null ? dep.toString() : null);
+                    java.math.BigDecimal dist = rs.getBigDecimal("DistanceKm");
+                    row.put("distanceKm", dist != null ? dist.toPlainString() : null);
+                    java.math.BigDecimal total = rs.getBigDecimal("EstimatedTotal");
+                    row.put("estimatedTotal", total != null ? total.toPlainString() : null);
+                    row.put("acceptedAt", rs.getTimestamp("RespondedAt").toString());
+                    list.add(row);
+                }
+            }
+        }
+        return list;
+    }
+
     private DriverJobBroadcast mapRow(ResultSet rs) throws SQLException {
         DriverJobBroadcast b = new DriverJobBroadcast();
         b.setId(rs.getInt("BroadcastID"));
@@ -308,4 +367,4 @@ public class DriverJobBroadcastDAO {
         b.setRespondedAt(rs.getTimestamp("RespondedAt"));
         return b;
     }
-}
+} 

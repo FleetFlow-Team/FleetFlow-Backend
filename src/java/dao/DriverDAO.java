@@ -665,4 +665,28 @@ public class DriverDAO {
             }
         }
     }
+
+    /**
+     * Lấy tên + SĐT driver từ DriverID — dùng để build nội dung notification
+     * báo cho Dispatcher biết booking đã được driver nào nhận/từ chối.
+     * Trả về null nếu không tìm thấy.
+     */
+    public Map<String, String> getDriverNameAndPhone(int driverId) throws SQLException, ClassNotFoundException {
+        String sql = "SELECT a.FullName, a.PhoneNumber "
+                + "FROM Driver d JOIN Account a ON d.AccountID = a.AccountID "
+                + "WHERE d.DriverID = ?";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, driverId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Map<String, String> info = new HashMap<>();
+                    info.put("fullName", rs.getString("FullName"));
+                    info.put("phoneNumber", rs.getString("PhoneNumber"));
+                    return info;
+                }
+                return null;
+            }
+        }
+    }
 }

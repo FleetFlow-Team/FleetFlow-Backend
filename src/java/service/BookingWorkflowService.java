@@ -158,6 +158,37 @@ public class BookingWorkflowService {
             // Notification thất bại không nên làm hỏng luồng chính
             e.printStackTrace();
         }
+
+        // Gửi notification cho TẤT CẢ Dispatcher đang active — để biết booking
+        // vừa được gán cho driver nào (hiện tại dispatcher không biết do auto-dispatch)
+        try {
+            notifyDispatchersDriverAssigned(bookingId, nextDriverId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Thông báo cho toàn bộ Dispatcher đang active khi 1 booking vừa được
+     * tự động gán cho driver nào — vì auto-dispatch chạy ngầm, dispatcher
+     * không biết booking #X đang được giao cho ai nếu không có cái này.
+     */
+    private void notifyDispatchersDriverAssigned(int bookingId, int driverId) throws Exception {
+        java.util.List<Integer> dispatcherAccountIds = new dao.AccountDAO().getActiveDispatcherAccountIds();
+        if (dispatcherAccountIds.isEmpty()) return;
+
+        java.util.Map<String, String> driverInfo = new dao.DriverDAO().getDriverNameAndPhone(driverId);
+        String driverName = driverInfo != null ? driverInfo.get("fullName") : ("Driver #" + driverId);
+
+        String title = "Booking #" + bookingId + " đã được gán tài xế";
+        String message = "Hệ thống đã tự động gán booking #" + bookingId
+                + " cho tài xế " + driverName + " (DriverID=" + driverId + ").";
+
+        dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
+        for (int dispatcherAccountId : dispatcherAccountIds) {
+            extDAO.createNotification(dispatcherAccountId, bookingId, title, message,
+                    "BOOKING_DRIVER_ASSIGNED", "IN_APP");
+        }
     }
 
     /**
