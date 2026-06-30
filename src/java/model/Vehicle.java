@@ -19,6 +19,8 @@ public class Vehicle extends BaseEntity implements IAuditableEntity {
     private Timestamp createdAt;
     private Timestamp updatedAt;
     private String description;
+    private String fuelType;
+    private String imageUrl;
 
     public Vehicle() {
     }
@@ -146,5 +148,21 @@ public class Vehicle extends BaseEntity implements IAuditableEntity {
     @Override
     public void setUpdatedAt(Timestamp updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getFuelType() {
+        return fuelType;
+    }
+
+    public void setFuelType(String fuelType) {
+        this.fuelType = fuelType;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }

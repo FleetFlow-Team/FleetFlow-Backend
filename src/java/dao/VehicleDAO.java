@@ -23,7 +23,7 @@ public class VehicleDAO {
     private static final String BASE_SELECT =
             "SELECT v.VehicleID, v.VehicleTypeID, vt.TypeName, "
           + "v.LicensePlate, v.ChassisNumber, v.EngineNumber, v.Brand, v.Model, "
-          + "v.SeatCount, v.Status, v.AccumulatedKm, v.Description, "
+          + "v.SeatCount, v.Status, v.AccumulatedKm, v.Description, v.FuelType, v.ImageUrl, "
           + "STRING_AGG(t.TagName, ', ') AS Tags "
           + "FROM Vehicle v "
           + "JOIN VehicleType vt ON vt.VehicleTypeID = v.VehicleTypeID "
@@ -33,7 +33,7 @@ public class VehicleDAO {
     private static final String GROUP_BY =
             " GROUP BY v.VehicleID, v.VehicleTypeID, vt.TypeName, "
           + "v.LicensePlate, v.ChassisNumber, v.EngineNumber, v.Brand, v.Model, "
-          + "v.SeatCount, v.Status, v.AccumulatedKm, v.Description ";
+          + "v.SeatCount, v.Status, v.AccumulatedKm, v.Description, v.FuelType, v.ImageUrl ";
 
     public List<Map<String, Object>> findAvailable(Integer seatCount, Integer typeId) throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
@@ -235,11 +235,11 @@ public class VehicleDAO {
 
     public int create(int vehicleTypeId, String licensePlate, String chassisNumber, String engineNumber,
             String brand, String model, int seatCount, String status, Integer accumulatedKm,
-            int createdBy, String description) throws Exception {
+            int createdBy, String description, String fuelType, String imageUrl) throws Exception {
         String sql = "INSERT INTO Vehicle "
                 + "(VehicleTypeID, LicensePlate, ChassisNumber, EngineNumber, Brand, Model, "
-                + "SeatCount, Status, AccumulatedKm, CreatedBy, CreatedAt, Description) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                + "SeatCount, Status, AccumulatedKm, CreatedBy, CreatedAt, Description, FuelType, ImageUrl) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, vehicleTypeId);
@@ -254,6 +254,8 @@ public class VehicleDAO {
             ps.setInt(10, createdBy);
             ps.setTimestamp(11, new Timestamp(System.currentTimeMillis()));
             ps.setString(12, description);
+            ps.setString(13, fuelType);
+            ps.setString(14, imageUrl);
             ps.executeUpdate();
             try (ResultSet rs = ps.getGeneratedKeys()) {
                 if (rs.next()) {
@@ -266,7 +268,7 @@ public class VehicleDAO {
 
     public boolean update(int vehicleId, Integer vehicleTypeId, String licensePlate, String chassisNumber,
             String engineNumber, String brand, String model, Integer seatCount, String status,
-            Integer accumulatedKm, String description) throws Exception {
+            Integer accumulatedKm, String description, String fuelType, String imageUrl) throws Exception {
         String sql = "UPDATE Vehicle SET "
                 + "VehicleTypeID = COALESCE(?, VehicleTypeID), "
                 + "LicensePlate = COALESCE(?, LicensePlate), "
@@ -277,7 +279,9 @@ public class VehicleDAO {
                 + "SeatCount = COALESCE(?, SeatCount), "
                 + "Status = COALESCE(?, Status), "
                 + "AccumulatedKm = COALESCE(?, AccumulatedKm), "
-                + "Description = COALESCE(?, Description) "
+                + "Description = COALESCE(?, Description), "
+                + "FuelType = COALESCE(?, FuelType), "
+                + "ImageUrl = COALESCE(?, ImageUrl) "
                 + "WHERE VehicleID = ?";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -291,7 +295,9 @@ public class VehicleDAO {
             ps.setString(8, status);
             setIntOrNull(ps, 9, accumulatedKm);
             ps.setString(10, description);
-            ps.setInt(11, vehicleId);
+            ps.setString(11, fuelType);
+            ps.setString(12, imageUrl);
+            ps.setInt(13, vehicleId);
             return ps.executeUpdate() > 0;
         }
     }
@@ -392,6 +398,8 @@ public class VehicleDAO {
         int km = rs.getInt("AccumulatedKm");
         m.put("accumulatedKm", rs.wasNull() ? null : km);
         m.put("description", rs.getString("Description"));
+        m.put("fuelType", rs.getString("FuelType"));
+        m.put("imageUrl", rs.getString("ImageUrl"));
         m.put("tags", rs.getString("Tags"));
         return m;
     }

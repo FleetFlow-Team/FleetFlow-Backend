@@ -194,9 +194,11 @@ public class AdminVehicleController extends HttpServlet {
             }
             Integer accumulatedKm = getInt(body, "accumulatedKm");
             String description = getStr(body, "description");
+            String fuelType = getStr(body, "fuelType");
+            String imageUrl = getStr(body, "imageUrl");
  
             int newId = vehicleDAO.create(vehicleTypeId, licensePlate, chassisNumber, engineNumber,
-                    brand, model, seatCount, status, accumulatedKm, createdBy, description);
+                    brand, model, seatCount, status, accumulatedKm, createdBy, description, fuelType, imageUrl);
  
             response.setStatus(201);
             out.print("{\"success\": true, \"message\": \"Tạo xe thành công\", \"vehicleId\": " + newId
@@ -321,9 +323,11 @@ public class AdminVehicleController extends HttpServlet {
             String status = getStr(body, "status");
             Integer accumulatedKm = getInt(body, "accumulatedKm");
             String description = getStr(body, "description");
+            String fuelType = getStr(body, "fuelType");
+            String imageUrl = getStr(body, "imageUrl");
  
             vehicleDAO.update(id, vehicleTypeId, licensePlate, chassisNumber, engineNumber,
-                    brand, model, seatCount, status, accumulatedKm, description);
+                    brand, model, seatCount, status, accumulatedKm, description, fuelType, imageUrl);
  
             response.setStatus(200);
             out.print("{\"success\": true, \"message\": \"Cập nhật xe thành công\", \"data\": "
