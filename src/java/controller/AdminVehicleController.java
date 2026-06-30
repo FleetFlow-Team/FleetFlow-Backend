@@ -162,11 +162,21 @@ public class AdminVehicleController extends HttpServlet {
             String model = getStr(body, "model");
             Integer seatCount = getInt(body, "seatCount");
  
-            if (vehicleTypeId == null || licensePlate == null || brand == null
+            if (licensePlate == null || brand == null
                     || model == null || seatCount == null) {
                 response.setStatus(400);
-                out.print("{\"error\": \"Thiếu trường bắt buộc: vehicleTypeId, licensePlate, brand, model, seatCount\"}");
+                out.print("{\"error\": \"Thiếu trường bắt buộc: licensePlate, brand, model, seatCount\"}");
                 return;
+            }
+
+            if (vehicleTypeId == null) {
+                vehicleTypeId = vehicleDAO.findVehicleTypeIdBySeatCount(seatCount);
+                if (vehicleTypeId == null) {
+                    response.setStatus(400);
+                    out.print("{\"error\": \"Không xác định được loại xe cho số chỗ " + seatCount
+                            + ". Hãy gửi kèm vehicleTypeId hoặc thêm VehicleType có SeatCount tương ứng.\"}");
+                    return;
+                }
             }
  
             int createdBy = vehicleDAO.getAccountIdByEmail(adminEmail);

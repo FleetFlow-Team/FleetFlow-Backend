@@ -17,7 +17,11 @@ public class CustomerLockDAO {
 
         public int accountId;
 
+        public String fullName;
+
         public String email;
+
+        public String phoneNumber;
 
         public String status;
 
@@ -35,7 +39,7 @@ public class CustomerLockDAO {
      * tiền (giảm nợ). Trả về số âm nếu đang nợ, 0 hoặc dương nếu không nợ.
      */
     public BigDecimal getCurrentDebt(int customerId) throws Exception {
-        String sql = "SELECT SUM(Amount) AS Total FROM CustomerWalletLedger WHERE CustomerID = ?";
+        String sql = "SELECT SUM(Amount) AS Total FROM CustomerWallet WHERE CustomerID = ?";
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, customerId);
             try ( ResultSet rs = ps.executeQuery()) {
@@ -122,15 +126,17 @@ public class CustomerLockDAO {
         String sql
                 = "SELECT c.CustomerID, "
                 + "c.AccountID, "
+                + "a.FullName, "
                 + "a.Email, "
+                + "a.PhoneNumber, "
                 + "a.Status, "
                 + "ISNULL(SUM(cwl.Amount),0) AS Debt "
                 + "FROM Customer c "
                 + "JOIN Account a ON c.AccountID = a.AccountID "
-                + "LEFT JOIN CustomerWalletLedger cwl "
+                + "LEFT JOIN CustomerWallet cwl "
                 + "ON c.CustomerID = cwl.CustomerID "
                 + "GROUP BY "
-                + "c.CustomerID, c.AccountID, a.Email, a.Status";
+                + "c.CustomerID, c.AccountID, a.FullName, a.Email, a.PhoneNumber, a.Status";
 
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql);  ResultSet rs = ps.executeQuery()) {
 
@@ -140,7 +146,9 @@ public class CustomerLockDAO {
 
                 c.customerId = rs.getInt("CustomerID");
                 c.accountId = rs.getInt("AccountID");
+                c.fullName = rs.getString("FullName");
                 c.email = rs.getString("Email");
+                c.phoneNumber = rs.getString("PhoneNumber");
                 c.status = rs.getString("Status");
 
                 c.debt = rs.getBigDecimal("Debt")
