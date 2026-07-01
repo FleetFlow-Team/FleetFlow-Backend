@@ -136,7 +136,7 @@ public class ExtensionDAO {
 
     public List<Map<String, Object>> getWalletHistory(int customerId) throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
-        String sql = "SELECT * FROM CustomerWalletLedger WHERE CustomerID = ? ORDER BY CreatedAt DESC";
+        String sql = "SELECT * FROM CustomerWallet WHERE CustomerID = ? ORDER BY CreatedAt DESC";
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, customerId);
             ResultSet rs = ps.executeQuery();
