@@ -21,9 +21,10 @@ import utils.JwtUtils;
 /**
  * Dispatcher quản lý duyệt booking + dispatch driver
  *
- * POST /api/v1/dispatcher/bookings/{id}/approve   — duyệt booking PENDING → APPROVED
- * POST /api/v1/dispatcher/bookings/{id}/reject    — từ chối booking PENDING → REJECTED
- * POST /api/v1/dispatcher/bookings/{id}/dispatch  — chỉ định driver cho booking APPROVED
+ * POST /api/v1/dispatcher/bookings/{id}/approve — duyệt booking PENDING →
+ * APPROVED POST /api/v1/dispatcher/bookings/{id}/reject — từ chối booking
+ * PENDING → REJECTED POST /api/v1/dispatcher/bookings/{id}/dispatch — chỉ định
+ * driver cho booking APPROVED
  *
  * Xác thực bằng JWT Bearer token, role phải là Dispatcher (hoặc Admin).
  */
@@ -34,8 +35,9 @@ public class DispatcherBookingController extends HttpServlet {
     private final BookingDAO bookingDAO = new BookingDAO();
 
     /**
-     * GET /api/v1/dispatcher/bookings/pending — danh sách booking đang chờ duyệt (PENDING)
-     * GET /api/v1/dispatcher/bookings?status=APPROVED — xem theo status khác nếu cần
+     * GET /api/v1/dispatcher/bookings/pending — danh sách booking đang chờ
+     * duyệt (PENDING) GET /api/v1/dispatcher/bookings?status=APPROVED — xem
+     * theo status khác nếu cần
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -52,8 +54,9 @@ public class DispatcherBookingController extends HttpServlet {
         }
 
         String pathInfo = request.getPathInfo();
+        if (pathInfo != null) pathInfo = pathInfo.trim();
         String status;
-
+        System.out.println("DEBUG pathInfo: [" + pathInfo + "]");
         if ("/pending".equals(pathInfo)) {
             status = "PENDING";
         } else if ("/unassigned".equals(pathInfo)) {
@@ -64,7 +67,9 @@ public class DispatcherBookingController extends HttpServlet {
                 json.append("{\"success\": true, \"count\": ").append(unassigned.size()).append(", \"data\": [");
                 for (int i = 0; i < unassigned.size(); i++) {
                     json.append(mapToJson(unassigned.get(i)));
-                    if (i < unassigned.size() - 1) json.append(",");
+                    if (i < unassigned.size() - 1) {
+                        json.append(",");
+                    }
                 }
                 json.append("]}");
                 response.setStatus(200);
@@ -198,7 +203,6 @@ public class DispatcherBookingController extends HttpServlet {
     }
 
     // ===================== Helpers =====================
-
     private String readReason(HttpServletRequest request) throws IOException {
         JsonObject body = readJsonBody(request);
         return body.has("reason") && !body.get("reason").isJsonNull()
@@ -227,7 +231,8 @@ public class DispatcherBookingController extends HttpServlet {
     }
 
     /**
-     * Yêu cầu role Dispatcher hoặc Admin (Admin có thể thay Dispatcher khi cần demo/test).
+     * Yêu cầu role Dispatcher hoặc Admin (Admin có thể thay Dispatcher khi cần
+     * demo/test).
      */
     private Account requireDispatcherAccount(HttpServletRequest request, HttpServletResponse response, PrintWriter out) {
         String token = extractToken(request);

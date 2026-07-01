@@ -109,8 +109,15 @@ public class CustomerBookingDAO {
         }
     }
 
+    /**
+     * Hủy booking + ghi nhận phạt theo luồng mới (không còn ghi nợ vào CustomerWalletLedger):
+     * - forfeitDeposit = true  → khách mất nguyên tiền cọc (penaltyAmount = deposit)
+     * - forfeitDeposit = false → hủy free, không mất gì
+     * CustomerWalletLedger từ giờ chỉ dùng để Admin ghi nhận hoàn tiền (REFUND),
+     * không tạo entry PENALTY ở đây nữa.
+     */
     public void cancelBookingWithPenalty(int bookingId, int customerId,
-            int penaltyPercent, BigDecimal penaltyAmount, String reason) throws Exception {
+            boolean forfeitDeposit, BigDecimal penaltyAmount, String reason) throws Exception {
         Connection conn = null;
         try {
             conn = DbUtils.getConnection();
@@ -128,35 +135,23 @@ public class CustomerBookingDAO {
             }
 
             // 2. Insert Cancellation
+            // PenaltyPercent giữ lại 0/100 chỉ để tương thích báo cáo Admin Dashboard cũ
+            // (100 = mất nguyên cọc, 0 = free). PenaltyStatus = 'FORFEITED' nếu mất cọc,
+            // 'NONE' nếu hủy free (không còn 'PENDING' chờ admin xử lý ví nữa).
+            int penaltyPercentForReport = forfeitDeposit ? 100 : 0;
+            String penaltyStatus = forfeitDeposit ? "FORFEITED" : "NONE";
+
             PreparedStatement psCancel = conn.prepareStatement(
                     "INSERT INTO Cancellation (BookingID, PenaltyPercent, PenaltyAmount, PenaltyStatus, Reason, CancelledAt) "
-                    + "VALUES (?, ?, ?, 'PENDING', ?, ?)");
+                    + "VALUES (?, ?, ?, ?, ?, ?)");
             psCancel.setInt(1, bookingId);
-            psCancel.setInt(2, penaltyPercent);
+            psCancel.setInt(2, penaltyPercentForReport);
             psCancel.setBigDecimal(3, penaltyAmount);
-            psCancel.setString(4, reason);
-            psCancel.setTimestamp(5, new Timestamp(System.currentTimeMillis()));
+            psCancel.setString(4, penaltyStatus);
+            psCancel.setString(5, reason);
+            psCancel.setTimestamp(6, new Timestamp(System.currentTimeMillis()));
             psCancel.executeUpdate();
             psCancel.close();
-            // 3. Ghi nhận tiền phạt vào CustomerWalletLedger
-// Amount âm = làm tăng công nợ khách hàng
-            if (penaltyAmount != null
-                    && penaltyAmount.compareTo(BigDecimal.ZERO) >= 0
-                    && penaltyPercent > 0) {
-                PreparedStatement psLedger = conn.prepareStatement(
-                        "INSERT INTO CustomerWallet "
-                        + "(CustomerID, Amount, TransactionType, BookingID, CreatedAt) "
-                        + "VALUES (?, ?, 'PENALTY', ?, ?)");
-
-                psLedger.setInt(1, customerId);
-                psLedger.setBigDecimal(2, penaltyAmount.negate()); // âm để thành công nợ
-                psLedger.setInt(3, bookingId);
-                psLedger.setTimestamp(4,
-                        new Timestamp(System.currentTimeMillis()));
-
-                psLedger.executeUpdate();
-                psLedger.close();
-            }
 
             conn.commit();
         } catch (Exception e) {

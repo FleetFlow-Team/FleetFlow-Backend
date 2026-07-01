@@ -136,6 +136,18 @@
         <servlet-name>FinalPaymentController</servlet-name>
         <servlet-class>controller.FinalPaymentController</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>DispatcherNotificationController</servlet-name>
+        <servlet-class>controller.DispatcherNotificationController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>CustomerRatingHistoryController</servlet-name>
+        <servlet-class>controller.CustomerRatingHistoryController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>CustomerComplaintHistoryController</servlet-name>
+        <servlet-class>controller.CustomerComplaintHistoryController</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -271,6 +283,18 @@
     <servlet-mapping>
         <servlet-name>FinalPaymentController</servlet-name>
         <url-pattern>/FinalPaymentController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>DispatcherNotificationController</servlet-name>
+        <url-pattern>/DispatcherNotificationController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>CustomerRatingHistoryController</servlet-name>
+        <url-pattern>/CustomerRatingHistoryController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>CustomerComplaintHistoryController</servlet-name>
+        <url-pattern>/CustomerComplaintHistoryController</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>30</session-timeout>

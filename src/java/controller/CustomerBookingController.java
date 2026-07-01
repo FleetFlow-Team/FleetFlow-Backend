@@ -180,9 +180,12 @@ public class CustomerBookingController extends HttpServlet {
             response.setStatus(200);
             out.print("{\"success\": true,"
                     + "\"bookingId\":" + result.bookingId + ","
-                    + "\"penaltyPercent\":" + result.penaltyPercent + ","
+                    + "\"forfeitDeposit\":" + result.forfeitDeposit + ","
                     + "\"penaltyAmount\":" + result.penaltyAmount + ","
-                    + "\"message\":\"Hủy booking thành công\"}");
+                    + "\"message\":" + (result.forfeitDeposit
+                            ? "\"Hủy booking thành công. Bạn đã mất tiền cọc do hủy quá muộn (trong vòng 12h trước giờ khởi hành).\""
+                            : "\"Hủy booking thành công. Không mất phí do hủy đủ sớm.\"")
+                    + "}");
 
         } catch (IllegalArgumentException e) {
             response.setStatus(400);

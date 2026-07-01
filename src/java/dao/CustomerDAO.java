@@ -13,23 +13,28 @@ import utils.DbUtils;
 
 public class CustomerDAO {
 
-    private static final String GET_PROFILE_BY_EMAIL = "SELECT a.AccountID, a.Email, a.FullName, a.PhoneNumber, a.RoleName, a.Status, "
+    private static final String GET_PROFILE_BY_EMAIL
+            = "SELECT a.AccountID, a.Email, a.FullName, a.PhoneNumber, a.RoleName, a.Status, "
             + "c.CustomerID, c.Address, c.DebtBalance, c.BookingStatus, c.CreatedAt "
             + "FROM Account a "
             + "JOIN Customer c ON c.AccountID = a.AccountID "
             + "WHERE a.Email = ?";
 
-    private static final String GET_CUSTOMER_ID_BY_EMAIL = "SELECT c.CustomerID FROM Customer c "
+    private static final String GET_CUSTOMER_ID_BY_EMAIL
+            = "SELECT c.CustomerID FROM Customer c "
             + "JOIN Account a ON a.AccountID = c.AccountID "
             + "WHERE a.Email = ?";
 
-    private static final String UPDATE_ACCOUNT = "UPDATE Account SET FullName = COALESCE(?, FullName), "
+    private static final String UPDATE_ACCOUNT
+            = "UPDATE Account SET FullName = COALESCE(?, FullName), "
             + "PhoneNumber = COALESCE(?, PhoneNumber), UpdatedAt = ? WHERE Email = ?";
 
-    private static final String UPDATE_CUSTOMER_ADDRESS = "UPDATE c SET Address = COALESCE(?, Address) "
+    private static final String UPDATE_CUSTOMER_ADDRESS
+            = "UPDATE c SET Address = COALESCE(?, Address) "
             + "FROM Customer c JOIN Account a ON a.AccountID = c.AccountID WHERE a.Email = ?";
 
-    private static final String GET_HISTORY_BY_CUSTOMER_ID = "SELECT b.BookingID, b.Status, b.BookingType, b.TripDirection, b.CreatedAt, "
+    private static final String GET_HISTORY_BY_CUSTOMER_ID
+            = "SELECT b.BookingID, b.Status, b.BookingType, b.TripDirection, b.CreatedAt, "
             + "v.Brand, v.Model, v.LicensePlate, "
             + "bd.PickupAddress, bd.DropoffAddress, bd.DistanceKm, bd.DepartureTime, "
             + "bp.EstimatedTotal "
@@ -41,10 +46,9 @@ public class CustomerDAO {
             + "ORDER BY b.CreatedAt DESC";
 
     public Map<String, Object> getProfileByEmail(String email) throws Exception {
-        try (Connection conn = DbUtils.getConnection();
-                PreparedStatement ps = conn.prepareStatement(GET_PROFILE_BY_EMAIL)) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(GET_PROFILE_BY_EMAIL)) {
             ps.setString(1, email);
-            try (ResultSet rs = ps.executeQuery()) {
+            try ( ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("accountId", rs.getInt("AccountID"));
@@ -66,10 +70,9 @@ public class CustomerDAO {
     }
 
     public int getCustomerIdByEmail(String email) throws Exception {
-        try (Connection conn = DbUtils.getConnection();
-                PreparedStatement ps = conn.prepareStatement(GET_CUSTOMER_ID_BY_EMAIL)) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(GET_CUSTOMER_ID_BY_EMAIL)) {
             ps.setString(1, email);
-            try (ResultSet rs = ps.executeQuery()) {
+            try ( ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return rs.getInt("CustomerID");
                 }
@@ -107,10 +110,12 @@ public class CustomerDAO {
             }
             throw e;
         } finally {
-            if (psAccount != null)
+            if (psAccount != null) {
                 psAccount.close();
-            if (psCustomer != null)
+            }
+            if (psCustomer != null) {
                 psCustomer.close();
+            }
             if (conn != null) {
                 conn.setAutoCommit(true);
                 conn.close();
@@ -120,10 +125,9 @@ public class CustomerDAO {
 
     public List<Map<String, Object>> findBookingHistoryByCustomerId(int customerId) throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
-        try (Connection conn = DbUtils.getConnection();
-                PreparedStatement ps = conn.prepareStatement(GET_HISTORY_BY_CUSTOMER_ID)) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(GET_HISTORY_BY_CUSTOMER_ID)) {
             ps.setInt(1, customerId);
-            try (ResultSet rs = ps.executeQuery()) {
+            try ( ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("bookingId", rs.getInt("BookingID"));
@@ -148,8 +152,7 @@ public class CustomerDAO {
 
     public Integer getCustomerIdByAccountId(int accountId) {
         String sql = "SELECT CustomerID FROM Customer WHERE AccountID = ?";
-        try (Connection conn = DbUtils.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, accountId);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
@@ -173,6 +176,26 @@ public class CustomerDAO {
         } catch (SQLException | ClassNotFoundException e) {
             System.err.println("getAccountIdByCustomerId error: " + e.getMessage());
         }
+        return null;
+    }
+
+    public Integer getAccountIdByCustomerId(int customerId) {
+        String sql = "SELECT AccountID FROM Customer WHERE CustomerID = ?";
+
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, customerId);
+
+            try ( ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("AccountID");
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         return null;
     }
 }
