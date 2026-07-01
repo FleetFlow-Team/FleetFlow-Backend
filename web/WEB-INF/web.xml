@@ -136,6 +136,10 @@
         <servlet-name>FinalPaymentController</servlet-name>
         <servlet-class>controller.FinalPaymentController</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>VNPayController</servlet-name>
+        <servlet-class>controller.VNPayController</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -271,6 +275,10 @@
     <servlet-mapping>
         <servlet-name>FinalPaymentController</servlet-name>
         <url-pattern>/FinalPaymentController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>VNPayController</servlet-name>
+        <url-pattern>/VNPayController</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>30</session-timeout>
