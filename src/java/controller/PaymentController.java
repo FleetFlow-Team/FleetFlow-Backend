@@ -34,9 +34,9 @@ public class PaymentController extends HttpServlet {
     private static final String ACCESS_KEY = "klm05TvNBzhg7h7j"; 
     private static final String SECRET_KEY = "at67qH6mk8w5Y1nAyMoYKMWACiEi2bsa";
     
-    // Đã đưa về chuẩn localhost hoàn toàn để phục vụ demo nội bộ
+    // Da dua ve chuan localhost
     private static final String IPN_URL = "http://localhost:8080/FleetFlow/api/v1/payments/momo/callback"; 
-    private static final String REDIRECT_URL = "http://localhost:8080/FleetFlow/customer/payment-success.html"; 
+    private static final String REDIRECT_URL = "http://127.0.0.1:5501/pages/customer/payment-success.html"; 
 
     private void prepare(HttpServletResponse response) {
         response.setContentType("application/json");
@@ -54,8 +54,8 @@ public class PaymentController extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        prepare(response);
         request.setCharacterEncoding("UTF-8");
+        response.setContentType("application/json; charset=UTF-8");
         PrintWriter out = response.getWriter();
         Map<String, Object> apiResponse = new HashMap<>();
         
@@ -69,11 +69,17 @@ public class PaymentController extends HttpServlet {
             int bookingId = body.get("bookingId").getAsInt(); 
             String paymentType = body.has("paymentType") ? body.get("paymentType").getAsString() : "FINAL";
             String amountStr = body.get("amount").getAsString();
+            String paymentMethod = body.has("paymentMethod") ? body.get("paymentMethod").getAsString() : "MOMO";
             
-            int paymentId = dao.createPayment(bookingId, paymentType, body.get("amount").getAsBigDecimal());
+            int paymentId = dao.createPayment(bookingId, paymentType, body.get("amount").getAsBigDecimal(), paymentMethod);
             
-            String orderId = String.valueOf(paymentId);
-            String requestId = orderId + "_" + System.currentTimeMillis();
+            if ("CASH".equals(paymentMethod)) {
+                out.print("{\"success\": true, \"message\": \"Da ghi nhan tien mat\"}");
+                return;
+            }
+            
+            String orderId = paymentId + "_" + System.currentTimeMillis();
+            String requestId = orderId;
             String orderInfo = "Thanh toan FleetFlow don hang " + orderId;
             String requestType = "captureWallet";
 

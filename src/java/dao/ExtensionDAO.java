@@ -136,7 +136,7 @@ public class ExtensionDAO {
 
     public List<Map<String, Object>> getWalletHistory(int customerId) throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
-        String sql = "SELECT * FROM CustomerWalletLedger WHERE CustomerID = ? ORDER BY CreatedAt DESC";
+        String sql = "SELECT * FROM CustomerWallet WHERE CustomerID = ? ORDER BY CreatedAt DESC";
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, customerId);
             ResultSet rs = ps.executeQuery();
@@ -169,12 +169,14 @@ public class ExtensionDAO {
         }
     }
 
-    public int createPayment(int bookingId, String paymentType, BigDecimal amount) throws Exception {
-        String sql = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status) VALUES (?, ?, 'MOMO', ?, 'PENDING')";
+    public int createPayment(int bookingId, String paymentType, BigDecimal amount, String paymentMethod) throws Exception {
+        String sql = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status, TransactionRef) VALUES (?, ?, ?, ?, 'PENDING', ?)";
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, bookingId);
             ps.setString(2, paymentType);
-            ps.setBigDecimal(3, amount);
+            ps.setString(3, paymentMethod);
+            ps.setBigDecimal(4, amount);
+            ps.setString(5, "CASH".equals(paymentMethod) ? "TXN-D-" + bookingId : null);
             ps.executeUpdate();
             ResultSet rs = ps.getGeneratedKeys();
             if (rs.next()) {
@@ -225,9 +227,12 @@ public class ExtensionDAO {
     }
 
     public BigDecimal calculateFinalPayment(int bookingId) throws Exception {
-        String sql = "SELECT (TotalAmount - DepositAmount) AS Remaining FROM Booking WHERE BookingID = ?";
+        String sql = "SELECT " +
+                     "(SELECT COALESCE(EstimatedTotal, 0) FROM BookingPricing WHERE BookingID = ?) - " +
+                     "(SELECT COALESCE(SUM(Amount), 0) FROM Payment WHERE BookingID = ?) AS Remaining";
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, bookingId);
+            ps.setInt(2, bookingId);
             try ( ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return rs.getBigDecimal("Remaining");
@@ -238,7 +243,7 @@ public class ExtensionDAO {
     }
 
     public boolean processFinalPayment(int bookingId, String paymentMethod, BigDecimal amount) throws Exception {
-        String sql = "INSERT INTO Payment (BookingID, PaymentType, Amount, Method, Status, PaidAt) VALUES (?, 'FINAL', ?, ?, 'SUCCESS', GETDATE())";
+        String sql = "INSERT INTO Payment (BookingID, PaymentType, Amount, Method, Status, PaidAt, TransactionRef) VALUES (?, 'FINAL', ?, ?, 'SUCCESS', GETDATE(), ?)";
         
         try (Connection conn = DbUtils.getConnection(); 
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -246,6 +251,7 @@ public class ExtensionDAO {
             ps.setInt(1, bookingId);
             ps.setBigDecimal(2, amount);
             ps.setString(3, paymentMethod);
+            ps.setString(4, "TXN-F-" + bookingId);
             return ps.executeUpdate() > 0;
         }
     }

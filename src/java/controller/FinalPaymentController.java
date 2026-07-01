@@ -48,7 +48,13 @@ public class FinalPaymentController extends HttpServlet {
             String paymentMethod = body.get("paymentMethod").getAsString();
 
             BigDecimal amountToPay = dao.calculateFinalPayment(bookingId);
-            res.put("success", dao.processFinalPayment(bookingId, paymentMethod, amountToPay));
+            
+            if ("CASH".equals(paymentMethod)) {
+                res.put("success", dao.processFinalPayment(bookingId, paymentMethod, amountToPay));
+            } else {
+                res.put("success", true);
+            }
+            
             res.put("finalAmount", amountToPay);
         } catch (Exception e) {
             response.setStatus(500);
