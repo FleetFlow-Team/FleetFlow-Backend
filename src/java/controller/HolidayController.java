@@ -38,10 +38,16 @@ public class HolidayController extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         response.setContentType("application/json; charset=UTF-8");
+        Map<String, Object> res = new HashMap<>();
         try {
-            response.getWriter().print(gson.toJson(dao.getHolidays()));
+            res.put("success", true);
+            res.put("data", dao.getHolidays());
+            response.getWriter().print(gson.toJson(res));
         } catch (Exception e) {
             response.setStatus(500);
+            res.put("success", false);
+            res.put("message", e.getMessage());
+            response.getWriter().print(gson.toJson(res));
         }
     }
 
