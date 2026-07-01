@@ -15,15 +15,17 @@ import utils.DbUtils;
 /**
  * Service điều phối toàn bộ luồng sau khi Customer tạo Booking:
  *
- *   PENDING (Customer tạo xong)
- *     → Dispatcher CONFIRM (hoặc auto sau timeout) → APPROVED
- *     → Hệ thống tự AUTO-DISPATCH driver rảnh lâu nhất → DISPATCHED
- *     → Dispatcher REJECT → REJECTED
+ * PENDING (Customer tạo xong)
+ * → Dispatcher CONFIRM (hoặc auto sau timeout) → APPROVED
+ * → Hệ thống tự AUTO-DISPATCH driver rảnh lâu nhất → DISPATCHED
+ * → Dispatcher REJECT → REJECTED
  *
- *   DISPATCHED
- *     → Driver ACCEPT  → DriverJobBroadcast.Status=ACCEPTED → Booking.Status = CONFIRMED
- *     → Driver REJECT  → DriverJobBroadcast.Status=REJECTED → tự động dispatch driver tiếp theo
- *                         → Nếu hết driver → Booking.Status = UNASSIGNED (alert dispatcher)
+ * DISPATCHED
+ * → Driver ACCEPT → DriverJobBroadcast.Status=ACCEPTED → Booking.Status =
+ * CONFIRMED
+ * → Driver REJECT → DriverJobBroadcast.Status=REJECTED → tự động dispatch
+ * driver tiếp theo
+ * → Nếu hết driver → Booking.Status = UNASSIGNED (alert dispatcher)
  *
  * Mọi hành động đều ghi vào AuditLog.
  */
@@ -33,7 +35,8 @@ public class BookingWorkflowService {
     private final DriverJobBroadcastDAO broadcastDAO = new DriverJobBroadcastDAO();
     private final AuditLogDAO auditLogDAO = new AuditLogDAO();
 
-    // ===================== BƯỚC 1: Dispatcher confirm booking =====================
+    // ===================== BƯỚC 1: Dispatcher confirm booking
+    // =====================
 
     /**
      * Dispatcher confirm booking — PENDING → APPROVED → tự động dispatch driver.
@@ -58,6 +61,20 @@ public class BookingWorkflowService {
             }
         }
 
+        // Gửi Notification cho Customer
+        try {
+            Integer custAccountId = new dao.CustomerDAO().getAccountIdByCustomerId(booking.getCustomerId());
+            if (custAccountId != null) {
+                new dao.ExtensionDAO().createNotification(custAccountId, bookingId,
+                        "Đơn đặt xe đã được duyệt",
+                        "Cuốc xe #" + bookingId
+                                + " của bạn đã được quản trị viên duyệt và đang trong quá trình tìm tài xế.",
+                        "BOOKING_APPROVED", "IN_APP");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         // Sau khi approve xong, tự động dispatch driver — ngoài transaction approve
         autoDispatchNextDriver(bookingId, new ArrayList<>(), dispatcherAccountId, ipAddress);
     }
@@ -65,7 +82,8 @@ public class BookingWorkflowService {
     /**
      * Dispatcher từ chối booking — PENDING → REJECTED.
      */
-    public void rejectBooking(int bookingId, int dispatcherAccountId, String reason, String ipAddress) throws Exception {
+    public void rejectBooking(int bookingId, int dispatcherAccountId, String reason, String ipAddress)
+            throws Exception {
         Booking booking = requireBookingInStatus(bookingId, "PENDING",
                 "Chỉ từ chối được booking đang ở trạng thái PENDING");
 
@@ -142,6 +160,21 @@ public class BookingWorkflowService {
             }
         }
 
+        // Gửi Notification cho Customer
+        try {
+            Integer custAccountId = new dao.CustomerDAO().getAccountIdByCustomerId(booking.getCustomerId());
+            if (custAccountId != null) {
+                java.util.Map<String, String> driverInfo = new dao.DriverDAO().getDriverNameAndPhone(nextDriverId);
+                String dName = driverInfo != null ? driverInfo.get("fullName") : ("#" + nextDriverId);
+                new dao.ExtensionDAO().createNotification(custAccountId, bookingId,
+                        "Đã tìm thấy tài xế",
+                        "Tài xế " + dName + " đã được gán cho cuốc xe #" + bookingId + " của bạn.",
+                        "DRIVER_ASSIGNED", "IN_APP");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         // Cập nhật LastAssignedAt để lần sau sort đúng
         bookingDAO.updateDriverLastAssigned(nextDriverId);
 
@@ -152,7 +185,8 @@ public class BookingWorkflowService {
             String pickup = detail != null ? detail.getPickupAddress() : null;
             String customerName = b != null ? b.getCustomerName() : null;
             String depTime = (detail != null && detail.getDepartureTime() != null)
-                    ? detail.getDepartureTime().toString() : null;
+                    ? detail.getDepartureTime().toString()
+                    : null;
             broadcastDAO.createDriverNotification(nextDriverId, bookingId, pickup, customerName, depTime);
         } catch (Exception e) {
             // Notification thất bại không nên làm hỏng luồng chính
@@ -175,7 +209,8 @@ public class BookingWorkflowService {
      */
     private void notifyDispatchersDriverAssigned(int bookingId, int driverId) throws Exception {
         java.util.List<Integer> dispatcherAccountIds = new dao.AccountDAO().getActiveDispatcherAccountIds();
-        if (dispatcherAccountIds.isEmpty()) return;
+        if (dispatcherAccountIds.isEmpty())
+            return;
 
         java.util.Map<String, String> driverInfo = new dao.DriverDAO().getDriverNameAndPhone(driverId);
         String driverName = driverInfo != null ? driverInfo.get("fullName") : ("Driver #" + driverId);
@@ -192,9 +227,11 @@ public class BookingWorkflowService {
     }
 
     /**
-     * Dispatcher dispatch thủ công — vẫn giữ cho trường hợp UNASSIGNED cần can thiệp tay.
+     * Dispatcher dispatch thủ công — vẫn giữ cho trường hợp UNASSIGNED cần can
+     * thiệp tay.
      */
-    public long dispatchDriver(int bookingId, int driverId, int dispatcherAccountId, String ipAddress) throws Exception {
+    public long dispatchDriver(int bookingId, int driverId, int dispatcherAccountId, String ipAddress)
+            throws Exception {
         Booking booking = bookingDAO.findById(bookingId);
         if (booking == null) {
             throw new IllegalArgumentException("Không tìm thấy booking #" + bookingId);
@@ -202,13 +239,13 @@ public class BookingWorkflowService {
         if (!"APPROVED".equalsIgnoreCase(booking.getStatus())
                 && !"UNASSIGNED".equalsIgnoreCase(booking.getStatus())) {
             throw new IllegalArgumentException(
-                "Chỉ dispatch thủ công được khi booking ở trạng thái APPROVED hoặc UNASSIGNED. "
-                + "Trạng thái hiện tại: " + booking.getStatus());
+                    "Chỉ dispatch thủ công được khi booking ở trạng thái APPROVED hoặc UNASSIGNED. "
+                            + "Trạng thái hiện tại: " + booking.getStatus());
         }
 
         if (broadcastDAO.hasPendingBroadcast(bookingId)) {
             throw new IllegalArgumentException(
-                "Booking này đang có lệnh dispatch khác chờ phản hồi, không thể dispatch thêm.");
+                    "Booking này đang có lệnh dispatch khác chờ phản hồi, không thể dispatch thêm.");
         }
 
         try (Connection conn = DbUtils.getConnection()) {
@@ -231,7 +268,8 @@ public class BookingWorkflowService {
         }
     }
 
-    // ===================== BƯỚC 3: Driver phản hồi lệnh dispatch =====================
+    // ===================== BƯỚC 3: Driver phản hồi lệnh dispatch
+    // =====================
 
     /**
      * Driver accept lệnh dispatch → Booking chuyển CONFIRMED.
@@ -240,7 +278,7 @@ public class BookingWorkflowService {
         int updated = broadcastDAO.respondToDispatch(broadcastId, driverId, "ACCEPTED");
         if (updated == 0) {
             throw new IllegalArgumentException(
-                "Không tìm thấy lệnh dispatch hợp lệ (đã được xử lý trước đó hoặc không thuộc driver này).");
+                    "Không tìm thấy lệnh dispatch hợp lệ (đã được xử lý trước đó hoặc không thuộc driver này).");
         }
 
         int bookingId = getBookingIdFromBroadcast(broadcastId);
@@ -277,7 +315,7 @@ public class BookingWorkflowService {
         int updated = broadcastDAO.respondToDispatch(broadcastId, driverId, "REJECTED", reason);
         if (updated == 0) {
             throw new IllegalArgumentException(
-                "Không tìm thấy lệnh dispatch hợp lệ (đã được xử lý trước đó hoặc không thuộc driver này).");
+                    "Không tìm thấy lệnh dispatch hợp lệ (đã được xử lý trước đó hoặc không thuộc driver này).");
         }
 
         int bookingId = getBookingIdFromBroadcast(broadcastId);
@@ -323,7 +361,8 @@ public class BookingWorkflowService {
     private void notifyDispatchersDriverResponded(int bookingId, int driverId,
             boolean accepted, String reason) throws Exception {
         java.util.List<Integer> dispatcherAccountIds = new dao.AccountDAO().getActiveDispatcherAccountIds();
-        if (dispatcherAccountIds.isEmpty()) return;
+        if (dispatcherAccountIds.isEmpty())
+            return;
 
         java.util.Map<String, String> driverInfo = new dao.DriverDAO().getDriverNameAndPhone(driverId);
         String driverName = driverInfo != null ? driverInfo.get("fullName") : ("Driver #" + driverId);
