@@ -3,6 +3,7 @@ package dao;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -157,8 +158,23 @@ public class CustomerDAO {
             if (rs.next()) {
                 return rs.getInt("CustomerID");
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (SQLException | ClassNotFoundException e) {
+            System.err.println("getCustomerIdByAccountId error: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public Integer getAccountIdByCustomerId(int customerId) {
+        String sql = "SELECT AccountID FROM Customer WHERE CustomerID = ?";
+        try (Connection conn = DbUtils.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, customerId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("AccountID");
+            }
+        } catch (SQLException | ClassNotFoundException e) {
+            System.err.println("getAccountIdByCustomerId error: " + e.getMessage());
         }
         return null;
     }

@@ -275,6 +275,7 @@ public class DriverJobBroadcastDAO {
                     row.put("title", rs.getString("Title"));
                     row.put("message", rs.getString("Message"));
                     row.put("type", rs.getString("Type"));
+                    row.put("isRead", rs.getBoolean("IsRead"));
                     row.put("createdAt", rs.getTimestamp("CreatedAt").toString());
                     list.add(row);
                 }

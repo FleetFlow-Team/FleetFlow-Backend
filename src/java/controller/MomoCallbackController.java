@@ -48,7 +48,8 @@ public class MomoCallbackController extends HttpServlet {
             JsonObject momoRes = JsonParser.parseString(sb.toString()).getAsJsonObject();
             
             int resultCode = momoRes.get("resultCode").getAsInt();
-            int paymentId = Integer.parseInt(momoRes.get("orderId").getAsString());
+            String rawOrderId = momoRes.get("orderId").getAsString();
+            int paymentId = Integer.parseInt(rawOrderId.split("_")[0]);
             
             String transId = momoRes.has("transId") ? momoRes.get("transId").getAsString() : "N/A";
             String payType = momoRes.has("payType") ? momoRes.get("payType").getAsString() : "MoMo";
