@@ -2997,3 +2997,91 @@ path POST http://localhost:8080/FleetFlow/api/v1/ai/chat
         }
     ]
 }
+---------------------------------------------------------------------------
+Dispatcher get notifications
+Header: Authorization: Bearer DISPATCHER_TOKEN
+path GET http://localhost:8080/FleetFlow/api/v1/dispatcher/notifications
+output:
+{
+    "data": [
+        {
+            "NotificationID": 7,
+            "RecipientAccountID": 18,
+            "BookingID": 17,
+            "Title": "Booking #17 đã được gán tài xế",
+            "Message": "Hệ thống đã tự động gán booking #17 cho tài xế Tuấn Ngô (DriverID=1).",
+            "Type": "BOOKING_DRIVER_ASSIGNED",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "Jun 30, 2026 11:21:40 AM"
+        },
+        {
+            "NotificationID": 4,
+            "RecipientAccountID": 18,
+            "BookingID": 17,
+            "Title": "Booking #17 bị tài xế từ chối",
+            "Message": "Tài xế Sơn Dương (DriverID=2) đã từ chối booking #17. Lý do: Bận việc cá nhân Hệ thống đang tự tìm tài xế khác.",
+            "Type": "BOOKING_DRIVER_REJECTED",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "Jun 30, 2026 11:21:39 AM"
+        },
+        {
+            "NotificationID": 2,
+            "RecipientAccountID": 18,
+            "BookingID": 17,
+            "Title": "Booking #17 đã được gán tài xế",
+            "Message": "Hệ thống đã tự động gán booking #17 cho tài xế Sơn Dương (DriverID=2).",
+            "Type": "BOOKING_DRIVER_ASSIGNED",
+            "Channel": "IN_APP",
+            "IsRead": true,
+            "CreatedAt": "Jun 30, 2026 10:49:51 AM"
+        }
+    ],
+    "success": true
+}
+Dispatcher confirm read notification
+Header: Authorization: Bearer DISPATCHER_TOKEN
+path: POST http://localhost:8080/FleetFlow/api/v1/dispatcher/notifications/2/read
+output:
+{
+    "success": true
+}
+Driver get history trip 
+Header: Authorization: Bearer DRIVER_TOKEN
+path: GET http://localhost:8080/FleetFlow/api/v1/driver/dispatch/history
+{
+    "success": true,
+    "data": [
+        {
+            "dropoffAddress": "Sân bay Tân Sơn Nhất, TP.HCM",
+            "departureTime": "2025-03-21 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "distanceKm": "222.50",
+            "bookingId": 11,
+            "customerName": "Phúc Võ",
+            "customerPhone": "0900000011",
+            "pickupAddress": "123 Lê Lợi, Q.1, TP.HCM",
+            "broadcastId": 6,
+            "bookingType": "HOURLY",
+            "bookingStatus": "COMPLETED",
+            "estimatedTotal": "365000.00",
+            "acceptedAt": "2025-03-21 06:33:00.0"
+        },
+        {
+            "dropoffAddress": "Sân bay Tân Sơn Nhất, TP.HCM",
+            "departureTime": "2025-03-11 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "distanceKm": "47.50",
+            "bookingId": 1,
+            "customerName": "An Nguyễn",
+            "customerPhone": "0900000001",
+            "pickupAddress": "123 Lê Lợi, Q.1, TP.HCM",
+            "broadcastId": 1,
+            "bookingType": "DISTANCE",
+            "bookingStatus": "COMPLETED",
+            "estimatedTotal": "85000.00",
+            "acceptedAt": "2025-03-11 08:12:00.0"
+        }
+    ]
+}
