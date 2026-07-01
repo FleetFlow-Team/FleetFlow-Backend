@@ -179,23 +179,5 @@ public class CustomerDAO {
         return null;
     }
 
-    public Integer getAccountIdByCustomerId(int customerId) {
-        String sql = "SELECT AccountID FROM Customer WHERE CustomerID = ?";
-
-        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, customerId);
-
-            try ( ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt("AccountID");
-                }
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return null;
-    }
+   
 }
