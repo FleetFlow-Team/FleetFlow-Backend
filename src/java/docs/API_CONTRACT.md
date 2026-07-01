@@ -1531,6 +1531,38 @@ MoMo Callback Webhook (MoMo tự động gọi về khi thanh toán thành công
 - Output: 
 Status 204 No Content
 
+Customer xem lịch sử ratings
+- Path: GET http://localhost:8080/FleetFlow/api/v1/customer/ratings
+- Input:
+- Output:
+{
+    "data": [
+        {
+            "ratingId": 1,
+            "bookingId": 1,
+            "driverRating": 5,
+            "carRating": 5,
+            "comment": "Tài xế thân thiện, xe sạch sẽ",
+            "vehicleName": "Toyota Vios",
+            "licensePlate": "51B-101.11",
+            "bookingType": "DISTANCE",
+            "driverName": "Tuấn Ngô",
+            "createdAt": "2025-03-25 10:00:00.0"
+        }
+    ],
+    "success": true
+}
+
+Customer xem lích sử complaint
+- Path: GET http://localhost:8080/FleetFlow/api/v1/customer/complaints
+- Input:
+- Output:
+{
+    "data": [],
+    "success": true
+}
+//Do chưa có complaint nên trống, code đã chạy được nhé!
+
 - Path:
 - Input:
 - Output:
