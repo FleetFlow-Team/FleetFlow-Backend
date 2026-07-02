@@ -92,7 +92,28 @@ public class DispatcherConplaintController extends HttpServlet {
                 int complaintId = Integer.parseInt(pathInfo.split("/")[1]);
                 JsonObject body = readBody(request);
                 String resolution = body.has("resolution") ? body.get("resolution").getAsString() : "";
-                res.put("success", dao.resolveComplaint(complaintId, resolution));
+                boolean resolved = dao.resolveComplaint(complaintId, resolution);
+                res.put("success", resolved);
+
+                // Notify customer khi khiếu nại được xử lý thành công
+                if (resolved) {
+                    try {
+                        int[] info = dao.getComplaintCustomerInfo(complaintId);
+                        int customerAccountId = info[0];
+                        Integer bookingId = info[1] == -1 ? null : info[1];
+                        if (customerAccountId != -1) {
+                            new dao.ExtensionDAO().createNotification(
+                                    customerAccountId, bookingId,
+                                    "Khiếu nại của bạn đã được xử lý",
+                                    "Khiếu nại #" + complaintId + " đã được giải quyết."
+                                            + (resolution != null && !resolution.isEmpty()
+                                                    ? " Phản hồi: " + resolution : ""),
+                                    "COMPLAINT_RESOLVED", "IN_APP");
+                        }
+                    } catch (Exception notifEx) {
+                        notifEx.printStackTrace();
+                    }
+                }
             } else {
                 response.setStatus(400);
                 res.put("success", false);

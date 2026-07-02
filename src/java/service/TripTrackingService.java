@@ -82,6 +82,20 @@ public class TripTrackingService {
                 conn.setAutoCommit(true);
             }
         }
+
+        // Notify customer: chuyến đã hoàn thành
+        try {
+            dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
+            int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
+            if (customerAccountId != -1) {
+                extDAO.createNotification(customerAccountId, bookingId,
+                        "Chuyến đi đã hoàn thành",
+                        "Chuyến đi #" + bookingId + " đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!",
+                        "TRIP_COMPLETED", "IN_APP");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     // ===================== GPS tracking =====================

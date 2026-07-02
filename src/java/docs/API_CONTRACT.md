@@ -1421,7 +1421,8 @@ Xem lịch sử ví/công nợ (CustomerWalletLedger)
         }
     ]
 }
-
+------------------------------------------------------------------
+Update notification 2/7/2026
 Danh sách thông báo của customer
 - Path: GET http://localhost:8080/FleetFlow/api/v1/customer/notifications
 - Input:
@@ -1442,7 +1443,44 @@ Danh sách thông báo của customer
         }
     ]
 }
+th customer cancel booking 
 
+output:
+{
+    "data": [
+        {
+            "NotificationID": 15,
+            "RecipientAccountID": 3,
+            "BookingID": 17,
+            "Title": "Booking #17 đã bị hủy",
+            "Message": "Chuyến đi của bạn đã được hủy thành công. Bạn bị mất cọc 333120đ do hủy trong vòng 12h.",
+            "Type": "BOOKING_CANCELLED",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "Jul 2, 2026 11:11:18 PM"
+        }
+    ],
+    "success": true
+}
+
+Notification khi success trip for customer
+output:
+{
+    "data": [
+        {
+            "NotificationID": 14,
+            "RecipientAccountID": 12,
+            "BookingID": 18,
+            "Title": "Chuyến đi đã hoàn thành",
+            "Message": "Chuyến đi #18 đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!",
+            "Type": "TRIP_COMPLETED",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "Jul 2, 2026 11:06:58 PM"
+        }
+    ],
+    "success": true
+}
 Đánh dấu đã đọc thông báo
 - Path: POST http://localhost:8080/FleetFlow/api/v1/customer/notifications/5/read
 - Input: {id} của Notification trên URL
@@ -3114,6 +3152,18 @@ path: GET http://localhost:8080/FleetFlow/api/v1/driver/dispatch/history
             "bookingStatus": "COMPLETED",
             "estimatedTotal": "85000.00",
             "acceptedAt": "2025-03-11 08:12:00.0"
+        },
+notification for dispatcher when customer cancel booking
+        {
+            "NotificationID": 16,
+            "RecipientAccountID": 18,
+            "BookingID": 17,
+            "Title": "Booking #17 bị hủy bởi khách",
+            "Message": "Khách hàng đã hủy booking #17. Bạn bị mất cọc 333120đ do hủy trong vòng 12h.",
+            "Type": "BOOKING_CANCELLED",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "Jul 2, 2026 11:11:18 PM"
         }
     ]
 }

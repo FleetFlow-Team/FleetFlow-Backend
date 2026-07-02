@@ -88,6 +88,41 @@ public class CustomerBookingService {
                 reason
         );
 
+        // Notify customer, driver, dispatcher khi hủy chuyến
+        try {
+            dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
+            String penaltyMsg = isForfeitDeposit
+                    ? " Bạn bị mất cọc " + penaltyAmount.toPlainString() + "đ do hủy trong vòng 12h."
+                    : " Không mất phí hủy.";
+
+            int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
+            if (customerAccountId != -1) {
+                extDAO.createNotification(customerAccountId, bookingId,
+                        "Booking #" + bookingId + " đã bị hủy",
+                        "Chuyến đi của bạn đã được hủy thành công." + penaltyMsg,
+                        "BOOKING_CANCELLED", "IN_APP");
+            }
+
+            int driverAccountId = extDAO.getDriverAccountIdByBookingId(bookingId);
+            if (driverAccountId != -1) {
+                extDAO.createNotification(driverAccountId, bookingId,
+                        "Chuyến đi #" + bookingId + " bị hủy",
+                        "Khách hàng đã hủy booking #" + bookingId
+                                + (reason != null && !reason.isEmpty() ? ". Lý do: " + reason : "."),
+                        "BOOKING_CANCELLED", "IN_APP");
+            }
+
+            java.util.List<Integer> dispatcherIds = new dao.AccountDAO().getActiveDispatcherAccountIds();
+            for (int dispId : dispatcherIds) {
+                extDAO.createNotification(dispId, bookingId,
+                        "Booking #" + bookingId + " bị hủy bởi khách",
+                        "Khách hàng đã hủy booking #" + bookingId + "." + penaltyMsg,
+                        "BOOKING_CANCELLED", "IN_APP");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         return new CancelResult(
                 bookingId,
                 isForfeitDeposit,
