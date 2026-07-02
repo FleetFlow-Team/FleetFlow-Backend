@@ -257,10 +257,11 @@ public class DriverJobBroadcastDAO {
      */
     public List<java.util.Map<String, Object>> getUnreadNotifications(int driverId) throws Exception {
         List<java.util.Map<String, Object>> list = new ArrayList<>();
-        String sql = "SELECT TOP 20 n.NotificationID, n.BookingID, n.Title, n.Message, n.Type, n.IsRead, n.CreatedAt "
+        String sql = "SELECT n.NotificationID, n.BookingID, n.Title, n.Message, n.Type, n.IsRead, n.CreatedAt "
                 + "FROM Notification n "
                 + "JOIN Driver d ON d.AccountID = n.RecipientAccountID "
                 + "WHERE d.DriverID = ? "
+                + "AND n.IsRead = 0 "
                 + "AND n.Type LIKE 'DISPATCH_%' "
                 + "ORDER BY n.CreatedAt DESC";
         try (Connection conn = DbUtils.getConnection();

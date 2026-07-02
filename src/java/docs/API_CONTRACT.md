@@ -1531,6 +1531,38 @@ MoMo Callback Webhook (MoMo tự động gọi về khi thanh toán thành công
 - Output: 
 Status 204 No Content
 
+Customer xem lịch sử ratings
+- Path: GET http://localhost:8080/FleetFlow/api/v1/customer/ratings
+- Input:
+- Output:
+{
+    "data": [
+        {
+            "ratingId": 1,
+            "bookingId": 1,
+            "driverRating": 5,
+            "carRating": 5,
+            "comment": "Tài xế thân thiện, xe sạch sẽ",
+            "vehicleName": "Toyota Vios",
+            "licensePlate": "51B-101.11",
+            "bookingType": "DISTANCE",
+            "driverName": "Tuấn Ngô",
+            "createdAt": "2025-03-25 10:00:00.0"
+        }
+    ],
+    "success": true
+}
+
+Customer xem lích sử complaint
+- Path: GET http://localhost:8080/FleetFlow/api/v1/customer/complaints
+- Input:
+- Output:
+{
+    "data": [],
+    "success": true
+}
+//Do chưa có complaint nên trống, code đã chạy được nhé!
+
 - Path:
 - Input:
 - Output:
@@ -2866,4 +2898,222 @@ Xóa ngày lễ
 - Output:
 {
     "success": true
+Dispatcher coi thông tin booking khi hết xe k tự auto gán đc nữa 
+Header: Authorization: Bearer DISPATCHER_TOKEN
+path: GET http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings/unassigned
+output:
+{
+    "success": true,
+    "count": 1,
+    "data": [
+        {
+            "dropoffAddress": "Vũng Tàu",
+            "departureTime": "2026-07-02 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "customerPhone": "0900000003",
+            "pickupAddress": "123 Nguyễn Huệ",
+            "bookingType": "DISTANCE",
+            "customerId": 3,
+            "vehicleId": 17,
+            "bookingId": 41,
+            "customerName": "Cường Lê",
+            "status": "UNASSIGNED",
+            "updatedAt": "2026-06-26 13:38:12.028"
+        }
+    ]
+} 
+Admin xem tag của từng xe đang được gán
+Header: Authorization: Bearer ADMIN_TOKEN
+path GET http://localhost:8080/FleetFlow/api/v1/admin/vehicles/1/tags
+{
+    "success": true,
+    "vehicleId": 1,
+    "data": [
+        {
+          
+  "tagId": 14,
+            "tagName": "cốp rộng",
+            "description": null
+        },
+        {
+            "tagId": 13,
+            "tagName": "êm ái",
+            "description": null
+        }
+    ]
+}
+ADMIN UPDATE TAG FOR VEHICle
+Header: Authorization: Bearer ADMIN_TOKEN
+path: PUT http://localhost:8080/FleetFlow/api/v1/admin/vehicles/1/tags
+input: 
+{
+  "tags": [
+    { "tagName": "em ai", "description": "Cốp chứa được 1000 vali lớn" },
+    { "tagName": "cốp rộng", "description": "Cốp chứa được 4 vali lớn" }
+  ]
+}
+output:
+{
+    "success": true,
+    "message": "Cập nhật tags thành công",
+    "vehicleId": 1,
+    "data": [
+        {
+            "tagId": 14,
+            "tagName": "cốp rộng",
+            "description": "Cốp chứa được 4 vali lớn"
+        },
+        {
+            "tagId": 15,
+            "tagName": "em ai",
+            "description": "Cốp chứa được 1000 vali lớn"
+        }
+    ]
+}
+AI find car for customer when chat
+path POST http://localhost:8080/FleetFlow/api/v1/ai/chat
+{ "message": "tôi cần xe 7 chỗ đi Đà Lạt, cốp rộng" }
+{
+    "success": true,
+    "source": "FALLBACK",
+    "data": [
+        {
+            "vehicleId": 1,
+            "brand": "Toyota",
+            "model": "Vios",
+            "vehicleType": "Sedan 4 chỗ",
+            "seatCount": 4,
+            "tags": "êm ái, cốp rộng",
+            "reason": "Gợi ý theo từ khóa (AI tạm thời không khả dụng)",
+            "source": "FALLBACK"
+        },
+        {
+            "vehicleId": 2,
+            "brand": "Honda",
+            "model": "City",
+            "vehicleType": "Sedan 4 chỗ",
+            "seatCount": 4,
+            "tags": "Ghế da, Ghế ngả, Hợp đường dài",
+            "reason": "Gợi ý theo từ khóa (AI tạm thời không khả dụng)",
+            "source": "FALLBACK"
+        },
+        {
+            "vehicleId": 3,
+            "brand": "Hyundai",
+            "model": "Accent",
+            "vehicleType": "Sedan 4 chỗ",
+            "seatCount": 4,
+            "tags": "Màn hình giải trí, Cửa sổ trời, Khoang rộng",
+            "reason": "Gợi ý theo từ khóa (AI tạm thời không khả dụng)",
+            "source": "FALLBACK"
+        },
+        {
+            "vehicleId": 4,
+            "brand": "Mazda",
+            "model": "Mazda3",
+            "vehicleType": "Sedan 4 chỗ",
+            "seatCount": 4,
+            "tags": "Wifi, Cảm biến lùi, Mới bảo dưỡng",
+            "reason": "Gợi ý theo từ khóa (AI tạm thời không khả dụng)",
+            "source": "FALLBACK"
+        },
+        {
+            "vehicleId": 5,
+            "brand": "Kia",
+            "model": "Soluto",
+            "vehicleType": "Sedan 4 chỗ",
+            "seatCount": 4,
+            "tags": "Đời mới, Ghế ngả, Bảo hiểm đầy đủ",
+            "reason": "Gợi ý theo từ khóa (AI tạm thời không khả dụng)",
+            "source": "FALLBACK"
+        }
+    ]
+}
+---------------------------------------------------------------------------
+Dispatcher get notifications
+Header: Authorization: Bearer DISPATCHER_TOKEN
+path GET http://localhost:8080/FleetFlow/api/v1/dispatcher/notifications
+output:
+{
+    "data": [
+        {
+            "NotificationID": 7,
+            "RecipientAccountID": 18,
+            "BookingID": 17,
+            "Title": "Booking #17 đã được gán tài xế",
+            "Message": "Hệ thống đã tự động gán booking #17 cho tài xế Tuấn Ngô (DriverID=1).",
+            "Type": "BOOKING_DRIVER_ASSIGNED",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "Jun 30, 2026 11:21:40 AM"
+        },
+        {
+            "NotificationID": 4,
+            "RecipientAccountID": 18,
+            "BookingID": 17,
+            "Title": "Booking #17 bị tài xế từ chối",
+            "Message": "Tài xế Sơn Dương (DriverID=2) đã từ chối booking #17. Lý do: Bận việc cá nhân Hệ thống đang tự tìm tài xế khác.",
+            "Type": "BOOKING_DRIVER_REJECTED",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "Jun 30, 2026 11:21:39 AM"
+        },
+        {
+            "NotificationID": 2,
+            "RecipientAccountID": 18,
+            "BookingID": 17,
+            "Title": "Booking #17 đã được gán tài xế",
+            "Message": "Hệ thống đã tự động gán booking #17 cho tài xế Sơn Dương (DriverID=2).",
+            "Type": "BOOKING_DRIVER_ASSIGNED",
+            "Channel": "IN_APP",
+            "IsRead": true,
+            "CreatedAt": "Jun 30, 2026 10:49:51 AM"
+        }
+    ],
+    "success": true
+}
+Dispatcher confirm read notification
+Header: Authorization: Bearer DISPATCHER_TOKEN
+path: POST http://localhost:8080/FleetFlow/api/v1/dispatcher/notifications/2/read
+output:
+{
+    "success": true
+}
+Driver get history trip 
+Header: Authorization: Bearer DRIVER_TOKEN
+path: GET http://localhost:8080/FleetFlow/api/v1/driver/dispatch/history
+{
+    "success": true,
+    "data": [
+        {
+            "dropoffAddress": "Sân bay Tân Sơn Nhất, TP.HCM",
+            "departureTime": "2025-03-21 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "distanceKm": "222.50",
+            "bookingId": 11,
+            "customerName": "Phúc Võ",
+            "customerPhone": "0900000011",
+            "pickupAddress": "123 Lê Lợi, Q.1, TP.HCM",
+            "broadcastId": 6,
+            "bookingType": "HOURLY",
+            "bookingStatus": "COMPLETED",
+            "estimatedTotal": "365000.00",
+            "acceptedAt": "2025-03-21 06:33:00.0"
+        },
+        {
+            "dropoffAddress": "Sân bay Tân Sơn Nhất, TP.HCM",
+            "departureTime": "2025-03-11 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "distanceKm": "47.50",
+            "bookingId": 1,
+            "customerName": "An Nguyễn",
+            "customerPhone": "0900000001",
+            "pickupAddress": "123 Lê Lợi, Q.1, TP.HCM",
+            "broadcastId": 1,
+            "bookingType": "DISTANCE",
+            "bookingStatus": "COMPLETED",
+            "estimatedTotal": "85000.00",
+            "acceptedAt": "2025-03-11 08:12:00.0"
+        }
+    ]
 }

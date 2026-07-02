@@ -8,7 +8,9 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import utils.DbUtils;
 
 /**
@@ -63,5 +65,42 @@ public class RatingDAO {
             }
         }
         return emails;
+    }
+
+    public List<Map<String, Object>> getRatingsByCustomerId(int customerId) throws Exception {
+        List<Map<String, Object>> list = new ArrayList<>();
+        String sql = "SELECT cr.RatingID, cr.BookingID, cr.DriverRating, cr.CarRating, cr.Comment, cr.CreatedAt, "
+                + "b.BookingType, v.Brand, v.Model, v.LicensePlate, da.FullName AS DriverName "
+                + "FROM CustomerRating cr "
+                + "JOIN Booking b ON b.BookingID = cr.BookingID "
+                + "LEFT JOIN Vehicle v ON v.VehicleID = b.VehicleID "
+                + "LEFT JOIN DriverJobBroadcast djb ON djb.BookingID = b.BookingID AND djb.Status = 'ACCEPTED' "
+                + "LEFT JOIN Driver d ON d.DriverID = djb.AssignedDriverID "
+                + "LEFT JOIN Account da ON da.AccountID = d.AccountID "
+                + "WHERE b.CustomerID = ? "
+                + "ORDER BY cr.CreatedAt DESC";
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, customerId);
+            try ( ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("ratingId", rs.getInt("RatingID"));
+                    m.put("bookingId", rs.getInt("BookingID"));
+                    m.put("driverRating", rs.getInt("DriverRating"));
+                    m.put("carRating", rs.getInt("CarRating"));
+                    m.put("comment", rs.getString("Comment"));
+                    String brand = rs.getString("Brand");
+                    String model = rs.getString("Model");
+                    m.put("vehicleName", (brand == null ? "" : brand) + " " + (model == null ? "" : model));
+                    m.put("licensePlate", rs.getString("LicensePlate"));
+                    m.put("bookingType", rs.getString("BookingType"));
+                    m.put("driverName", rs.getString("DriverName"));
+                    java.sql.Timestamp createdAt = rs.getTimestamp("CreatedAt");
+                    m.put("createdAt", createdAt != null ? createdAt.toString() : null);
+                    list.add(m);
+                }
+            }
+        }
+        return list;
     }
 }
