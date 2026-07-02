@@ -137,6 +137,8 @@
         <servlet-class>controller.FinalPaymentController</servlet-class>
     </servlet>
     <servlet>
+        <servlet-name>VNPayController</servlet-name>
+        <servlet-class>controller.VNPayController</servlet-class>
         <servlet-name>DispatcherNotificationController</servlet-name>
         <servlet-class>controller.DispatcherNotificationController</servlet-class>
     </servlet>

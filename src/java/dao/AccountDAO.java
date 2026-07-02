@@ -23,7 +23,7 @@ public class AccountDAO {
     private static final String GET_ACCOUNT_ID = "SELECT AccountID FROM Account WHERE Email = ?";
     private static final String CHANGE_PASSWORD = "UPDATE Account SET PasswordHash = ?, UpdatedAt = ? WHERE Email = ? AND PasswordHash = ?";
     private static final String HASH_PASSWORD = "SELECT * FROM Account WHERE Email = ?";
-    private static final String INSERT_CUSTOMER = "INSERT INTO Customer (AccountID, Address, BookingStatus, CreatedAt) VALUES (?, ?, 'Active', ?)";
+    private static final String INSERT_CUSTOMER = "INSERT INTO Customer (AccountID, Address, Status, CreatedAt) VALUES (?, ?, 'Active', ?)";
     private static final String INSERT_DRIVER = "INSERT INTO Driver (AccountID, ApprovalStatus, AvailabilityStatus, TermsAcceptedAt, AverageRating, WalletBalance, CreatedAt, TermsAccepted) VALUES (?, 'Pending', 'Offline', NULL, NULL, 0, ?, 0)";
    
 
