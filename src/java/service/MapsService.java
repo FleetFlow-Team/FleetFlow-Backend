@@ -164,4 +164,77 @@ public class MapsService {
 
         return sb.toString();
     }
+
+    /**
+     * GET /api/v1/maps/reverse-geocode?lat=&lng=
+     * Nhận tọa độ GPS từ trình duyệt/mobile của khách → gọi VietMap reverse
+     * geocode để trả về tên địa chỉ thực tế (đường, phường, quận, tỉnh).
+     * Dùng để tự động điền địa chỉ đón khi customer bấm "Lấy vị trí hiện tại".
+     *
+     * Response mẫu:
+     * {
+     *   "lat": 10.7769,
+     *   "lng": 106.7009,
+     *   "address": "194 Hoàng Diệu 2, Linh Chiểu, Thủ Đức, Hồ Chí Minh",
+     *   "display": "194 Hoàng Diệu 2, Linh Chiểu, Thủ Đức, Hồ Chí Minh",
+     *   "ref_id": "vm:node:123456"
+     * }
+     */
+    public JsonObject reverseGeocode(double lat, double lng) throws Exception {
+        String urlStr = "https://maps.vietmap.vn/api/reverse"
+                + "?api-version=1.1"
+                + "&apikey=" + API_KEY
+                + "&point.lat=" + lat
+                + "&point.lon=" + lng;
+
+        String raw = sendGetRequest(urlStr);
+        JsonObject root = JsonParser.parseString(raw).getAsJsonObject();
+
+        JsonObject result = new JsonObject();
+        result.addProperty("lat", lat);
+        result.addProperty("lng", lng);
+
+        JsonArray features = root.has("data")
+                ? root.getAsJsonObject("data").getAsJsonArray("features")
+                : root.getAsJsonArray("features");
+
+        if (features != null && features.size() > 0) {
+            JsonObject props = features.get(0).getAsJsonObject().getAsJsonObject("properties");
+            // VietMap trả về label (tên địa điểm), address (địa chỉ đầy đủ), locality (phường), region (tỉnh)
+            String address = getStr(props, "address");
+            String label   = getStr(props, "label");
+            String display = address.isEmpty() ? label : address;
+            result.addProperty("address", display);
+            result.addProperty("display", display);
+            if (props.has("Id")) {
+                result.addProperty("ref_id", props.get("Id").getAsString());
+            }
+        } else {
+            result.addProperty("address", "");
+            result.addProperty("display", "Không tìm thấy địa chỉ cho tọa độ này");
+        }
+
+        return result;
+    }
+
+    private String buildAddress(JsonObject obj) {
+        StringBuilder sb = new StringBuilder();
+        for (String key : new String[]{"name", "house_number", "street", "ward", "district", "city"}) {
+            if (obj.has(key) && !obj.get(key).isJsonNull()) {
+                String val = obj.get(key).getAsString().trim();
+                if (!val.isEmpty()) {
+                    if (sb.length() > 0) sb.append(", ");
+                    sb.append(val);
+                }
+            }
+        }
+        return sb.toString();
+    }
+
+    private String getStr(JsonObject obj, String key) {
+        if (obj.has(key) && !obj.get(key).isJsonNull()) {
+            return obj.get(key).getAsString().trim();
+        }
+        return "";
+    }
 }

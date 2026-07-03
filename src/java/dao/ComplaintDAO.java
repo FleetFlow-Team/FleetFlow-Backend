@@ -172,5 +172,22 @@ public class ComplaintDAO {
                 return -1;
             }
         }
+    public int[] getComplaintCustomerInfo(int complaintId) throws Exception {
+        String sql = "SELECT a.AccountID, cp.BookingID "
+                + "FROM Complaint cp "
+                + "JOIN Customer c ON c.CustomerID = cp.CustomerID "
+                + "JOIN Account a ON a.AccountID = c.AccountID "
+                + "WHERE cp.ComplaintID = ? AND cp.IsDeleted = 0";
+        try (java.sql.Connection conn = utils.DbUtils.getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, complaintId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    int bookingId = rs.getInt("BookingID");
+                    return new int[]{rs.getInt("AccountID"), rs.wasNull() ? -1 : bookingId};
+                }
+            }
+        }
+        return new int[]{-1, -1};
     }
 }

@@ -262,7 +262,7 @@ public class DriverJobBroadcastDAO {
                 + "JOIN Driver d ON d.AccountID = n.RecipientAccountID "
                 + "WHERE d.DriverID = ? "
                 + "AND n.IsRead = 0 "
-                + "AND n.Type LIKE 'DISPATCH_%' "
+                + "AND n.Type IN ('DISPATCH_ASSIGNED', 'DISPATCH_ACCEPTED', 'BOOKING_CANCELLED', 'TRIP_COMPLETED') "
                 + "ORDER BY n.CreatedAt DESC";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -290,7 +290,7 @@ public class DriverJobBroadcastDAO {
     public void markNotificationsRead(int driverId) throws Exception {
         String sql = "UPDATE Notification SET IsRead = 1 "
                 + "WHERE RecipientAccountID = (SELECT AccountID FROM Driver WHERE DriverID = ?) "
-                + "AND IsRead = 0 AND Type LIKE 'DISPATCH_%'";
+                + "AND IsRead = 0 AND Type IN ('DISPATCH_ASSIGNED', 'DISPATCH_ACCEPTED', 'BOOKING_CANCELLED', 'TRIP_COMPLETED')";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, driverId);
@@ -357,6 +357,21 @@ public class DriverJobBroadcastDAO {
         return list;
     }
 
+    /**
+     * Hủy tất cả broadcast PENDING của 1 booking khi booking bị cancel.
+     * Driver sẽ không thể start/complete chuyến nữa.
+     */
+    public int cancelPendingBroadcastsByBookingId(int bookingId) throws Exception {
+        String sql = "UPDATE DriverJobBroadcast SET Status = 'CANCELLED', RespondedAt = ? "
+                + "WHERE BookingID = ? AND Status = 'PENDING'";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setTimestamp(1, new Timestamp(System.currentTimeMillis()));
+            ps.setInt(2, bookingId);
+            return ps.executeUpdate();
+        }
+    }
+
     private DriverJobBroadcast mapRow(ResultSet rs) throws SQLException {
         DriverJobBroadcast b = new DriverJobBroadcast();
         b.setId(rs.getInt("BroadcastID"));
@@ -368,4 +383,4 @@ public class DriverJobBroadcastDAO {
         b.setRespondedAt(rs.getTimestamp("RespondedAt"));
         return b;
     }
-} 
+}

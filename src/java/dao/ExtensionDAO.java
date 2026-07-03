@@ -323,4 +323,37 @@ public class ExtensionDAO {
             return ps.executeUpdate() > 0;
         }
     }
+    // Thêm phần cuối file — 2 helper lấy AccountID để gửi notification
+
+    public int getCustomerAccountIdByBookingId(int bookingId) throws Exception {
+        String sql = "SELECT a.AccountID FROM Booking b "
+                + "JOIN Customer c ON c.CustomerID = b.CustomerID "
+                + "JOIN Account a ON a.AccountID = c.AccountID "
+                + "WHERE b.BookingID = ?";
+        try (java.sql.Connection conn = utils.DbUtils.getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt("AccountID") : -1;
+            }
+        }
+    }
+
+    public int getDriverAccountIdByBookingId(int bookingId) throws Exception {
+        // Lấy driver đã ACCEPTED hoặc đang PENDING — để notify kể cả khi driver chưa phản hồi
+        String sql = "SELECT TOP 1 a.AccountID FROM DriverJobBroadcast djb "
+                + "JOIN Driver d ON d.DriverID = djb.AssignedDriverID "
+                + "JOIN Account a ON a.AccountID = d.AccountID "
+                + "WHERE djb.BookingID = ? AND djb.Status IN ('ACCEPTED', 'PENDING') "
+                + "ORDER BY djb.DispatchedAt DESC";
+        try (java.sql.Connection conn = utils.DbUtils.getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt("AccountID") : -1;
+            }
+        }
+    }
 }
+
+    
