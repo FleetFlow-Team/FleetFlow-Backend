@@ -3167,3 +3167,13 @@ notification for dispatcher when customer cancel booking
         }
     ]
 }
+---------------------------------------------------------------
+get vị trí hiện tại của khách
+path: GET http://localhost:8080/FleetFlow/api/v1/maps/reverse-geocode?lat=10.774339199999986&lng=106.70287209999998
+output:
+{
+    "lat": 10.774339199999986,
+    "lng": 106.70287209999998,
+    "address": "123-125 Nguyễn Huệ Phường Sài Gòn,Thành Phố Hồ Chí Minh",
+    "display": "123-125 Nguyễn Huệ Phường Sài Gòn,Thành Phố Hồ Chí Minh"
+}

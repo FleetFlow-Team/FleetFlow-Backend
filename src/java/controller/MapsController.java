@@ -35,6 +35,9 @@ public class MapsController extends HttpServlet {
             } else if ("/route".equals(pathInfo)) {
                 handleRoute(request, response, out);
 
+            } else if ("/reverse-geocode".equals(pathInfo)) {
+                handleReverseGeocode(request, response, out);
+
             } else {
                 response.setStatus(404);
                 out.print("{\"error\": \"Endpoint không tồn tại\"}");
@@ -88,6 +91,32 @@ public class MapsController extends HttpServlet {
 
         double[] coords = mapsService.geocode(address);
         out.print("{\"lat\": " + coords[0] + ", \"lng\": " + coords[1] + "}");
+    }
+
+    /**
+     * GET /api/v1/maps/reverse-geocode
+     * Params: lat, lng  (tọa độ GPS browser/mobile của customer)
+     * FE dùng navigator.geolocation.getCurrentPosition() lấy lat/lng rồi gọi
+     * API này để hiện tên địa chỉ thực tế vào ô "Địa chỉ đón".
+     */
+    private void handleReverseGeocode(HttpServletRequest request,
+                                      HttpServletResponse response,
+                                      PrintWriter out) throws Exception {
+        String latParam = request.getParameter("lat");
+        String lngParam = request.getParameter("lng");
+
+        if (latParam == null || latParam.trim().isEmpty()
+                || lngParam == null || lngParam.trim().isEmpty()) {
+            response.setStatus(400);
+            out.print("{\"error\": \"Thiếu tham số lat hoặc lng\"}");
+            return;
+        }
+
+        double lat = Double.parseDouble(latParam.trim());
+        double lng = Double.parseDouble(lngParam.trim());
+
+        com.google.gson.JsonObject result = mapsService.reverseGeocode(lat, lng);
+        out.print(result.toString());
     }
 
     /**

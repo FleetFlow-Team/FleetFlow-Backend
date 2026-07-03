@@ -88,6 +88,13 @@ public class CustomerBookingService {
                 reason
         );
 
+        // Hủy broadcast PENDING — driver không thể start/complete chuyến đã bị cancel
+        try {
+            new dao.DriverJobBroadcastDAO().cancelPendingBroadcastsByBookingId(bookingId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         // Notify customer, driver, dispatcher khi hủy chuyến
         try {
             dao.ExtensionDAO extDAO = new dao.ExtensionDAO();

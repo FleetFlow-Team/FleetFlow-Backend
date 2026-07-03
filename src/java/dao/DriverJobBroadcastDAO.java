@@ -357,6 +357,21 @@ public class DriverJobBroadcastDAO {
         return list;
     }
 
+    /**
+     * Hủy tất cả broadcast PENDING của 1 booking khi booking bị cancel.
+     * Driver sẽ không thể start/complete chuyến nữa.
+     */
+    public int cancelPendingBroadcastsByBookingId(int bookingId) throws Exception {
+        String sql = "UPDATE DriverJobBroadcast SET Status = 'CANCELLED', RespondedAt = ? "
+                + "WHERE BookingID = ? AND Status = 'PENDING'";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setTimestamp(1, new Timestamp(System.currentTimeMillis()));
+            ps.setInt(2, bookingId);
+            return ps.executeUpdate();
+        }
+    }
+
     private DriverJobBroadcast mapRow(ResultSet rs) throws SQLException {
         DriverJobBroadcast b = new DriverJobBroadcast();
         b.setId(rs.getInt("BroadcastID"));
@@ -368,4 +383,4 @@ public class DriverJobBroadcastDAO {
         b.setRespondedAt(rs.getTimestamp("RespondedAt"));
         return b;
     }
-} 
+}
