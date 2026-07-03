@@ -262,7 +262,7 @@ public class DriverJobBroadcastDAO {
                 + "JOIN Driver d ON d.AccountID = n.RecipientAccountID "
                 + "WHERE d.DriverID = ? "
                 + "AND n.IsRead = 0 "
-                + "AND n.Type LIKE 'DISPATCH_%' "
+                + "AND n.Type IN ('DISPATCH_ASSIGNED', 'DISPATCH_ACCEPTED', 'BOOKING_CANCELLED', 'TRIP_COMPLETED') "
                 + "ORDER BY n.CreatedAt DESC";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -290,7 +290,7 @@ public class DriverJobBroadcastDAO {
     public void markNotificationsRead(int driverId) throws Exception {
         String sql = "UPDATE Notification SET IsRead = 1 "
                 + "WHERE RecipientAccountID = (SELECT AccountID FROM Driver WHERE DriverID = ?) "
-                + "AND IsRead = 0 AND Type LIKE 'DISPATCH_%'";
+                + "AND IsRead = 0 AND Type IN ('DISPATCH_ASSIGNED', 'DISPATCH_ACCEPTED', 'BOOKING_CANCELLED', 'TRIP_COMPLETED')";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, driverId);

@@ -227,9 +227,9 @@ public class ExtensionDAO {
     }
 
     public BigDecimal calculateFinalPayment(int bookingId) throws Exception {
-        String sql = "SELECT "
-                + "(SELECT COALESCE(EstimatedTotal, 0) FROM BookingPricing WHERE BookingID = ?) - "
-                + "(SELECT COALESCE(SUM(Amount), 0) FROM Payment WHERE BookingID = ?) AS Remaining";
+        String sql = "SELECT " +
+                     "(SELECT COALESCE(EstimatedTotal, 0) FROM BookingPricing WHERE BookingID = ?) - " +
+                     "(SELECT COALESCE(SUM(Amount), 0) FROM Payment WHERE BookingID = ?) AS Remaining";
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, bookingId);
             ps.setInt(2, bookingId);
@@ -244,9 +244,10 @@ public class ExtensionDAO {
 
     public boolean processFinalPayment(int bookingId, String paymentMethod, BigDecimal amount) throws Exception {
         String sql = "INSERT INTO Payment (BookingID, PaymentType, Amount, Method, Status, PaidAt, TransactionRef) VALUES (?, 'FINAL', ?, ?, 'SUCCESS', GETDATE(), ?)";
-
-        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
-
+        
+        try (Connection conn = DbUtils.getConnection(); 
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+             
             ps.setInt(1, bookingId);
             ps.setBigDecimal(2, amount);
             ps.setString(3, paymentMethod);
@@ -254,18 +255,19 @@ public class ExtensionDAO {
             return ps.executeUpdate() > 0;
         }
     }
-
+    
     public boolean createPendingPayment(int bookingId, String paymentType, String method, double amount) {
         // Tạo TransactionRef theo format của bạn (VD: TXN-D-1 hoặc TXN-F-1 kèm timestamp để không bị trùng)
         String prefix = paymentType.equalsIgnoreCase("DEPOSIT") ? "D" : "F";
         String txnRef = "TXN-" + prefix + "-" + bookingId + "-" + System.currentTimeMillis();
 
         // Câu lệnh SQL (PaidAt để trống vì chưa thanh toán)
-        String sql = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status, TransactionRef) "
-                + "VALUES (?, ?, ?, ?, 'PENDING', ?)";
+        String sql = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status, TransactionRef) " +
+                     "VALUES (?, ?, ?, ?, 'PENDING', ?)";
 
-        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
-
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+             
             ps.setInt(1, bookingId);
             ps.setString(2, paymentType); // "DEPOSIT" hoặc "FINAL"
             ps.setString(3, method);      // "VNPAY", "MOMO", "CASH"...
@@ -274,7 +276,7 @@ public class ExtensionDAO {
 
             int rowsAffected = ps.executeUpdate();
             return rowsAffected > 0;
-
+            
         } catch (Exception e) {
             e.printStackTrace();
             return false;
@@ -287,24 +289,30 @@ public class ExtensionDAO {
                 + "JOIN Customer c ON c.CustomerID = b.CustomerID "
                 + "JOIN Account a ON a.AccountID = c.AccountID "
                 + "WHERE b.BookingID = ?";
-        try ( java.sql.Connection conn = utils.DbUtils.getConnection();  java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (java.sql.Connection conn = utils.DbUtils.getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, bookingId);
-            try ( java.sql.ResultSet rs = ps.executeQuery()) {
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getInt("AccountID") : -1;
             }
         }
     }
 
     public int getDriverAccountIdByBookingId(int bookingId) throws Exception {
-        String sql = "SELECT a.AccountID FROM DriverJobBroadcast djb "
+        // Lấy driver đã ACCEPTED hoặc đang PENDING — để notify kể cả khi driver chưa phản hồi
+        String sql = "SELECT TOP 1 a.AccountID FROM DriverJobBroadcast djb "
                 + "JOIN Driver d ON d.DriverID = djb.AssignedDriverID "
                 + "JOIN Account a ON a.AccountID = d.AccountID "
-                + "WHERE djb.BookingID = ? AND djb.Status = 'ACCEPTED'";
-        try ( java.sql.Connection conn = utils.DbUtils.getConnection();  java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+                + "WHERE djb.BookingID = ? AND djb.Status IN ('ACCEPTED', 'PENDING') "
+                + "ORDER BY djb.DispatchedAt DESC";
+        try (java.sql.Connection conn = utils.DbUtils.getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, bookingId);
-            try ( java.sql.ResultSet rs = ps.executeQuery()) {
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getInt("AccountID") : -1;
             }
         }
     }
 }
+
+    

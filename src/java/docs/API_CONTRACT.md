@@ -2802,6 +2802,16 @@ output:
             "title": "Chuyến mới được gán!",
             "message": "Khách: Cường Lê | Đón tại: 123 Nguyễn Huệ | Giờ đi: 2026-07-11 08:00:00.0",
             "bookingId": 38
+        },
+        notification when customer cancel booking
+        {
+            "createdAt": "2026-07-03 14:13:52.666",
+            "isRead": "false",
+            "notificationId": 37,
+            "title": "Chuyến đi #20 bị hủy",
+            "message": "Khách hàng đã hủy booking #20. Lý do: Bất ngờ tạo nên sự quyến rũ ng đàn ông",
+            "type": "BOOKING_CANCELLED",
+            "bookingId": 20
         }
     ]
 }
