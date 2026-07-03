@@ -33,7 +33,7 @@ public class VNPayController extends HttpServlet {
     private static final String VNP_URL = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
     private static final String VNP_RETURN_URL = "http://localhost:8080/FleetFlow/api/v1/payments/vnpay/return";
     private static final String VNP_IPN_URL = "http://localhost:8080/FleetFlow/api/v1/payments/vnpay/ipn";
-    private static final String FE_RETURN_URL = "http://localhost:8080/payment-result";
+    private static final String FE_RETURN_URL = "http://127.0.0.1:5501/pages/customer/payment-success.html";
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -86,6 +86,9 @@ public class VNPayController extends HttpServlet {
             String ipAddress = request.getHeader("X-FORWARDED-FOR");
             if (ipAddress == null) {
                 ipAddress = request.getRemoteAddr();
+            }
+            if (ipAddress == null || ipAddress.contains(":")) {
+                ipAddress = "127.0.0.1";
             }
 
             String vnp_TxnRef = bookingId + "_" + System.currentTimeMillis();
@@ -150,46 +153,49 @@ public class VNPayController extends HttpServlet {
     }
 
     private void handleReturn(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String status = "failed";
+        String bookingIdStr = request.getParameter("vnp_TxnRef");
+        String bankCode = request.getParameter("vnp_BankCode");
+        String transactionNo = request.getParameter("vnp_TransactionNo");
+        String amount = "0";
         try {
             Map<String, String> fields = extractVNPayParams(request);
             String vnp_SecureHash = request.getParameter("vnp_SecureHash");
-
             boolean isValid = verifySignature(fields, vnp_SecureHash);
-            String status = "failed";
 
-            // Lấy Booking ID
-            String bookingIdStr = request.getParameter("vnp_TxnRef");
             if (bookingIdStr != null && bookingIdStr.contains("_")) {
                 bookingIdStr = bookingIdStr.split("_")[0];
             }
-
-            // Bắt các thông tin thanh toán chi tiết từ VNPay
-            String bankCode = request.getParameter("vnp_BankCode"); // VD: NCB, VCB...
-            String transactionNo = request.getParameter("vnp_TransactionNo"); // Mã GD trên hệ thống VNPay
             String amountStr = request.getParameter("vnp_Amount");
-            String amount = "0";
             if (amountStr != null) {
-                // VNPay nhân 100 số tiền, nên phải chia 100 để trả về VNĐ thực tế
                 amount = String.valueOf(Long.parseLong(amountStr) / 100);
             }
 
-            // Kiểm tra chữ ký và mã phản hồi 00 (Thành công)
             if (isValid && "00".equals(request.getParameter("vnp_ResponseCode"))) {
                 status = "success";
+                savePaymentToDatabase(Integer.parseInt(bookingIdStr), "COMPLETED");
             }
-
-            // Đóng gói toàn bộ data gửi sang trang JSP
-            request.setAttribute("status", status);
-            request.setAttribute("bookingId", bookingIdStr);
-            request.setAttribute("amount", amount);
-            request.setAttribute("bankCode", bankCode);
-            request.setAttribute("transactionNo", transactionNo);
-
-            // Forward thẳng sang trang JSP (Cách này giấu được URL tham số dài ngoằng của VNPay)
-            request.getRequestDispatcher("/payment-success.jsp").forward(request, response);
-
         } catch (Exception e) {
-            response.getWriter().print("Lỗi xử lý Return: " + e.getMessage());
+            status = "failed";
+        }
+
+        String redirect = FE_RETURN_URL
+                + "?status=" + status
+                + "&bookingId=" + safe(bookingIdStr)
+                + "&amount=" + safe(amount)
+                + "&bankCode=" + safe(bankCode)
+                + "&transactionNo=" + safe(transactionNo);
+        response.sendRedirect(redirect);
+    }
+
+    private String safe(String s) {
+        if (s == null) {
+            return "";
+        }
+        try {
+            return URLEncoder.encode(s, StandardCharsets.UTF_8.toString());
+        } catch (Exception e) {
+            return "";
         }
     }
 
@@ -228,14 +234,21 @@ public class VNPayController extends HttpServlet {
     }
 
     private void savePaymentToDatabase(int bookingId, String status) {
-        String sql = "UPDATE Payment SET Status = ?, PaidAt = GETDATE() WHERE BookingID = ? AND Status = 'PENDING' AND Method = 'VNPAY'";
-        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, status);
-            ps.setInt(2, bookingId);
-            ps.executeUpdate();
-            System.out.println(">> VNPay IPN: Đã cập nhật thành công Booking " + bookingId);
+        String pSql = "UPDATE Payment SET Status = ?, PaidAt = GETDATE() WHERE BookingID = ? AND Status = 'PENDING' AND Method = 'VNPAY'";
+        String bSql = "UPDATE Booking SET Status = 'COMPLETED' WHERE BookingID = ?";
+        try (Connection conn = DbUtils.getConnection()) {
+            try (PreparedStatement ps = conn.prepareStatement(pSql)) {
+                ps.setString(1, status);
+                ps.setInt(2, bookingId);
+                ps.executeUpdate();
+            }
+            try (PreparedStatement ps2 = conn.prepareStatement(bSql)) {
+                ps2.setInt(1, bookingId);
+                ps2.executeUpdate();
+            }
+            System.out.println(">> VNPay: da cap nhat Payment + Booking COMPLETED cho booking " + bookingId);
         } catch (Exception e) {
-            System.err.println("Lỗi cập nhật DB: " + e.getMessage());
+            System.err.println("Loi cap nhat DB: " + e.getMessage());
         }
     }
 

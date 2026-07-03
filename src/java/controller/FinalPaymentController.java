@@ -48,14 +48,51 @@ public class FinalPaymentController extends HttpServlet {
             String paymentMethod = body.get("paymentMethod").getAsString();
 
             BigDecimal amountToPay = dao.calculateFinalPayment(bookingId);
-            
+
+            boolean success = false;
             if ("CASH".equals(paymentMethod)) {
-                res.put("success", dao.processFinalPayment(bookingId, paymentMethod, amountToPay));
+                success = dao.processFinalPayment(bookingId, paymentMethod, amountToPay);
+                res.put("success", success);
             } else {
-                res.put("success", true);
+                dao.processFinalPayment(bookingId, paymentMethod, amountToPay);
+                success = dao.updateBookingStatus(bookingId, "COMPLETED");
+                res.put("success", success);
+                res.put("bookingStatus", "COMPLETED");
             }
-            
+
             res.put("finalAmount", amountToPay);
+
+            // Notify customer, driver, dispatcher khi xác nhận thanh toán tiền mặt
+            if (success && "CASH".equalsIgnoreCase(paymentMethod)) {
+                try {
+                    int customerAccountId = dao.getCustomerAccountIdByBookingId(bookingId);
+                    if (customerAccountId != -1) {
+                        dao.createNotification(customerAccountId, bookingId,
+                                "Thanh toán thành công",
+                                "Bạn đã thanh toán " + amountToPay.toPlainString()
+                                        + "đ tiền mặt cho booking #" + bookingId + ". Cảm ơn!",
+                                "PAYMENT_CASH_CONFIRMED", "IN_APP");
+                    }
+                    int driverAccountId = dao.getDriverAccountIdByBookingId(bookingId);
+                    if (driverAccountId != -1) {
+                        dao.createNotification(driverAccountId, bookingId,
+                                "Khách đã xác nhận thanh toán tiền mặt",
+                                "Booking #" + bookingId + " đã được thanh toán "
+                                        + amountToPay.toPlainString() + "đ tiền mặt.",
+                                "PAYMENT_CASH_CONFIRMED", "IN_APP");
+                    }
+                    java.util.List<Integer> dispatcherIds = new dao.AccountDAO().getActiveDispatcherAccountIds();
+                    for (int dispId : dispatcherIds) {
+                        dao.createNotification(dispId, bookingId,
+                                "Booking #" + bookingId + " đã thanh toán tiền mặt",
+                                "Khách đã thanh toán " + amountToPay.toPlainString()
+                                        + "đ tiền mặt cho booking #" + bookingId + ".",
+                                "PAYMENT_CASH_CONFIRMED", "IN_APP");
+                    }
+                } catch (Exception notifEx) {
+                    notifEx.printStackTrace();
+                }
+            }
         } catch (Exception e) {
             response.setStatus(500);
             res.put("success", false);

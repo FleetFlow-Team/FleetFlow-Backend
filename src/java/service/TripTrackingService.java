@@ -3,6 +3,7 @@ package service;
 import dao.AuditLogDAO;
 import dao.BookingDAO;
 import dao.DriverJobBroadcastDAO;
+import dao.NotificationDAO;
 import dao.TripTrackingDAO;
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -26,6 +27,7 @@ public class TripTrackingService {
     private final DriverJobBroadcastDAO broadcastDAO = new DriverJobBroadcastDAO();
     private final TripTrackingDAO trackingDAO = new TripTrackingDAO();
     private final AuditLogDAO auditLogDAO = new AuditLogDAO();
+    private final NotificationDAO notificationDAO = new NotificationDAO();
 
     // ===================== Start trip =====================
 
@@ -81,6 +83,18 @@ public class TripTrackingService {
             } finally {
                 conn.setAutoCommit(true);
             }
+        }
+
+        try {
+            int customerAccountId = notificationDAO.resolveCustomerAccountByBookingId(bookingId);
+            if (customerAccountId != -1) {
+                notificationDAO.insert(customerAccountId, bookingId,
+                        "Chuyến đi đã hoàn thành",
+                        "Chuyến #" + bookingId + " đã được tài xế hoàn thành. Cảm ơn bạn đã sử dụng FleetFlow!",
+                        "TRIP_COMPLETED");
+            }
+        } catch (Exception notifyEx) {
+            System.err.println("Notify completeTrip loi: " + notifyEx.getMessage());
         }
     }
 

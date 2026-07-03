@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dao.ComplaintDAO;
+import dao.NotificationDAO;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.HashMap;
@@ -19,6 +20,7 @@ import utils.JwtUtils;
 public class DispatcherConplaintController extends HttpServlet {
 
     private final ComplaintDAO dao = new ComplaintDAO();
+    private final NotificationDAO notificationDAO = new NotificationDAO();
     private final Gson gson = new Gson();
 
     private void prepare(HttpServletResponse response) {
@@ -92,7 +94,21 @@ public class DispatcherConplaintController extends HttpServlet {
                 int complaintId = Integer.parseInt(pathInfo.split("/")[1]);
                 JsonObject body = readBody(request);
                 String resolution = body.has("resolution") ? body.get("resolution").getAsString() : "";
-                res.put("success", dao.resolveComplaint(complaintId, resolution));
+                boolean ok = dao.resolveComplaint(complaintId, resolution);
+                res.put("success", ok);
+                if (ok) {
+                    try {
+                        int customerAccountId = dao.getCustomerAccountByComplaintId(complaintId);
+                        if (customerAccountId != -1) {
+                            notificationDAO.insert(customerAccountId, null,
+                                    "Khiếu nại đã được xử lý",
+                                    "Khiếu nại #" + complaintId + " của bạn đã được xử lý. Nội dung: " + resolution,
+                                    "COMPLAINT_RESOLVED");
+                        }
+                    } catch (Exception notifyEx) {
+                        System.err.println("Notify resolveComplaint loi: " + notifyEx.getMessage());
+                    }
+                }
             } else {
                 response.setStatus(400);
                 res.put("success", false);
