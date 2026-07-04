@@ -1431,6 +1431,28 @@ Danh sách thông báo của customer
     "success": true,
     "data": [
         {
+            "NotificationID": 67,
+            "RecipientAccountID": 3,
+            "BookingID": 29,
+            "Title": "Đã tìm được tài xế cho bạn",
+            "Message": "Booking #29 đã được gán cho tài xế Sơn Dương. Vui lòng chờ tài xế xác nhận.",
+            "Type": "BOOKING_DRIVER_ASSIGNED",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "Jul 5, 2026 12:37:23 AM"
+        },
+        {
+            "NotificationID": 66,
+            "RecipientAccountID": 3,
+            "BookingID": 29,
+            "Title": "Đang tìm tài xế cho bạn",
+            "Message": "Booking #29 hiện chưa có tài xế phù hợp. Chúng tôi đang tiếp tục tìm kiếm, vui lòng chờ.",
+            "Type": "BOOKING_UNASSIGNED",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "Jul 5, 2026 12:33:45 AM"
+        },
+        {
             "NotificationID": 5,
             "RecipientAccountID": 1,
             "BookingID": 13,
@@ -2796,6 +2818,17 @@ output:
 {
     "success": true,
     "notifications": [
+// notification when booking unassigned
+output:
+        {
+            "createdAt": "2026-07-05 00:37:23.187",
+            "isRead": "false",
+            "notificationId": 68,
+            "title": "Bạn được gán chuyến mới",
+            "message": "Dispatcher đã gán booking #29 cho bạn. Vui lòng xác nhận nhận chuyến.",
+            "type": "DISPATCH_ASSIGNED",
+            "bookingId": 29
+        },
         {
             "createdAt": "2026-06-25 23:49:19.247",
             "notificationId": 2,

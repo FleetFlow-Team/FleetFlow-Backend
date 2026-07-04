@@ -139,6 +139,20 @@ public class BookingWorkflowService {
                     conn.setAutoCommit(true);
                 }
             }
+            // Notify customer: đang tìm tài xế
+            try {
+                dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
+                int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
+                if (customerAccountId != -1) {
+                    extDAO.createNotification(customerAccountId, bookingId,
+                            "Đang tìm tài xế cho bạn",
+                            "Booking #" + bookingId + " hiện chưa có tài xế phù hợp. "
+                                    + "Chúng tôi đang tiếp tục tìm kiếm, vui lòng chờ.",
+                            "BOOKING_UNASSIGNED", "IN_APP");
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             return;
         }
 
@@ -258,6 +272,34 @@ public class BookingWorkflowService {
                         "DISPATCHED (manual → driverId=" + driverId + ")", ipAddress);
                 conn.commit();
                 bookingDAO.updateDriverLastAssigned(driverId);
+
+                // Notify customer + driver khi dispatcher gán thủ công
+                try {
+                    dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
+                    java.util.Map<String, String> driverInfo = new dao.DriverDAO().getDriverNameAndPhone(driverId);
+                    String driverName = driverInfo != null ? driverInfo.get("fullName") : ("Driver #" + driverId);
+
+                    int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
+                    if (customerAccountId != -1) {
+                        extDAO.createNotification(customerAccountId, bookingId,
+                                "Đã tìm được tài xế cho bạn",
+                                "Booking #" + bookingId + " đã được gán cho tài xế "
+                                        + driverName + ". Vui lòng chờ tài xế xác nhận.",
+                                "BOOKING_DRIVER_ASSIGNED", "IN_APP");
+                    }
+
+                    int driverAccountId = new dao.DriverDAO().getAccountIdByDriverId(driverId);
+                    if (driverAccountId != -1) {
+                        extDAO.createNotification(driverAccountId, bookingId,
+                                "Bạn được gán chuyến mới",
+                                "Dispatcher đã gán booking #" + bookingId + " cho bạn. "
+                                        + "Vui lòng xác nhận nhận chuyến.",
+                                "DISPATCH_ASSIGNED", "IN_APP");
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
                 return broadcastId;
             } catch (Exception e) {
                 conn.rollback();
