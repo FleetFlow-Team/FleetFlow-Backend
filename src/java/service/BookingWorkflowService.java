@@ -282,11 +282,12 @@ public class BookingWorkflowService {
         }
 
         int bookingId = getBookingIdFromBroadcast(broadcastId);
+        int driverAccountId = new dao.DriverDAO().getAccountIdByDriverId(driverId);
         try (Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
             try {
                 bookingDAO.updateStatus(conn, bookingId, "CONFIRMED");
-                auditLogDAO.log(conn, driverId, "DRIVER_ACCEPT", "Booking",
+                auditLogDAO.log(conn, driverAccountId, "DRIVER_ACCEPT", "Booking",
                         String.valueOf(bookingId), "DISPATCHED", "CONFIRMED", ipAddress);
                 conn.commit();
             } catch (Exception e) {
@@ -319,13 +320,14 @@ public class BookingWorkflowService {
         }
 
         int bookingId = getBookingIdFromBroadcast(broadcastId);
+        int driverAccountId = new dao.DriverDAO().getAccountIdByDriverId(driverId);
 
         // Ghi audit trước
         try (Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
             try {
                 bookingDAO.updateStatus(conn, bookingId, "APPROVED"); // reset để dispatch tiếp
-                auditLogDAO.log(conn, driverId, "DRIVER_REJECT", "Booking",
+                auditLogDAO.log(conn, driverAccountId, "DRIVER_REJECT", "Booking",
                         String.valueOf(bookingId), "DISPATCHED",
                         "APPROVED — driver từ chối" + (reason != null ? ": " + reason : ""), ipAddress);
                 conn.commit();

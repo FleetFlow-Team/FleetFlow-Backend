@@ -44,7 +44,8 @@ public class TripTrackingService {
             try {
                 bookingDAO.updateStatus(conn, bookingId, "ONGOING");
                 trackingDAO.insertEvent(conn, bookingId, "TRIP_STARTED", "Driver bắt đầu chuyến đi");
-                auditLogDAO.log(conn, driverId, "START_TRIP", "Booking",
+                int driverAccId = new dao.DriverDAO().getAccountIdByDriverId(driverId);
+                auditLogDAO.log(conn, driverAccId, "START_TRIP", "Booking",
                         String.valueOf(bookingId), booking.getStatus(), "ONGOING", ipAddress);
                 conn.commit();
             } catch (Exception e) {
@@ -72,7 +73,8 @@ public class TripTrackingService {
             try {
                 bookingDAO.updateStatus(conn, bookingId, "COMPLETED");
                 trackingDAO.insertEvent(conn, bookingId, "TRIP_COMPLETED", "Driver hoàn thành chuyến đi");
-                auditLogDAO.log(conn, driverId, "COMPLETE_TRIP", "Booking",
+                int driverAccId2 = new dao.DriverDAO().getAccountIdByDriverId(driverId);
+                auditLogDAO.log(conn, driverAccId2, "COMPLETE_TRIP", "Booking",
                         String.valueOf(bookingId), booking.getStatus(), "COMPLETED", ipAddress);
                 conn.commit();
             } catch (Exception e) {

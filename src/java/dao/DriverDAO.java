@@ -689,4 +689,19 @@ public class DriverDAO {
             }
         }
     }
+    /**
+     * Lấy AccountID từ DriverID — dùng để ghi AuditLog đúng account.
+     * DriverID != AccountID nên phải convert trước khi log.
+     */
+    public int getAccountIdByDriverId(int driverId) throws Exception {
+        String sql = "SELECT AccountID FROM Driver WHERE DriverID = ?";
+        try (java.sql.Connection conn = utils.DbUtils.getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, driverId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt("AccountID") : driverId; // fallback driverId nếu không tìm thấy
+            }
+        }
+    }
+
 }
