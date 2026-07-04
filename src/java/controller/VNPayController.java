@@ -29,12 +29,17 @@ public class VNPayController extends HttpServlet {
 
     private final Gson gson = new Gson();
 
-    private static final String VNP_TMN_CODE = "5GH8KI9L";
-    private static final String VNP_HASH_SECRET = "SZ2DWD9030XB1RB85D6J4CBTGD4SJWFZ";
-    private static final String VNP_URL = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
-    private static final String VNP_RETURN_URL = "http://localhost:8080/FleetFlow/api/v1/payments/vnpay/return";
-    private static final String VNP_IPN_URL = "http://localhost:8080/FleetFlow/api/v1/payments/vnpay/ipn";
-    private static final String FE_RETURN_URL = "http://127.0.0.1:5501/pages/customer/payment-success.html";
+    // Toàn bộ URL/key đọc từ /config/vnpay.properties — không hardcode theo môi trường
+    private static final String VNP_TMN_CODE = utils.VNPayConfig.get("vnp.tmnCode", "");
+    private static final String VNP_HASH_SECRET = utils.VNPayConfig.get("vnp.hashSecret", "");
+    private static final String VNP_URL = utils.VNPayConfig.get("vnp.payUrl",
+            "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html");
+    private static final String VNP_RETURN_URL = utils.VNPayConfig.get("vnp.returnUrl",
+            "http://localhost:8080/FleetFlow/api/v1/payments/vnpay/return");
+    private static final String VNP_IPN_URL = utils.VNPayConfig.get("vnp.ipnUrl",
+            "http://localhost:8080/FleetFlow/api/v1/payments/vnpay/ipn");
+    private static final String FE_RETURN_URL = utils.VNPayConfig.get("fe.returnUrl",
+            "http://localhost:8080/payment-result");
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {

@@ -11,12 +11,10 @@ import java.util.List;
 import dao.CustomerBookingDAO.BookingRow;
 import model.PricingRule;
 import model.Voucher;
-import service.CustomerLockService;
 
 public class CustomerBookingService {
 
     private final CustomerBookingDAO dao = new CustomerBookingDAO();
-    private final CustomerLockService customerLockService = new CustomerLockService();
     private final NotificationDAO notificationDAO = new NotificationDAO();
 
     // ===================== BE-23: Lịch sử đặt xe =====================
@@ -25,11 +23,11 @@ public class CustomerBookingService {
     }
 
     // ===================== BE-25: Cancel + tính phạt =====================
-    // Logic phạt (BR-12):
-    // Hủy trước >= 12h  → không phạt (0%)
-    // Hủy trước 6-12h   → phạt 30% tổng tiền
-    // Hủy trước < 6h    → phạt 50% tổng tiền
+    // Logic phạt (BR-12): phạt = MẤT CỌC, không tính % tổng tiền
+    // Hủy trước >= 12h  → không mất gì
+    // Hủy trước < 12h   → mất nguyên tiền cọc (30% tổng tiền đã đặt)
     // Hủy trong 10 phút sau khi tạo booking → luôn miễn phí (grace period)
+    // Cọc là tiền đã trả bị tịch thu → KHÔNG ghi công nợ vào CustomerWallet
     // Booking đang COMPLETED/CANCELLED → không cho hủy
     public CancelResult cancelBooking(int bookingId, int customerId, String reason) throws Exception {
         Booking booking = dao.findBookingById(bookingId);
@@ -57,72 +55,50 @@ public class CustomerBookingService {
         // Grace period: hủy trong vòng 10 phút sau khi tạo booking thì luôn miễn phí,
         // không phụ thuộc còn bao lâu tới giờ khởi hành — tránh xung đột với rule đặt xe
         // tối thiểu trước 120 phút (BR-02), vì user có thể bấm nhầm ngay sau khi đặt.
-        int penaltyPercent = 0;
+        boolean isForfeitDeposit = false;
         if (departureTime != null) {
             long now = System.currentTimeMillis();
             long minutesSinceCreated = (now - booking.getCreatedAt().getTime()) / (1000 * 60);
 
-            if (minutesSinceCreated <= 10) {
-                penaltyPercent = 0;
-            } else {
+            if (minutesSinceCreated > 10) {
                 long hoursUntilDeparture = (departureTime.getTime() - now) / (1000 * 60 * 60);
-                if (hoursUntilDeparture >= 12) {       // BR-12: >=12h không phạt
-                    penaltyPercent = 0;
-                } else if (hoursUntilDeparture >= 6) { // BR-12: 6-12h phạt 30%
-                    penaltyPercent = 30;
-                } else {                                // BR-12: <6h phạt 50%
-                    penaltyPercent = 50;
-                }
+                // BR-12: >=12h trước giờ khởi hành → free; <12h → mất cọc
+                isForfeitDeposit = hoursUntilDeparture < 12;
             }
         }
 
-        // Tính tiền phạt
-// Lấy giá booking hiện tại
+        // Lấy giá booking hiện tại để tính tiền cọc (30% tổng tiền — khớp công thức
+        // tính deposit ở BE-26 calculatePrice)
         BigDecimal totalAmount = BigDecimal.ZERO;
-
         try {
             totalAmount = dao.getBookingTotalAmount(bookingId);
         } catch (Exception e) {
             System.err.println("Không lấy được giá booking: " + e.getMessage());
         }
 
-// penalty = tổng tiền * %
-        BigDecimal penaltyAmount = totalAmount
-                .multiply(BigDecimal.valueOf(penaltyPercent))
-                .divide(BigDecimal.valueOf(100));
+        BigDecimal depositAmount = totalAmount
+                .multiply(new BigDecimal("0.30"))
+                .setScale(0, RoundingMode.HALF_UP);
+
+        BigDecimal penaltyAmount = isForfeitDeposit ? depositAmount : BigDecimal.ZERO;
 
         dao.cancelBookingWithPenalty(
                 bookingId,
                 customerId,
-                penaltyPercent,
+                isForfeitDeposit,
                 penaltyAmount,
                 reason
         );
-
-// Sau khi ghi nhận tiền phạt vào CustomerWalletLedger,
-// kiểm tra công nợ có vượt ngưỡng cảnh báo hay không
-        try {
-            customerLockService.checkAndWarnIfDebtExceeded(
-                    customerId,
-                    1 // AdminID mặc định
-            );
-        } catch (Exception e) {
-            // Không để lỗi cảnh báo làm fail API hủy booking
-            System.err.println(
-                    "Lỗi khi kiểm tra cảnh báo nợ: "
-                    + e.getMessage()
-            );
-        }
 
         try {
             int customerAccountId = notificationDAO.resolveCustomerAccountByCustomerId(customerId);
             if (customerAccountId != -1) {
                 String msg = "Chuyến #" + bookingId + " đã được hủy thành công.";
-                if (penaltyPercent > 0) {
-                    msg += " Phí phạt hủy: " + penaltyAmount.setScale(0, RoundingMode.HALF_UP).toPlainString()
-                            + " đ (" + penaltyPercent + "%).";
+                if (isForfeitDeposit) {
+                    msg += " Bạn bị mất tiền cọc " + penaltyAmount.toPlainString()
+                            + " đ do hủy trong vòng 12h trước giờ khởi hành.";
                 } else {
-                    msg += " Bạn không bị tính phí phạt cho lần hủy này.";
+                    msg += " Bạn không bị mất phí cho lần hủy này.";
                 }
                 notificationDAO.insert(customerAccountId, bookingId, "Đã hủy chuyến", msg, "BOOKING_CANCELLED");
             }
@@ -149,10 +125,9 @@ public class CustomerBookingService {
                 notificationDAO.insert(dispatcherAccountId, bookingId,
                         "Booking #" + bookingId + " đã bị hủy",
                         "Khách hàng đã hủy chuyến #" + bookingId
-                        + (penaltyPercent > 0
-                                ? " (phạt " + penaltyPercent + "%: "
-                                + penaltyAmount.setScale(0, RoundingMode.HALF_UP).toPlainString() + " đ)."
-                                : " (không phạt)."),
+                        + (isForfeitDeposit
+                                ? " (mất cọc " + penaltyAmount.toPlainString() + " đ)."
+                                : " (không mất phí)."),
                         "BOOKING_CANCELLED");
             }
         } catch (Exception notifyEx) {
@@ -161,7 +136,7 @@ public class CustomerBookingService {
 
         return new CancelResult(
                 bookingId,
-                penaltyPercent,
+                isForfeitDeposit,
                 penaltyAmount
         );
     }
@@ -169,15 +144,13 @@ public class CustomerBookingService {
     public static class CancelResult {
 
         public final int bookingId;
-        public final int penaltyPercent;
-        public final BigDecimal penaltyAmount;
         public final boolean forfeitDeposit;
+        public final BigDecimal penaltyAmount;
 
-        public CancelResult(int bookingId, int penaltyPercent, BigDecimal penaltyAmount) {
+        public CancelResult(int bookingId, boolean forfeitDeposit, BigDecimal penaltyAmount) {
             this.bookingId = bookingId;
-            this.penaltyPercent = penaltyPercent;
+            this.forfeitDeposit = forfeitDeposit;
             this.penaltyAmount = penaltyAmount;
-            this.forfeitDeposit = penaltyPercent > 0;
         }
     }
 

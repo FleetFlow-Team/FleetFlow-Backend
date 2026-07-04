@@ -2502,10 +2502,12 @@ path:GET http://localhost:8080/FleetFlow/api/v1/admin/bookings?fromDate=2025-03-
     }
 }
 ------------------------------------------------------------
-Update 24/6/2026 (cập nhật 4/7/2026)
-Customer cancel booking tính penalty (BR-12 — phạt theo % TỔNG TIỀN dựa trên thời gian còn lại
-tới giờ khởi hành: hủy trong 10 phút sau khi tạo → FREE; còn >=12h → 0%; 6-12h → 30%; <6h → 50%.
-Có phạt → ghi công nợ PENALTY vào CustomerWallet, PenaltyStatus=PENDING; hủy free → NONE.
+Update 24/6/2026 (cập nhật 5/7/2026)
+Customer cancel booking tính penalty (BR-12 — phạt = MẤT CỌC, không tính % tổng tiền:
+hủy trong 10 phút sau khi tạo → FREE; còn >=12h tới giờ khởi hành → FREE;
+còn <12h → mất nguyên tiền cọc (30% tổng tiền đã đặt).
+Cọc là tiền đã trả bị tịch thu → KHÔNG ghi công nợ vào CustomerWallet.
+Cancellation.PenaltyStatus = FORFEITED nếu mất cọc / NONE nếu hủy free.
 Tự động notify BOOKING_CANCELLED tới: customer, driver được gán (nếu có), mọi dispatcher ACTIVE —
 lỗi notify không làm fail API)
 - Method + Path: POST http://localhost:8080/FleetFlow/api/v1/customer/bookings/cancel
@@ -2515,25 +2517,22 @@ lỗi notify không làm fail API)
   "customerId": 2,
   "reason": "Thay đổi kế hoạch"
 }
-- Output (có phạt):
+- Output (mất cọc):
 {
     "success": true,
     "bookingId": 26,
     "forfeitDeposit": true,
-    "penaltyPercent": 50,
-    "penaltyAmount": 184000.00,
-    "message": "Hủy booking thành công. Phí phạt hủy muộn: 50% tổng tiền (184000 đ)."
+    "penaltyAmount": 110400,
+    "message": "Hủy booking thành công. Bạn bị mất tiền cọc 110400 đ do hủy trong vòng 12h trước giờ khởi hành."
 }
 - Output (hủy free):
 {
     "success": true,
     "bookingId": 26,
     "forfeitDeposit": false,
-    "penaltyPercent": 0,
     "penaltyAmount": 0,
     "message": "Hủy booking thành công. Không mất phí do hủy đủ sớm."
 }
-// forfeitDeposit = (penaltyPercent > 0) — giữ lại để tương thích FE cũ, FE mới nên dùng penaltyPercent
 Admin khóa tk customer th? công
 Header: Authorization: Bearer ADMIN_TOKEN 
 path POST 
@@ -3260,6 +3259,55 @@ output:
 }
 
 ---------------------------------------------------------------
+## NOTIFICATIONS
+
+Các loại notification hệ thống tự sinh (Channel = IN_APP, IsRead = 0 khi tạo):
+
+| Type                   | Khi nào                              | Người nhận                                          |
+|------------------------|--------------------------------------|-----------------------------------------------------|
+| PAYMENT_CASH_CONFIRMED | Xác nhận thanh toán tiền mặt         | Customer, Driver của booking, mọi Dispatcher ACTIVE |
+| TRIP_COMPLETED         | Driver bấm hoàn thành chuyến         | Customer                                            |
+| BOOKING_CANCELLED      | Customer hủy booking                 | Customer, Driver được gán (nếu có), Dispatcher ACTIVE |
+| COMPLAINT_RESOLVED     | Dispatcher xử lý xong complaint      | Customer của complaint                              |
+
+Customer xem danh sách notification của mình
+- Method + Path: GET http://localhost:8080/FleetFlow/api/v1/customer/notifications
+- Header: Authorization: Bearer CUSTOMER_TOKEN
+- Input: (không có)
+- Output:
+{
+    "success": true,
+    "data": [
+        {
+            "NotificationID": 21,
+            "RecipientAccountID": 3,
+            "BookingID": 3,
+            "Title": "Chuyến đi đã hoàn thành",
+            "Message": "Chuyến #3 đã được tài xế hoàn thành. Cảm ơn bạn đã sử dụng FleetFlow!",
+            "Type": "TRIP_COMPLETED",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "2026-07-04 21:15:00.0"
+        }
+    ]
+}
+
+Customer đánh dấu đã đọc 1 notification
+- Method + Path: POST http://localhost:8080/FleetFlow/api/v1/customer/notifications/{notificationId}/read
+- Header: Authorization: Bearer CUSTOMER_TOKEN
+- Input: (không có body)
+- Output:
+{
+    "success": true
+}
+
+Dispatcher xem / đánh dấu đã đọc notification (cùng cấu trúc với customer)
+- Method + Path: GET  http://localhost:8080/FleetFlow/api/v1/dispatcher/notifications
+- Method + Path: POST http://localhost:8080/FleetFlow/api/v1/dispatcher/notifications/{notificationId}/read
+- Header: Authorization: Bearer DISPATCHER_TOKEN
+- Input/Output: giống 2 API customer ở trên
+
+---------------------------------------------------------------
 ## TEST LOG 4/7/2026 — Kiểm thử HTTP end-to-end trên DB thật (dữ liệu test đã xóa sau khi chạy)
 
 1. [PASS] Xác nhận thanh toán tiền mặt → notify customer + driver + dispatcher
@@ -3279,11 +3327,12 @@ output:
    → Booking chuyển COMPLETED; notification TRIP_COMPLETED gửi customer
 
 3. [PASS] Customer hủy chuyến → notify customer + driver được gán + dispatcher
+   (retest 5/7/2026 với rule MẤT CỌC)
 - Path: POST /api/v1/customer/bookings/cancel  - Input: 
 {"bookingId":3,"customerId":3,"reason":"..."}
 - Output:
-{"success":true,"bookingId":3,"forfeitDeposit":true,"penaltyPercent":50,
-          "penaltyAmount":82500.00,"message":"Hủy booking thành công. Phí phạt hủy muộn: 50% tổng tiền (82500 đ)."}
+{"success":true,"bookingId":3,"forfeitDeposit":true,"penaltyAmount":49500,
+          "message":"Hủy booking thành công. Bạn bị mất tiền cọc 49500 đ do hủy trong vòng 12h trước giờ khởi hành."}
    → 4 notification BOOKING_CANCELLED (customer, driver ACCEPTED/PENDING, 2 dispatcher ACTIVE)
 
 4. [PASS] Lịch sử booking (tripHistory) trả đủ status để FE lọc đang chờ/đang chạy
@@ -3291,9 +3340,11 @@ output:
    → 200, mỗi booking có field "status" (UNASSIGNED/CONFIRMED/DISPATCHED/ONGOING/COMPLETED/CANCELLED)
    → Việc lọc tab "đang chờ"/"đang chạy" là logic FE trên field status này
 
-5. [PASS] Hủy chuyến thời gian gần (< 6h trước khởi hành) — trước đây báo lỗi
-   Cùng API mục 3, booking có DepartureTime đã cận/quá giờ → phạt 50% tính đúng,
-   ghi Cancellation (PenaltyStatus=PENDING) + công nợ PENALTY vào CustomerWallet, không còn lỗi
+5. [PASS] Hủy chuyến thời gian gần (< 12h trước khởi hành) — trước đây báo lỗi
+   (retest 5/7/2026 với rule MẤT CỌC)
+   Cùng API mục 3, booking có DepartureTime đã cận/quá giờ → mất cọc 30% tổng tiền (49500 đ trên
+   tổng 165000 đ), ghi Cancellation PenaltyStatus=FORFEITED, KHÔNG ghi công nợ CustomerWallet,
+   không còn lỗi
 
 6. [PASS] Resolve complaint → notify customer
 - Path: PUT /api/v1/dispatcher/complaints/3/resolve  (Bearer token Dispatcher)  
