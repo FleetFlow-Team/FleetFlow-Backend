@@ -39,6 +39,13 @@ public class TripTrackingService {
 
         requireDriverOwnsBooking(bookingId, driverId);
 
+        // Kiểm tra khách đã đóng cọc 30% chưa — bắt buộc trước khi start
+        boolean depositPaid = new dao.ExtensionDAO().isDepositPaid(bookingId);
+        if (!depositPaid) {
+            throw new IllegalArgumentException(
+                    "Khách hàng chưa đóng cọc 30%. Vui lòng yêu cầu khách thanh toán trước khi bắt đầu chuyến.");
+        }
+
         try (Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
             try {

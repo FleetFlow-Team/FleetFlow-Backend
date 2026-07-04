@@ -284,6 +284,22 @@ public class ExtensionDAO {
     }
     // Thêm phần cuối file — 2 helper lấy AccountID để gửi notification
 
+    /**
+     * Kiểm tra booking đã đóng cọc (DEPOSIT COMPLETED) chưa.
+     * Dùng trong startTrip để block nếu khách chưa thanh toán.
+     */
+    public boolean isDepositPaid(int bookingId) throws Exception {
+        String sql = "SELECT COUNT(*) FROM Payment "
+                + "WHERE BookingID = ? AND PaymentType = 'DEPOSIT' AND Status = 'COMPLETED'";
+        try (java.sql.Connection conn = utils.DbUtils.getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        }
+    }
+
     public int getCustomerAccountIdByBookingId(int bookingId) throws Exception {
         String sql = "SELECT a.AccountID FROM Booking b "
                 + "JOIN Customer c ON c.CustomerID = b.CustomerID "
@@ -314,5 +330,3 @@ public class ExtensionDAO {
         }
     }
 }
-
-    

@@ -304,6 +304,35 @@ public class BookingWorkflowService {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        // Tự động tạo Payment DEPOSIT 30% sau khi booking CONFIRMED
+        // FE sẽ dùng thông tin này để redirect khách sang VNPay
+        try {
+            dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
+            java.math.BigDecimal estimatedTotal = extDAO.calculateFinalPayment(bookingId);
+            // calculateFinalPayment trả về số còn lại sau khi trừ đã trả
+            // Lần đầu chưa có payment nào nên = EstimatedTotal
+            if (estimatedTotal != null && estimatedTotal.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                java.math.BigDecimal deposit = estimatedTotal
+                        .multiply(new java.math.BigDecimal("0.30"))
+                        .setScale(0, java.math.RoundingMode.HALF_UP);
+                boolean created = extDAO.createPendingPayment(bookingId, "DEPOSIT", "VNPAY", deposit.doubleValue());
+                if (created) {
+                    // Notify customer: cần thanh toán cọc
+                    int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
+                    if (customerAccountId != -1) {
+                        extDAO.createNotification(customerAccountId, bookingId,
+                                "Vui lòng thanh toán cọc 30%",
+                                "Chuyến đi #" + bookingId + " đã có tài xế. "
+                                        + "Vui lòng thanh toán cọc " + deposit.toPlainString()
+                                        + "đ để xác nhận chuyến.",
+                                "PAYMENT_DEPOSIT_REQUIRED", "IN_APP");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
