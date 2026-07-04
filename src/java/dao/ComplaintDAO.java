@@ -157,6 +157,23 @@ public class ComplaintDAO {
         }
     }
 
+    public int getCustomerAccountByComplaintId(int complaintId) throws Exception {
+        String sql = "SELECT a.AccountID FROM Complaint cp "
+                + "JOIN Customer c ON c.CustomerID = cp.CustomerID "
+                + "JOIN Account a ON a.AccountID = c.AccountID "
+                + "WHERE cp.ComplaintID = ?";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, complaintId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("AccountID");
+                }
+                return -1;
+            }
+        }
+    }
+
     public int[] getComplaintCustomerInfo(int complaintId) throws Exception {
         String sql = "SELECT a.AccountID, cp.BookingID "
                 + "FROM Complaint cp "

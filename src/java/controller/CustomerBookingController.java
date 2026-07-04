@@ -178,13 +178,16 @@ public class CustomerBookingController extends HttpServlet {
             CancelResult result = service.cancelBooking(bookingId, customerId, reason);
 
             response.setStatus(200);
+            String cancelMessage = result.penaltyPercent > 0
+                    ? "Hủy booking thành công. Phí phạt hủy muộn: " + result.penaltyPercent
+                    + "% tổng tiền (" + result.penaltyAmount.setScale(0, java.math.RoundingMode.HALF_UP).toPlainString() + " đ)."
+                    : "Hủy booking thành công. Không mất phí do hủy đủ sớm.";
             out.print("{\"success\": true,"
                     + "\"bookingId\":" + result.bookingId + ","
                     + "\"forfeitDeposit\":" + result.forfeitDeposit + ","
+                    + "\"penaltyPercent\":" + result.penaltyPercent + ","
                     + "\"penaltyAmount\":" + result.penaltyAmount + ","
-                    + "\"message\":" + (result.forfeitDeposit
-                            ? "\"Hủy booking thành công. Bạn đã mất tiền cọc do hủy quá muộn (trong vòng 12h trước giờ khởi hành).\""
-                            : "\"Hủy booking thành công. Không mất phí do hủy đủ sớm.\"")
+                    + "\"message\":\"" + cancelMessage + "\""
                     + "}");
 
         } catch (IllegalArgumentException e) {

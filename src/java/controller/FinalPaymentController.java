@@ -54,8 +54,15 @@ public class FinalPaymentController extends HttpServlet {
                 success = dao.processFinalPayment(bookingId, paymentMethod, amountToPay);
                 res.put("success", success);
             } else {
+                // Endpoint này chỉ xác nhận thanh toán TIỀN MẶT. Thanh toán qua
+                // cổng (VNPay/Momo) phải đi luồng riêng có verify chữ ký:
+                // FE gọi /api/v1/payments/vnpay/create (server tự tính tiền,
+                // tạo PENDING), gateway callback mới xác nhận COMPLETED.
                 success = true;
                 res.put("success", true);
+                res.put("paymentRequired", true);
+                res.put("message", "Thanh toán qua " + paymentMethod
+                        + ": gọi /api/v1/payments/vnpay/create với paymentType=FINAL để lấy paymentUrl.");
             }
 
             res.put("finalAmount", amountToPay);

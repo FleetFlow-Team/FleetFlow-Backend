@@ -1524,8 +1524,9 @@ Tạo yêu cầu thanh toán MoMo cho 1 invoice
     "paymentUrl": "https://test-payment.momo.vn/v2/gateway/api/create?orderId=15"
 }
 
-Thanh toán cuối (Final Payment - Tiền mặt / Chuyển khoản)
-- Path: POST http://localhost:8080/FleetFlow/api/v1/payments/final
+Thanh toán cuối bằng TIỀN MẶT (xác nhận đã cầm tiền — ghi Payment FINAL/SUCCESS ngay,
+notify customer + driver + dispatcher; finalAmount = EstimatedTotal - tổng Payment đã thanh toán)
+- Method + Path: POST http://localhost:8080/FleetFlow/api/v1/payments/final
 - Input:
 {
   "bookingId": 1,
@@ -1536,6 +1537,61 @@ Thanh toán cuối (Final Payment - Tiền mặt / Chuyển khoản)
     "success": true,
     "finalAmount": 59000.00
 }
+
+Thanh toán cuối qua CỔNG (VNPAY/MOMO — chỉ trả số tiền còn phải trả, KHÔNG ghi DB;
+FE gọi tiếp /payments/vnpay/create để thanh toán thật)
+- Method + Path: POST http://localhost:8080/FleetFlow/api/v1/payments/final
+- Input:
+{
+  "bookingId": 1,
+  "paymentMethod": "VNPAY"
+}
+- Output:
+{
+    "success": true,
+    "paymentRequired": true,
+    "finalAmount": 59000.00,
+    "message": "Thanh toán qua VNPAY: gọi /api/v1/payments/vnpay/create với paymentType=FINAL để lấy paymentUrl."
+}
+
+Tạo yêu cầu thanh toán VNPay (SERVER TỰ TÍNH tiền, không nhận amount từ client:
+DEPOSIT = 30% EstimatedTotal; FINAL = EstimatedTotal - tổng Payment đã thanh toán.
+Tạo Payment PENDING kèm TransactionRef; FE redirect khách sang paymentUrl, hết hạn 15 phút)
+- Method + Path: POST http://localhost:8080/FleetFlow/api/v1/payments/vnpay/create
+- Input:
+{
+  "bookingId": 1,
+  "paymentType": "FINAL"
+}
+- Output:
+{
+    "success": true,
+    "paymentUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_Amount=5900000&...&vnp_SecureHash=..."
+}
+- Output (Status 400 — không còn khoản phải trả / booking chưa có giá):
+{
+    "success": false,
+    "message": "Không có khoản tiền cần thanh toán cho booking này."
+}
+
+VNPay Return (VNPay redirect trình duyệt khách về; verify chữ ký HMAC-SHA512 + ResponseCode 00
+→ Payment COMPLETED theo TransactionRef, chỉ xử lý 1 lần; FINAL → Booking COMPLETED trừ khi đã CANCELLED,
+DEPOSIT → Booking giữ nguyên)
+- Method + Path: GET http://localhost:8080/FleetFlow/api/v1/payments/vnpay/return
+- Input: query params do VNPay tự gắn (vnp_TxnRef, vnp_Amount, vnp_ResponseCode, vnp_SecureHash, ...)
+- Output: HTTP 302 redirect về FE, status = "success" | "failed"
+http://127.0.0.1:5501/pages/customer/payment-success.html?status=success&bookingId=1&amount=59000&bankCode=NCB&transactionNo=15118436
+
+VNPay IPN Webhook (VNPay server gọi thẳng về server — đường xác nhận tin cậy,
+cùng logic với /return, idempotent)
+- Method + Path: GET http://localhost:8080/FleetFlow/api/v1/payments/vnpay/ipn
+- Input: query params do VNPay gắn (như /return)
+- Output:
+{
+    "RspCode": "00",
+    "Message": "Confirm Success"
+}
+// RspCode: "00" thành công | "24" thanh toán thất bại | "97" sai chữ ký | "99" lỗi hệ thống
 
 Tạo yêu cầu thanh toán MoMo cho 1 booking
 - Path: POST http://localhost:8080/FleetFlow/api/v1/payments/momo/create
@@ -2446,23 +2502,38 @@ path:GET http://localhost:8080/FleetFlow/api/v1/admin/bookings?fromDate=2025-03-
     }
 }
 ------------------------------------------------------------
-Update 24/6/2026
-Customer cancel booking tính penalty(API cũ chỉ bổ sung them field ouput)
-path : POST http://localhost:8080/FleetFlow/api/v1/customer/bookings/cancel
-input: 
+Update 24/6/2026 (cập nhật 4/7/2026)
+Customer cancel booking tính penalty (BR-12 — phạt theo % TỔNG TIỀN dựa trên thời gian còn lại
+tới giờ khởi hành: hủy trong 10 phút sau khi tạo → FREE; còn >=12h → 0%; 6-12h → 30%; <6h → 50%.
+Có phạt → ghi công nợ PENALTY vào CustomerWallet, PenaltyStatus=PENDING; hủy free → NONE.
+Tự động notify BOOKING_CANCELLED tới: customer, driver được gán (nếu có), mọi dispatcher ACTIVE —
+lỗi notify không làm fail API)
+- Method + Path: POST http://localhost:8080/FleetFlow/api/v1/customer/bookings/cancel
+- Input:
 {
   "bookingId": 26,
   "customerId": 2,
-  "reason": "Thay đổi kế hoạch cần gì báo trước lêu lêu"
+  "reason": "Thay đổi kế hoạch"
 }
-output: 
+- Output (có phạt):
 {
     "success": true,
     "bookingId": 26,
+    "forfeitDeposit": true,
     "penaltyPercent": 50,
-    "penaltyAmount": 184000.00,(Thêm field này)
-    "message": "Hủy booking thành công"
+    "penaltyAmount": 184000.00,
+    "message": "Hủy booking thành công. Phí phạt hủy muộn: 50% tổng tiền (184000 đ)."
 }
+- Output (hủy free):
+{
+    "success": true,
+    "bookingId": 26,
+    "forfeitDeposit": false,
+    "penaltyPercent": 0,
+    "penaltyAmount": 0,
+    "message": "Hủy booking thành công. Không mất phí do hủy đủ sớm."
+}
+// forfeitDeposit = (penaltyPercent > 0) — giữ lại để tương thích FE cũ, FE mới nên dùng penaltyPercent
 Admin khóa tk customer th? công
 Header: Authorization: Bearer ADMIN_TOKEN 
 path POST 
@@ -3186,4 +3257,49 @@ output:
     "lng": 106.70287209999998,
     "address": "123-125 Nguyễn Huệ Phường Sài Gòn,Thành Phố Hồ Chí Minh",
     "display": "123-125 Nguyễn Huệ Phường Sài Gòn,Thành Phố Hồ Chí Minh"
+}
+
+---------------------------------------------------------------
+## TEST LOG 4/7/2026 — Kiểm thử HTTP end-to-end trên DB thật (dữ liệu test đã xóa sau khi chạy)
+
+1. [PASS] Xác nhận thanh toán tiền mặt → notify customer + driver + dispatcher
+- Path: POST /api/v1/payments/final  
+- Input:
+{"bookingId":3,"paymentMethod":"CASH"}
+- Output: 
+{"success":true,"finalAmount":165000.00}
+   → Payment FINAL/CASH/SUCCESS được tạo; 4 notification PAYMENT_CASH_CONFIRMED
+     (customer #3, driver #14, dispatcher #18 + #19)
+
+2. [PASS] Driver hoàn thành chuyến → notify customer
+- Path: POST /api/v1/driver/trips/3/complete  (Bearer token Driver, booking đang ONGOING)
+- Input:
+- Output:
+{"success":true,"message":"Đã hoàn thành chuyến đi"}
+   → Booking chuyển COMPLETED; notification TRIP_COMPLETED gửi customer
+
+3. [PASS] Customer hủy chuyến → notify customer + driver được gán + dispatcher
+- Path: POST /api/v1/customer/bookings/cancel  - Input: 
+{"bookingId":3,"customerId":3,"reason":"..."}
+- Output:
+{"success":true,"bookingId":3,"forfeitDeposit":true,"penaltyPercent":50,
+          "penaltyAmount":82500.00,"message":"Hủy booking thành công. Phí phạt hủy muộn: 50% tổng tiền (82500 đ)."}
+   → 4 notification BOOKING_CANCELLED (customer, driver ACCEPTED/PENDING, 2 dispatcher ACTIVE)
+
+4. [PASS] Lịch sử booking (tripHistory) trả đủ status để FE lọc đang chờ/đang chạy
+- Path: GET /api/v1/customer/bookings?customerId=1
+   → 200, mỗi booking có field "status" (UNASSIGNED/CONFIRMED/DISPATCHED/ONGOING/COMPLETED/CANCELLED)
+   → Việc lọc tab "đang chờ"/"đang chạy" là logic FE trên field status này
+
+5. [PASS] Hủy chuyến thời gian gần (< 6h trước khởi hành) — trước đây báo lỗi
+   Cùng API mục 3, booking có DepartureTime đã cận/quá giờ → phạt 50% tính đúng,
+   ghi Cancellation (PenaltyStatus=PENDING) + công nợ PENALTY vào CustomerWallet, không còn lỗi
+
+6. [PASS] Resolve complaint → notify customer
+- Path: PUT /api/v1/dispatcher/complaints/3/resolve  (Bearer token Dispatcher)  
+- Input: 
+{"resolution":"..."}
+- Output:
+{"success":true}
+   → Complaint chuyển RESOLVED; notification COMPLAINT_RESOLVED gửi đúng account của customer
 }

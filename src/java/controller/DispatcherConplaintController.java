@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dao.ComplaintDAO;
+import dao.NotificationDAO;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.HashMap;
@@ -19,6 +20,7 @@ import utils.JwtUtils;
 public class DispatcherConplaintController extends HttpServlet {
 
     private final ComplaintDAO dao = new ComplaintDAO();
+    private final NotificationDAO notificationDAO = new NotificationDAO();
     private final Gson gson = new Gson();
 
     private void prepare(HttpServletResponse response) {
@@ -92,26 +94,19 @@ public class DispatcherConplaintController extends HttpServlet {
                 int complaintId = Integer.parseInt(pathInfo.split("/")[1]);
                 JsonObject body = readBody(request);
                 String resolution = body.has("resolution") ? body.get("resolution").getAsString() : "";
-                boolean resolved = dao.resolveComplaint(complaintId, resolution);
-                res.put("success", resolved);
-
-                // Notify customer khi khiếu nại được xử lý thành công
-                if (resolved) {
+                boolean ok = dao.resolveComplaint(complaintId, resolution);
+                res.put("success", ok);
+                if (ok) {
                     try {
-                        int[] info = dao.getComplaintCustomerInfo(complaintId);
-                        int customerAccountId = info[0];
-                        Integer bookingId = info[1] == -1 ? null : info[1];
+                        int customerAccountId = dao.getCustomerAccountByComplaintId(complaintId);
                         if (customerAccountId != -1) {
-                            new dao.ExtensionDAO().createNotification(
-                                    customerAccountId, bookingId,
-                                    "Khiếu nại của bạn đã được xử lý",
-                                    "Khiếu nại #" + complaintId + " đã được giải quyết."
-                                            + (resolution != null && !resolution.isEmpty()
-                                                    ? " Phản hồi: " + resolution : ""),
-                                    "COMPLAINT_RESOLVED", "IN_APP");
+                            notificationDAO.insert(customerAccountId, null,
+                                    "Khiếu nại đã được xử lý",
+                                    "Khiếu nại #" + complaintId + " của bạn đã được xử lý. Nội dung: " + resolution,
+                                    "COMPLAINT_RESOLVED");
                         }
-                    } catch (Exception notifEx) {
-                        notifEx.printStackTrace();
+                    } catch (Exception notifyEx) {
+                        System.err.println("Notify resolveComplaint loi: " + notifyEx.getMessage());
                     }
                 }
             } else {

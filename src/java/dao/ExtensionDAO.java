@@ -169,14 +169,45 @@ public class ExtensionDAO {
         }
     }
 
-    public int createPayment(int bookingId, String paymentType, BigDecimal amount, String paymentMethod) throws Exception {
+    public int createPayment(int bookingId, String paymentType, BigDecimal amount, String method) throws Exception {
+        String sql = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status) VALUES (?, ?, ?, ?, 'PENDING')";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setInt(1, bookingId);
+            ps.setString(2, paymentType);
+            ps.setString(3, method);
+            ps.setBigDecimal(4, amount);
+            ps.executeUpdate();
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+        return -1;
+    }
+
+    public boolean createPendingPayment(int bookingId, String paymentType, String method, long amount, String txnRef) throws Exception {
+        // TransactionRef = vnp_TxnRef để callback VNPay update đúng dòng payment này,
+        // không quét nhầm các payment PENDING khác của cùng booking
         String sql = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status, TransactionRef) VALUES (?, ?, ?, ?, 'PENDING', ?)";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            ps.setString(2, paymentType);
+            ps.setString(3, method);
+            ps.setBigDecimal(4, java.math.BigDecimal.valueOf(amount));
+            ps.setString(5, txnRef);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    public int createPayment(int bookingId, String paymentType, BigDecimal amount) throws Exception {
+        String sql = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status) VALUES (?, ?, 'MOMO', ?, 'PENDING')";
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, bookingId);
             ps.setString(2, paymentType);
-            ps.setString(3, paymentMethod);
-            ps.setBigDecimal(4, amount);
-            ps.setString(5, "CASH".equals(paymentMethod) ? "TXN-D-" + bookingId : null);
+            ps.setBigDecimal(3, amount);
             ps.executeUpdate();
             ResultSet rs = ps.getGeneratedKeys();
             if (rs.next()) {
@@ -227,15 +258,21 @@ public class ExtensionDAO {
     }
 
     public BigDecimal calculateFinalPayment(int bookingId) throws Exception {
-        String sql = "SELECT " +
-                     "(SELECT COALESCE(EstimatedTotal, 0) FROM BookingPricing WHERE BookingID = ?) - " +
-                     "(SELECT COALESCE(SUM(Amount), 0) FROM Payment WHERE BookingID = ?) AS Remaining";
+        // Còn phải trả = EstimatedTotal (BookingPricing) - tổng Payment đã thanh toán.
+        // Booking không có cột TotalAmount/DepositAmount — giá nằm ở BookingPricing.
+        // Status thanh toán xong: 'SUCCESS' (cash/final) hoặc 'COMPLETED' (VNPay).
+        String sql = "SELECT "
+                + "(SELECT COALESCE(EstimatedTotal, 0) FROM BookingPricing WHERE BookingID = ?) - "
+                + "(SELECT COALESCE(SUM(Amount), 0) FROM Payment WHERE BookingID = ? AND Status IN ('SUCCESS', 'COMPLETED')) AS Remaining";
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, bookingId);
             ps.setInt(2, bookingId);
             try ( ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getBigDecimal("Remaining");
+                    BigDecimal remaining = rs.getBigDecimal("Remaining");
+                    if (remaining != null) {
+                        return remaining.max(BigDecimal.ZERO);
+                    }
                 }
             }
         }
@@ -243,7 +280,7 @@ public class ExtensionDAO {
     }
 
     public boolean processFinalPayment(int bookingId, String paymentMethod, BigDecimal amount) throws Exception {
-        String sql = "INSERT INTO Payment (BookingID, PaymentType, Amount, Method, Status, PaidAt, TransactionRef) VALUES (?, 'FINAL', ?, ?, 'SUCCESS', GETDATE(), ?)";
+        String sql = "INSERT INTO Payment (BookingID, PaymentType, Amount, Method, Status, PaidAt) VALUES (?, 'FINAL', ?, ?, 'SUCCESS', GETDATE())";
         
         try (Connection conn = DbUtils.getConnection(); 
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -251,35 +288,17 @@ public class ExtensionDAO {
             ps.setInt(1, bookingId);
             ps.setBigDecimal(2, amount);
             ps.setString(3, paymentMethod);
-            ps.setString(4, "TXN-F-" + bookingId);
             return ps.executeUpdate() > 0;
         }
     }
-    
-    public boolean createPendingPayment(int bookingId, String paymentType, String method, double amount) {
-        // Tạo TransactionRef theo format của bạn (VD: TXN-D-1 hoặc TXN-F-1 kèm timestamp để không bị trùng)
-        String prefix = paymentType.equalsIgnoreCase("DEPOSIT") ? "D" : "F";
-        String txnRef = "TXN-" + prefix + "-" + bookingId + "-" + System.currentTimeMillis();
 
-        // Câu lệnh SQL (PaidAt để trống vì chưa thanh toán)
-        String sql = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status, TransactionRef) " +
-                     "VALUES (?, ?, ?, ?, 'PENDING', ?)";
-
+    public boolean updateBookingStatus(int bookingId, String status) throws Exception {
+        String sql = "UPDATE Booking SET Status = ? WHERE BookingID = ?";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-             
-            ps.setInt(1, bookingId);
-            ps.setString(2, paymentType); // "DEPOSIT" hoặc "FINAL"
-            ps.setString(3, method);      // "VNPAY", "MOMO", "CASH"...
-            ps.setDouble(4, amount);
-            ps.setString(5, txnRef);
-
-            int rowsAffected = ps.executeUpdate();
-            return rowsAffected > 0;
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
+            ps.setString(1, status);
+            ps.setInt(2, bookingId);
+            return ps.executeUpdate() > 0;
         }
     }
     // Thêm phần cuối file — 2 helper lấy AccountID để gửi notification
