@@ -84,8 +84,17 @@ public class BookingWorkflowService {
      */
     public void rejectBooking(int bookingId, int dispatcherAccountId, String reason, String ipAddress)
             throws Exception {
-        Booking booking = requireBookingInStatus(bookingId, "PENDING",
-                "Chỉ từ chối được booking đang ở trạng thái PENDING");
+        // Cho phép reject cả PENDING (chưa dispatch) và UNASSIGNED (hết driver)
+        Booking booking = bookingDAO.findById(bookingId);
+        if (booking == null) {
+            throw new IllegalArgumentException("Không tìm thấy booking #" + bookingId);
+        }
+        if (!"PENDING".equalsIgnoreCase(booking.getStatus())
+                && !"UNASSIGNED".equalsIgnoreCase(booking.getStatus())) {
+            throw new IllegalArgumentException(
+                "Chỉ từ chối được booking ở trạng thái PENDING hoặc UNASSIGNED. "
+                + "Trạng thái hiện tại: " + booking.getStatus());
+        }
 
         try (Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
@@ -100,6 +109,24 @@ public class BookingWorkflowService {
                 throw e;
             } finally {
                 conn.setAutoCommit(true);
+            }
+        }
+
+        // Notify customer khi dispatcher hủy booking UNASSIGNED
+        if ("UNASSIGNED".equalsIgnoreCase(booking.getStatus())) {
+            try {
+                dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
+                int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
+                if (customerAccountId != -1) {
+                    extDAO.createNotification(customerAccountId, bookingId,
+                            "Booking #" + bookingId + " đã bị hủy",
+                            "Rất tiếc, chúng tôi không thể tìm được tài xế cho chuyến của bạn"
+                                    + (reason != null && !reason.isEmpty() ? ". Lý do: " + reason : ".")
+                                    + " Vui lòng đặt lại hoặc liên hệ hỗ trợ.",
+                            "BOOKING_CANCELLED", "IN_APP");
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }
