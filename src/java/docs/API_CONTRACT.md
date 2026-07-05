@@ -1510,19 +1510,14 @@ Khách hàng gửi khiếu nại
 
 ## PAYMENTS
 
-Tạo yêu cầu thanh toán MoMo cho 1 invoice
-- Path: POST http://localhost:8080/FleetFlow/api/v1/payments/momo/create
-- Input:
-{
-  "invoiceId": 1,
-  "paymentType": "DEPOSIT",
-  "amount": 150000.00
-}
-- Output:
-{
-    "success": true,
-    "paymentUrl": "https://test-payment.momo.vn/v2/gateway/api/create?orderId=15"
-}
+(Cập nhật 5/7/2026: đã GỠ BỎ toàn bộ luồng MoMo — /payments/momo/create và
+/payments/momo/callback không còn tồn tại. Cổng thanh toán duy nhất là VNPay.
+
+Khi tạo booking thành công, hệ thống TỰ ĐỘNG tạo sẵn 1 dòng Payment tiền cọc:
+PaymentType=DEPOSIT, Status=PENDING, Amount = 30% EstimatedTotal, Method=NULL —
+booking và payment không còn rời nhau. Khi FE gọi /payments/vnpay/create,
+server gắn Method=VNPAY + TransactionRef vào đúng dòng cọc PENDING này thay vì
+tạo dòng mới.)
 
 Thanh toán cuối bằng TIỀN MẶT (xác nhận đã cầm tiền — ghi Payment FINAL/SUCCESS ngay,
 notify customer + driver + dispatcher; finalAmount = EstimatedTotal - tổng Payment đã thanh toán)
@@ -1538,7 +1533,7 @@ notify customer + driver + dispatcher; finalAmount = EstimatedTotal - tổng Pay
     "finalAmount": 59000.00
 }
 
-Thanh toán cuối qua CỔNG (VNPAY/MOMO — chỉ trả số tiền còn phải trả, KHÔNG ghi DB;
+Thanh toán cuối qua CỔNG (VNPAY — chỉ trả số tiền còn phải trả, KHÔNG ghi DB;
 FE gọi tiếp /payments/vnpay/create để thanh toán thật)
 - Method + Path: POST http://localhost:8080/FleetFlow/api/v1/payments/final
 - Input:
@@ -1592,38 +1587,6 @@ cùng logic với /return, idempotent)
     "Message": "Confirm Success"
 }
 // RspCode: "00" thành công | "24" thanh toán thất bại | "97" sai chữ ký | "99" lỗi hệ thống
-
-Tạo yêu cầu thanh toán MoMo cho 1 booking
-- Path: POST http://localhost:8080/FleetFlow/api/v1/payments/momo/create
-- Input:
-{
-  "bookingId": 3,
-  "amount": "150000"
-}
-- Output:
-{
-    "success": true,
-    "paymentUrl": "https://test-payment.momo.vn/v2/gateway/pay?t=TU9NT0JLVU4yMDE4..."
-}
-
-MoMo Callback Webhook (MoMo tự động gọi về khi thanh toán thành công)
-- Path: POST http://localhost:8080/FleetFlow/api/v1/payments/momo/callback
-- Input:
-{
-  "partnerCode": "MOMO",
-  "orderId": "1",
-  "requestId": "1_1719540000000",
-  "amount": 150000,
-  "orderInfo": "Thanh toan FleetFlow",
-  "orderType": "momo_wallet",
-  "transId": "253018274099",
-  "resultCode": 0,
-  "message": "Thành công",
-  "payType": "qr",
-  "signature": "chuoi-ma-hoa-bat-ky"
-}
-- Output: 
-Status 204 No Content
 
 Customer xem lịch sử ratings
 - Path: GET http://localhost:8080/FleetFlow/api/v1/customer/ratings

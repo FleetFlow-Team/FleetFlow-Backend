@@ -189,32 +189,33 @@ public class ExtensionDAO {
 
     public boolean createPendingPayment(int bookingId, String paymentType, String method, long amount, String txnRef) throws Exception {
         // TransactionRef = vnp_TxnRef để callback VNPay update đúng dòng payment này,
-        // không quét nhầm các payment PENDING khác của cùng booking
-        String sql = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status, TransactionRef) VALUES (?, ?, ?, ?, 'PENDING', ?)";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, bookingId);
-            ps.setString(2, paymentType);
-            ps.setString(3, method);
-            ps.setBigDecimal(4, java.math.BigDecimal.valueOf(amount));
-            ps.setString(5, txnRef);
-            return ps.executeUpdate() > 0;
-        }
-    }
-
-    public int createPayment(int bookingId, String paymentType, BigDecimal amount) throws Exception {
-        String sql = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status) VALUES (?, ?, 'MOMO', ?, 'PENDING')";
-        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setInt(1, bookingId);
-            ps.setString(2, paymentType);
-            ps.setBigDecimal(3, amount);
-            ps.executeUpdate();
-            ResultSet rs = ps.getGeneratedKeys();
-            if (rs.next()) {
-                return rs.getInt(1);
+        // không quét nhầm các payment PENDING khác của cùng booking.
+        // Booking khi tạo đã có sẵn dòng DEPOSIT PENDING (Method NULL) → gắn Method +
+        // TxnRef vào dòng đó thay vì insert trùng; chỉ insert mới khi chưa có.
+        String updateSql = "UPDATE Payment SET Method = ?, Amount = ?, TransactionRef = ? "
+                + "WHERE PaymentID = (SELECT TOP 1 PaymentID FROM Payment "
+                + "WHERE BookingID = ? AND PaymentType = ? AND Status = 'PENDING' ORDER BY PaymentID)";
+        String insertSql = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status, TransactionRef) VALUES (?, ?, ?, ?, 'PENDING', ?)";
+        try (Connection conn = DbUtils.getConnection()) {
+            try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                ps.setString(1, method);
+                ps.setBigDecimal(2, java.math.BigDecimal.valueOf(amount));
+                ps.setString(3, txnRef);
+                ps.setInt(4, bookingId);
+                ps.setString(5, paymentType);
+                if (ps.executeUpdate() > 0) {
+                    return true;
+                }
+            }
+            try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+                ps.setInt(1, bookingId);
+                ps.setString(2, paymentType);
+                ps.setString(3, method);
+                ps.setBigDecimal(4, java.math.BigDecimal.valueOf(amount));
+                ps.setString(5, txnRef);
+                return ps.executeUpdate() > 0;
             }
         }
-        return -1;
     }
 
     /**

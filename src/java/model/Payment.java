@@ -7,7 +7,7 @@ import model.base.BaseEntity;
 public class Payment extends BaseEntity {
     private int invoiceId;
     private String paymentType;   // DEPOSIT, FINAL
-    private String method;        // MOMO, CASH, BANK_TRANSFER
+    private String method;        // VNPAY, CASH, BANK_TRANSFER
     private BigDecimal amount;
     private String status;
     private String transactionRef;

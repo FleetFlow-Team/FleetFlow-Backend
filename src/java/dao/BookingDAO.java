@@ -186,6 +186,26 @@ public class BookingDAO {
             );
 
             stmtPricing.executeUpdate();
+            stmtPricing.close();
+
+            // 4. Tạo luôn Payment tiền cọc PENDING (30% EstimatedTotal) trong cùng
+            // transaction — booking và payment không còn rời nhau: booking nào cũng
+            // có khoản cọc chờ thanh toán ngay từ lúc tạo. Method để NULL vì khách
+            // chưa chọn cách thanh toán; /payments/vnpay/create sẽ gắn Method +
+            // TransactionRef vào đúng dòng này.
+            if (pricing.getEstimatedTotal() != null
+                    && pricing.getEstimatedTotal().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                java.math.BigDecimal depositAmount = pricing.getEstimatedTotal()
+                        .multiply(new java.math.BigDecimal("0.30"))
+                        .setScale(0, java.math.RoundingMode.HALF_UP);
+                String sqlDeposit = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status) "
+                        + "VALUES (?, 'DEPOSIT', NULL, ?, 'PENDING')";
+                try (PreparedStatement stmtDeposit = conn.prepareStatement(sqlDeposit)) {
+                    stmtDeposit.setInt(1, bookingId);
+                    stmtDeposit.setBigDecimal(2, depositAmount);
+                    stmtDeposit.executeUpdate();
+                }
+            }
 
             conn.commit();
             return bookingId;

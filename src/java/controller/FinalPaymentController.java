@@ -55,7 +55,7 @@ public class FinalPaymentController extends HttpServlet {
                 res.put("success", success);
             } else {
                 // Endpoint này chỉ xác nhận thanh toán TIỀN MẶT. Thanh toán qua
-                // cổng (VNPay/Momo) phải đi luồng riêng có verify chữ ký:
+                // cổng VNPay phải đi luồng riêng có verify chữ ký:
                 // FE gọi /api/v1/payments/vnpay/create (server tự tính tiền,
                 // tạo PENDING), gateway callback mới xác nhận COMPLETED.
                 success = true;
