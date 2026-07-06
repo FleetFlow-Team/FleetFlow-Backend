@@ -3310,6 +3310,45 @@ Dispatcher xem / đánh dấu đã đọc notification (cùng cấu trúc với 
 - Input/Output: giống 2 API customer ở trên
 
 ---------------------------------------------------------------
+## ADMIN — Khóa/mở khóa tài khoản Driver & Dispatcher (deadline #3)
+(Customer dùng luồng riêng /admin/customers/* có rào công nợ. Controller này chỉ cho Driver/Dispatcher.)
+
+Xem danh sách tài khoản theo role
+- Method + Path: GET http://localhost:8080/FleetFlow/api/v1/admin/accounts?role=Driver   (role=Driver|Dispatcher)
+- Header: Authorization: Bearer ADMIN_TOKEN
+- Output:
+{
+  "success": true,
+  "data": [
+    { "accountId": 13, "fullName": "Tuấn Ngô", "email": "tuan13@example.com",
+      "phoneNumber": "0900000013", "roleName": "Driver", "status": "ACTIVE" }
+  ]
+}
+
+Khóa / mở khóa
+- Method + Path: POST http://localhost:8080/FleetFlow/api/v1/admin/accounts/{accountId}/lock
+- Method + Path: POST http://localhost:8080/FleetFlow/api/v1/admin/accounts/{accountId}/unlock
+- Header: Authorization: Bearer ADMIN_TOKEN
+- Output (200): {"success": true, "message": "Đã khóa tài khoản Driver #13"}
+- Output (400): {"success": false, "error": "Chỉ hỗ trợ khóa Driver/Dispatcher. Account #20 có role Admin."}
+- Ghi chú: lock → Account.Status='LOCKED' + notification ACCOUNT_LOCKED; unlock → 'ACTIVE' + ACCOUNT_UNLOCKED.
+
+## DISPATCHER — Danh sách tài xế (deadline #4)
+- Method + Path: GET http://localhost:8080/FleetFlow/api/v1/dispatcher/drivers
+- Header: Authorization: Bearer DISPATCHER_TOKEN  (Admin cũng được)
+- Output:
+{
+  "success": true,
+  "data": [
+    { "driverId": 1, "accountId": 13, "fullName": "Tuấn Ngô", "email": "tuan13@example.com",
+      "phoneNumber": "0900000013", "availabilityStatus": "AVAILABLE", "averageRating": 4.80,
+      "accountStatus": "ACTIVE", "tripsAccepted": 3, "tripsCompleted": 3 }
+  ]
+}
+- Ghi chú: tripsAccepted = số broadcast Status='ACCEPTED'; tripsCompleted = trong đó Booking đã COMPLETED.
+  (Bảng Driver hiện KHÔNG có cột ApprovalStatus trên DB này — xem cảnh báo cuối file.)
+
+---------------------------------------------------------------
 ## TEST LOG 4/7/2026 — Kiểm thử HTTP end-to-end trên DB thật (dữ liệu test đã xóa sau khi chạy)
 
 1. [PASS] Xác nhận thanh toán tiền mặt → notify customer + driver + dispatcher
@@ -3380,3 +3419,22 @@ Dispatcher xem / đánh dấu đã đọc notification (cùng cấu trúc với 
 - Method + Path: GET /api/v1/customer/notifications  (Bearer token Customer cuong3)
    → trả về danh sách gồm notification #36 "Đặt cọc thành công" (Type=PAYMENT_DEPOSIT_CONFIRMED, IsRead=false)
      — xác nhận customer notification cho luồng VNPay hoạt động end-to-end.
+
+9. [PASS] Admin khóa/mở khóa Driver (deadline #3 — 6/7/2026, chạy thật trên Tomcat + DB)
+- GET /api/v1/admin/accounts?role=Driver (Bearer Admin) → 200, danh sách driver + status.
+- POST /api/v1/admin/accounts/13/lock   (Bearer Admin) → 200 "Đã khóa tài khoản Driver #13"; DB Account#13.Status=LOCKED.
+- POST /api/v1/admin/accounts/13/unlock (Bearer Admin) → 200; DB Account#13.Status=ACTIVE (đã khôi phục).
+- POST /api/v1/admin/accounts/20/lock   (acc 20 = Admin) → 400 (từ chối; chỉ cho khóa Driver/Dispatcher).
+
+10. [PASS] Dispatcher xem danh sách tài xế (deadline #4 — 6/7/2026)
+- GET /api/v1/dispatcher/drivers (Bearer Dispatcher) → 200, 5 tài xế kèm availabilityStatus,
+  averageRating, tripsAccepted, tripsCompleted, accountStatus (vd driver #1 tuan13: AVAILABLE,
+  rating 4.80, nhận 3 / hoàn thành 3).
+
+---------------------------------------------------------------
+## ⚠️ CẢNH BÁO LỆCH SCHEMA (phát hiện 6/7/2026)
+DB đang chạy: bảng **Driver KHÔNG có cột `ApprovalStatus`, `TermsAccepted`, `TermsAcceptedAt`, `WalletBalance`**
+(đúng FleetFlow_Create_V5.sql thuần — phần "update field" chưa chạy cho Driver).
+NHƯNG code lại dùng các cột này: `AccountDAO.INSERT_DRIVER` (đăng ký Driver) và `DriverDAO` (SELECT profile...).
+⇒ Các luồng đăng ký/duyệt/điều khoản/ví của tài xế sẽ lỗi "Invalid column name" trên DB này.
+Cần thống nhất: hoặc chạy script update field bổ sung cột cho Driver, hoặc sửa code. (Ngoài phạm vi 2 deadline trên.)
