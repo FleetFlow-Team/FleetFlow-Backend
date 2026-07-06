@@ -67,17 +67,56 @@ Docs VietMap SDK: https://maps.vietmap.vn/docs/sdk-web-gl/map/example-map/simple
 
 ## AUTH
 
-- Path:
-- Input:
-- Output:
+> _Tài liệu hoá từ code thật (P3-2, 2026-07-05)._
 
-- Path:
+### 1. Login
+- Path: POST http://localhost:8080/FleetFlow/api/v1/auth/login
 - Input:
-- Output:
+```json
+{ "email": "user@example.com", "password": "password123" }
+```
+- Output (200):
+```json
+{
+  "success": true,
+  "message": "Login thành công",
+  "user": { "accountId": 1, "email": "user@example.com", "fullName": "Nguyễn Văn A", "roleName": "Customer", "customerId": 1 },
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+- Output (400): `{ "success": false, "message": "Incorrect email or password" }`
+- Ghi chú: trả JWT `accessToken` + `refreshToken`. Nếu role=Customer, kèm `customerId`.
 
-- Path:
+### 2. Logout
+- Path: POST http://localhost:8080/FleetFlow/api/v1/auth/logout
+- Input: (không cần body)
+- Output (200): `{ "success": true, "message": "Logout successful. Please remove tokens from client-side storage." }`
+- Ghi chú: client tự xoá token khỏi localStorage/cookies.
+
+### 3. Register
+- Path: POST http://localhost:8080/FleetFlow/api/v1/auth/register
 - Input:
-- Output:
+```json
+{ "email": "newuser@example.com", "password": "securepass123", "fullName": "Nguyễn Văn B", "phoneNumber": "0910123456", "roleName": "Customer", "address": "123 Nguyễn Huệ, Quận 1, TP.HCM" }
+```
+- Output (200): `{ "success": true, "accountID": 42, "message": "Đăng ký tài khoản vai trò [Customer] thành công! ..." }`
+- Output (400): `{ "success": false, "message": "Email này đã được đăng ký sử dụng trong hệ thống." }`
+- Ghi chú: hỗ trợ role "Customer" hoặc "Driver". Mật khẩu hash BCrypt. Gửi email chào mừng async.
+
+### 4. Forgot Password
+- Path: POST http://localhost:8080/FleetFlow/api/v1/auth/forgot-password
+- Input: `{ "email": "user@example.com" }`
+- Output (200): `{ "success": true, "message": "Mật khẩu tạm thời đã gửi vào hòm thư.", "tempPasswordForTest": "a1b2c3d4" }`
+- Output (400): `{ "success": false, "message": "Email không tồn tại." }`
+- Ghi chú: sinh mật khẩu tạm 8 ký tự, hash BCrypt, gửi qua email. `tempPasswordForTest` chỉ để test — production không nên expose.
+
+### 5. Change Password
+- Path: POST http://localhost:8080/FleetFlow/api/v1/auth/change-password
+- Input: `{ "email": "...", "oldPassword": "...", "newPassword": "...", "confirmPassword": "..." }`
+- Output (200): `{ "success": true, "message": "Thay đổi mật khẩu thành công!" }`
+- Output (400): `{ "success": false, "message": "Mật khẩu cũ không chính xác." }` / `"Mật khẩu mới và xác nhận không khớp."`
+- Ghi chú: ⚠️ hiện chưa kiểm JWT (xem [SECURITY_REVIEW.md](SECURITY_REVIEW.md)). So sánh BCrypt, gửi email cảnh báo async.
 
 ---
 
@@ -3317,3 +3356,27 @@ Dispatcher xem / đánh dấu đã đọc notification (cùng cấu trúc với 
 {"success":true}
    → Complaint chuyển RESOLVED; notification COMPLAINT_RESOLVED gửi đúng account của customer
 }
+
+7. [PASS] Thanh toán CỌC qua VNPay (6/7/2026)
+   → notify customer + dispatcher + driver
+- B1. Tạo yêu cầu: POST /api/v1/payments/vnpay/create  (Bearer token Customer)
+- Input:
+{"bookingId":3,"paymentType":"DEPOSIT"}
+- Output:
+{"success":true,"paymentUrl":"https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_Amount=4950000&vnp_Command=pay&...&vnp_SecureHash=..."}
+   → Server tự tính cọc = 30% × 165000 = 49500 (vnp_Amount=4950000 = số tiền ×100);
+     tạo Payment #23 DEPOSIT / VNPAY / PENDING, TransactionRef = 3_1783320982989
+- B2. VNPay callback: GET /api/v1/payments/vnpay/return?...&vnp_ResponseCode=00&vnp_SecureHash=<hợp lệ>
+   → HTTP 302 redirect về FE; Payment #23 PENDING → COMPLETED (PaidAt được set) — XÁC NHẬN CÓ LƯU DB
+   → 4 notification PAYMENT_DEPOSIT_CONFIRMED:
+     • customer  #3  (cuong3):  "Đặt cọc thành công — Bạn đã thanh toán cọc 49500đ cho booking #3 qua VNPay. Vui lòng chờ điều phối tài xế."
+     • dispatcher #18 (yen18) + #19 (thao19): "Booking #3 đã đặt cọc — Khách đã thanh toán cọc 49500đ cho booking #3, sẵn sàng điều phối tài xế."
+     • driver    #14 (son14):   "Booking #3 đã được đặt cọc — Khách đã thanh toán cọc cho booking #3."
+   → DEPOSIT KHÔNG đổi trạng thái Booking (đúng thiết kế; chỉ FINAL mới đưa Booking → COMPLETED)
+   Ghi chú: bước nhập OTP được mô phỏng bằng callback /return có ký chữ ký HMAC-SHA512 hợp lệ (không thể tự nhập OTP
+   trên sandbox); toàn bộ phần backend (tính tiền, lưu DB, gửi notification) là thật.
+
+8. [PASS] Customer xem notification sau khi cọc VNPay
+- Method + Path: GET /api/v1/customer/notifications  (Bearer token Customer cuong3)
+   → trả về danh sách gồm notification #36 "Đặt cọc thành công" (Type=PAYMENT_DEPOSIT_CONFIRMED, IsRead=false)
+     — xác nhận customer notification cho luồng VNPay hoạt động end-to-end.

@@ -17,6 +17,14 @@ public class CustomerBookingService {
     private final CustomerBookingDAO dao = new CustomerBookingDAO();
     private final NotificationDAO notificationDAO = new NotificationDAO();
 
+    // ===== Hằng số quy tắc nghiệp vụ (tập trung, tránh magic number rải rác) =====
+    /** Tỉ lệ đặt cọc trên tổng tiền: cọc = 30% EstimatedTotal. */
+    public static final BigDecimal DEPOSIT_RATE = new BigDecimal("0.30");
+    /** Hủy khi còn < N giờ trước giờ khởi hành → mất cọc (BR-12). */
+    public static final int CANCELLATION_FORFEIT_HOURS = 12;
+    /** Hủy trong vòng N phút sau khi tạo booking → luôn miễn phí (grace period). */
+    public static final int CANCELLATION_GRACE_MINUTES = 10;
+
     // ===================== BE-23: Lịch sử đặt xe =====================
     public List<BookingRow> getBookingHistory(int customerId) throws Exception {
         return dao.getBookingsByCustomerId(customerId);
@@ -60,10 +68,10 @@ public class CustomerBookingService {
             long now = System.currentTimeMillis();
             long minutesSinceCreated = (now - booking.getCreatedAt().getTime()) / (1000 * 60);
 
-            if (minutesSinceCreated > 10) {
+            if (minutesSinceCreated > CANCELLATION_GRACE_MINUTES) {
                 long hoursUntilDeparture = (departureTime.getTime() - now) / (1000 * 60 * 60);
                 // BR-12: >=12h trước giờ khởi hành → free; <12h → mất cọc
-                isForfeitDeposit = hoursUntilDeparture < 12;
+                isForfeitDeposit = hoursUntilDeparture < CANCELLATION_FORFEIT_HOURS;
             }
         }
 
@@ -77,7 +85,7 @@ public class CustomerBookingService {
         }
 
         BigDecimal depositAmount = totalAmount
-                .multiply(new BigDecimal("0.30"))
+                .multiply(DEPOSIT_RATE)
                 .setScale(0, RoundingMode.HALF_UP);
 
         BigDecimal penaltyAmount = isForfeitDeposit ? depositAmount : BigDecimal.ZERO;
@@ -213,7 +221,7 @@ public class CustomerBookingService {
         }
 
         BigDecimal estimatedTotal = baseFare.add(weekendSurcharge);
-        BigDecimal deposit = estimatedTotal.multiply(new BigDecimal("0.30"))
+        BigDecimal deposit = estimatedTotal.multiply(DEPOSIT_RATE)
                 .setScale(0, RoundingMode.HALF_UP);
 
         return new PriceResult(rule.getId(), baseFare, weekendSurcharge, estimatedTotal, deposit,

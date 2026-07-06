@@ -16,6 +16,7 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import utils.JwtUtils;
 
 /**
  *
@@ -26,6 +27,27 @@ public class HolidayController extends HttpServlet {
 
     private final HolidayDAO dao = new HolidayDAO();
     private final Gson gson = new Gson();
+
+    /** Chỉ Admin mới được thêm/xóa ngày lễ (BR bảo mật P2-2). GET để public. */
+    private boolean requireAdmin(HttpServletRequest request, HttpServletResponse response, Map<String, Object> res) throws IOException {
+        String header = request.getHeader("Authorization");
+        String token = (header != null && header.startsWith("Bearer ")) ? header.substring(7).trim() : null;
+        if (token == null || !JwtUtils.validateToken(token)) {
+            response.setStatus(401);
+            res.put("success", false);
+            res.put("message", "Unauthorized");
+            response.getWriter().print(gson.toJson(res));
+            return false;
+        }
+        if (!"Admin".equalsIgnoreCase(JwtUtils.getRoleFromToken(token))) {
+            response.setStatus(403);
+            res.put("success", false);
+            res.put("message", "Forbidden");
+            response.getWriter().print(gson.toJson(res));
+            return false;
+        }
+        return true;
+    }
     /**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
      * methods.
@@ -56,6 +78,9 @@ public class HolidayController extends HttpServlet {
         request.setCharacterEncoding("UTF-8");
         response.setContentType("application/json; charset=UTF-8");
         Map<String, Object> res = new HashMap<>();
+        if (!requireAdmin(request, response, res)) {
+            return;
+        }
 
         try {
             JsonObject body = JsonParser.parseReader(request.getReader()).getAsJsonObject();
@@ -76,6 +101,9 @@ public class HolidayController extends HttpServlet {
         response.setContentType("application/json; charset=UTF-8");
         String pathInfo = request.getPathInfo();
         Map<String, Object> res = new HashMap<>();
+        if (!requireAdmin(request, response, res)) {
+            return;
+        }
 
         try {
             if (pathInfo == null || pathInfo.equals("/")) {

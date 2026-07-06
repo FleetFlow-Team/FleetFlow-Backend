@@ -29,6 +29,31 @@ public class VNPayController extends HttpServlet {
 
     private final Gson gson = new Gson();
 
+    /**
+     * P2-2: chỉ Customer đã đăng nhập mới được tạo yêu cầu thanh toán. Callback
+     * /return, /ipn của VNPay KHÔNG áp guard này (xác thực bằng chữ ký vnp_SecureHash).
+     * TODO: bổ sung kiểm ownership (customer sở hữu bookingId).
+     */
+    private boolean requireCustomer(HttpServletRequest request, HttpServletResponse response, Map<String, Object> apiResponse) throws IOException {
+        String header = request.getHeader("Authorization");
+        String token = (header != null && header.startsWith("Bearer ")) ? header.substring(7).trim() : null;
+        if (token == null || !utils.JwtUtils.validateToken(token)) {
+            response.setStatus(401);
+            apiResponse.put("success", false);
+            apiResponse.put("message", "Unauthorized");
+            response.getWriter().print(gson.toJson(apiResponse));
+            return false;
+        }
+        if (!"Customer".equalsIgnoreCase(utils.JwtUtils.getRoleFromToken(token))) {
+            response.setStatus(403);
+            apiResponse.put("success", false);
+            apiResponse.put("message", "Forbidden");
+            response.getWriter().print(gson.toJson(apiResponse));
+            return false;
+        }
+        return true;
+    }
+
     // Toàn bộ URL/key đọc từ /config/vnpay.properties — không hardcode theo môi trường
     private static final String VNP_TMN_CODE = utils.VNPayConfig.get("vnp.tmnCode", "");
     private static final String VNP_HASH_SECRET = utils.VNPayConfig.get("vnp.hashSecret", "");
@@ -70,6 +95,9 @@ public class VNPayController extends HttpServlet {
     private void handleCreatePayment(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("application/json; charset=UTF-8");
         Map<String, Object> apiResponse = new HashMap<>();
+        if (!requireCustomer(request, response, apiResponse)) {
+            return;
+        }
 
         try {
 
@@ -265,7 +293,7 @@ public class VNPayController extends HttpServlet {
     private void savePaymentToDatabase(String txnRef, int bookingId, String status) {
         // Tìm đúng payment theo TransactionRef (vnp_TxnRef) — không quét mọi dòng
         // PENDING của booking, tránh complete nhầm payment khác
-        String findSql = "SELECT TOP 1 PaymentID, PaymentType FROM Payment "
+        String findSql = "SELECT TOP 1 PaymentID, PaymentType, Amount FROM Payment "
                 + "WHERE TransactionRef = ? AND Status = 'PENDING' AND Method = 'VNPAY'";
         String pSql = "UPDATE Payment SET Status = ?, PaidAt = GETDATE() WHERE PaymentID = ?";
         // Không complete booking đã CANCELLED — tránh IPN/return đến muộn lật ngược trạng thái hủy
@@ -277,12 +305,15 @@ public class VNPayController extends HttpServlet {
 
             int paymentId = -1;
             String paymentType = null;
+            long paidAmount = 0L;
             try (PreparedStatement psFind = conn.prepareStatement(findSql)) {
                 psFind.setString(1, txnRef);
                 try (ResultSet rs = psFind.executeQuery()) {
                     if (rs.next()) {
                         paymentId = rs.getInt("PaymentID");
                         paymentType = rs.getString("PaymentType");
+                        java.math.BigDecimal amt = rs.getBigDecimal("Amount");
+                        paidAmount = (amt == null) ? 0L : amt.longValue();
                     }
                 }
             }
@@ -313,6 +344,10 @@ public class VNPayController extends HttpServlet {
             conn.commit();
             System.out.println(">> VNPay: da xac nhan payment " + paymentId + " (" + paymentType
                     + ") cho booking " + bookingId);
+
+            // Gửi notification SAU khi commit thành công. Lỗi noti không được
+            // ảnh hưởng tới kết quả thanh toán → bọc try/catch riêng bên trong.
+            notifyAfterPayment(bookingId, paymentType, paidAmount);
         } catch (Exception e) {
             if (conn != null) {
                 try {
@@ -329,6 +364,63 @@ public class VNPayController extends HttpServlet {
                 } catch (Exception ignore) {
                 }
             }
+        }
+    }
+
+    /**
+     * Gửi notification khi thanh toán VNPay thành công — đồng bộ với luồng tiền
+     * mặt ở FinalPaymentController. Mọi account tra từ bookingId (không hardcode).
+     * DEPOSIT → báo customer + dispatcher (+ driver nếu đã gán): sẵn sàng điều phối.
+     * FINAL   → báo customer + driver + dispatcher: đã thanh toán & hoàn tất chuyến.
+     */
+    private void notifyAfterPayment(int bookingId, String paymentType, long amount) {
+        try {
+            ExtensionDAO exDao = new ExtensionDAO();
+            int customerAccId = exDao.getCustomerAccountIdByBookingId(bookingId);
+            int driverAccId = exDao.getDriverAccountIdByBookingId(bookingId);
+            List<Integer> dispatcherIds = new dao.AccountDAO().getActiveDispatcherAccountIds();
+            String amt = String.valueOf(amount);
+
+            if ("DEPOSIT".equalsIgnoreCase(paymentType)) {
+                if (customerAccId != -1) {
+                    exDao.createNotification(customerAccId, bookingId, "Đặt cọc thành công",
+                            "Bạn đã thanh toán cọc " + amt + "đ cho booking #" + bookingId
+                            + " qua VNPay. Vui lòng chờ điều phối tài xế.",
+                            "PAYMENT_DEPOSIT_CONFIRMED", "IN_APP");
+                }
+                for (int dispId : dispatcherIds) {
+                    exDao.createNotification(dispId, bookingId, "Booking #" + bookingId + " đã đặt cọc",
+                            "Khách đã thanh toán cọc " + amt + "đ cho booking #" + bookingId
+                            + ", sẵn sàng điều phối tài xế.",
+                            "PAYMENT_DEPOSIT_CONFIRMED", "IN_APP");
+                }
+                if (driverAccId != -1) {
+                    exDao.createNotification(driverAccId, bookingId,
+                            "Booking #" + bookingId + " đã được đặt cọc",
+                            "Khách đã thanh toán cọc cho booking #" + bookingId + ".",
+                            "PAYMENT_DEPOSIT_CONFIRMED", "IN_APP");
+                }
+            } else {
+                if (customerAccId != -1) {
+                    exDao.createNotification(customerAccId, bookingId, "Thanh toán hoàn tất",
+                            "Bạn đã thanh toán " + amt + "đ cho booking #" + bookingId
+                            + " qua VNPay. Chuyến đi đã hoàn tất, cảm ơn bạn!",
+                            "PAYMENT_FINAL_CONFIRMED", "IN_APP");
+                }
+                if (driverAccId != -1) {
+                    exDao.createNotification(driverAccId, bookingId, "Khách đã thanh toán VNPay",
+                            "Booking #" + bookingId + " đã được thanh toán " + amt + "đ qua VNPay.",
+                            "PAYMENT_FINAL_CONFIRMED", "IN_APP");
+                }
+                for (int dispId : dispatcherIds) {
+                    exDao.createNotification(dispId, bookingId,
+                            "Booking #" + bookingId + " đã thanh toán & hoàn tất",
+                            "Khách đã thanh toán " + amt + "đ qua VNPay cho booking #" + bookingId + ".",
+                            "PAYMENT_FINAL_CONFIRMED", "IN_APP");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("VNPay: loi gui notification cho booking " + bookingId + ": " + e.getMessage());
         }
     }
 

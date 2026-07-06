@@ -1,0 +1,9 @@
+# MAU cau hinh key API ben thu 3.
+# Copy file nay thanh app.properties (cung thu muc) va dien key that.
+# app.properties da nam trong .gitignore nen key that se KHONG bi commit.
+
+# Google Gemini API key (AI goi y xe). Lay tai: https://aistudio.google.com/apikey
+gemini.apiKey=YOUR_GEMINI_API_KEY
+
+# VietMap API key (geocode / khoang cach / route).
+vietmap.apiKey=YOUR_VIETMAP_API_KEY

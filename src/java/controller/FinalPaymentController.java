@@ -17,6 +17,7 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import utils.JwtUtils;
 
 /**
  *
@@ -27,6 +28,30 @@ public class FinalPaymentController extends HttpServlet {
 
     private final ExtensionDAO dao = new ExtensionDAO();
     private final Gson gson = new Gson();
+
+    /**
+     * Yêu cầu là Customer đã đăng nhập (P2-2: chặn ai-cũng-gọi-được xác nhận
+     * thanh toán). TODO: bổ sung kiểm ownership (customer sở hữu booking).
+     */
+    private boolean requireCustomer(HttpServletRequest request, HttpServletResponse response, Map<String, Object> res) throws IOException {
+        String header = request.getHeader("Authorization");
+        String token = (header != null && header.startsWith("Bearer ")) ? header.substring(7).trim() : null;
+        if (token == null || !JwtUtils.validateToken(token)) {
+            response.setStatus(401);
+            res.put("success", false);
+            res.put("message", "Unauthorized");
+            response.getWriter().print(gson.toJson(res));
+            return false;
+        }
+        if (!"Customer".equalsIgnoreCase(JwtUtils.getRoleFromToken(token))) {
+            response.setStatus(403);
+            res.put("success", false);
+            res.put("message", "Forbidden");
+            response.getWriter().print(gson.toJson(res));
+            return false;
+        }
+        return true;
+    }
     /**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
      * methods.
@@ -41,6 +66,9 @@ public class FinalPaymentController extends HttpServlet {
         request.setCharacterEncoding("UTF-8");
         response.setContentType("application/json; charset=UTF-8");
         Map<String, Object> res = new HashMap<>();
+        if (!requireCustomer(request, response, res)) {
+            return;
+        }
 
         try {
             JsonObject body = JsonParser.parseReader(request.getReader()).getAsJsonObject();

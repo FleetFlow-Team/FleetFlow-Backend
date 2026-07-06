@@ -4,100 +4,74 @@
  */
 package controller;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import dao.ExtensionDAO;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.security.Key;
-import java.util.HashMap;
-import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import utils.ApiResponse;
 
 /**
+ * Ví / sổ công nợ của khách hàng.
  *
- * @author asus
+ * Controller mẫu dùng helper {@link utils.ApiResponse} để chuẩn hoá header + JSON
+ * (khuôn {"success":..., "data"/"error":...}).
  */
 @WebServlet("/api/v1/customer/wallet")
 public class CustomerWalletController extends HttpServlet {
 
-    /**
-     * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
-     * methods.
-     *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
-     */
     private static final String SECRET_STRING = "FleetFlowProjectSuperSecretKey2026SecureBridgesString";
     private static final Key KEY = Keys.hmacShaKeyFor(SECRET_STRING.getBytes());
     private final ExtensionDAO dao = new ExtensionDAO();
-    private final Gson gson = new GsonBuilder().serializeNulls().create();
-
-    private void prepare(HttpServletResponse response) {
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        response.setHeader("Access-Control-Allow-Origin", "*");
-        response.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-        response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    }
 
     @Override
     protected void doOptions(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        prepare(response);
+        ApiResponse.prepare(response);
         response.setStatus(HttpServletResponse.SC_OK);
     }
 
-    private String requireCustomer(HttpServletRequest request, HttpServletResponse response, Map<String, Object> apiResponse) {
+    /**
+     * Trả email nếu token hợp lệ và role = Customer. Nếu không hợp lệ, tự ghi
+     * response lỗi (401/403) và trả null để caller dừng.
+     */
+    private String requireCustomer(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String header = request.getHeader("Authorization");
         String token = (header != null && header.startsWith("Bearer ")) ? header.substring(7).trim() : null;
         if (token == null) {
-            response.setStatus(401);
-            apiResponse.put("success", false);
+            ApiResponse.error(response, 401, "Thiếu token xác thực");
             return null;
         }
         try {
             Claims claims = Jwts.parserBuilder().setSigningKey(KEY).build().parseClaimsJws(token).getBody();
             if (!"Customer".equalsIgnoreCase(claims.get("role").toString())) {
-                response.setStatus(403);
-                apiResponse.put("success", false);
+                ApiResponse.error(response, 403, "Không có quyền truy cập");
                 return null;
             }
             return claims.getSubject();
         } catch (Exception e) {
-            response.setStatus(401);
-            apiResponse.put("success", false);
+            ApiResponse.error(response, 401, "Token không hợp lệ");
             return null;
         }
     }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        prepare(response);
-        PrintWriter out = response.getWriter();
-        Map<String, Object> apiResponse = new HashMap<>();
+        ApiResponse.prepare(response);
         try {
-            String email = requireCustomer(request, response, apiResponse);
+            String email = requireCustomer(request, response);
             if (email == null) {
-                out.print(gson.toJson(apiResponse));
                 return;
             }
             int customerId = dao.getCustomerIdByEmail(email);
-            apiResponse.put("success", true);
-            apiResponse.put("data", dao.getWalletHistory(customerId));
+            ApiResponse.success(response, dao.getWalletHistory(customerId));
         } catch (Exception e) {
-            response.setStatus(500);
-            apiResponse.put("success", false);
-            apiResponse.put("message", e.getMessage());
+            ApiResponse.error(response, 500, e.getMessage());
         }
-        out.print(gson.toJson(apiResponse));
     }
 }
