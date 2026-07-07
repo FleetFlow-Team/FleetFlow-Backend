@@ -1430,6 +1430,19 @@ Danh sách thông báo của customer
 {
     "success": true,
     "data": [
+----update 8/7/2026
+        {
+            "NotificationID": 78,
+            "RecipientAccountID": 2,
+            "BookingID": 2,
+            "Title": "Booking #2 đã bị hủy",
+            "Message": "Chuyến đi của bạn đã được hủy thành công. Không mất phí hủy. Cọc 21000.00đ đã được hoàn lại vào ví của bạn.",
+            "Type": "BOOKING_CANCELLED",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "Jul 8, 2026 2:20:28 AM"
+        },
+---------------------------
         {
             "NotificationID": 67,
             "RecipientAccountID": 3,
@@ -2471,20 +2484,21 @@ path:GET http://localhost:8080/FleetFlow/api/v1/admin/bookings?fromDate=2025-03-
 Update 24/6/2026
 Customer cancel booking tính penalty(API cũ chỉ bổ sung them field ouput)
 path : POST http://localhost:8080/FleetFlow/api/v1/customer/bookings/cancel
-input: 
-{
-  "bookingId": 26,
-  "customerId": 2,
-  "reason": "Thay đổi kế hoạch cần gì báo trước lêu lêu"
-}
-output: 
-{
-    "success": true,
-    "bookingId": 26,
-    "penaltyPercent": 50,
-    "penaltyAmount": 184000.00,(Thêm field này)
-    "message": "Hủy booking thành công"
-}
+input:
+    {
+    "bookingId": 2,
+    "customerId": 2,
+    "reason": "test refund money"
+    }
+output:
+    {
+        "success": true,
+        "bookingId": 2,
+        "forfeitDeposit": false,
+        "penaltyAmount": 0,
+        "refundedAmount": 21000.00,
+        "message": "Hủy booking thành công. Cọc đã được hoàn lại vào ví của bạn."
+    }
 Admin khóa tk customer th? công
 Header: Authorization: Bearer ADMIN_TOKEN 
 path POST 

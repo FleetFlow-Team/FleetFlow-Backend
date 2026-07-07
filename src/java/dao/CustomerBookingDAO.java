@@ -11,6 +11,7 @@ import model.Cancellation;
 import model.PricingRule;
 import model.Voucher;
 import utils.DbUtils;
+import dao.AuditLogDAO;
 
 public class CustomerBookingDAO {
 
@@ -115,10 +116,17 @@ public class CustomerBookingDAO {
      * - forfeitDeposit = false → hủy free, không mất gì
      * CustomerWalletLedger từ giờ chỉ dùng để Admin ghi nhận hoàn tiền (REFUND),
      * không tạo entry PENALTY ở đây nữa.
+     *
+     * accountId/ipAddress dùng để ghi AuditLog (CANCEL_BOOKING + REFUND_DEPOSIT nếu có
+     * hoàn cọc) — trước đây luồng customer cancel không ghi AuditLog gì cả, khác với
+     * dispatcher reject, nay bổ sung cho đồng bộ.
      */
-    public void cancelBookingWithPenalty(int bookingId, int customerId,
-            boolean forfeitDeposit, BigDecimal penaltyAmount, String reason) throws Exception {
+    public BigDecimal cancelBookingWithPenalty(int bookingId, int customerId,
+            boolean forfeitDeposit, BigDecimal penaltyAmount, String reason,
+            int accountId, String ipAddress, String oldStatus) throws Exception {
         Connection conn = null;
+        BigDecimal refunded = BigDecimal.ZERO;
+        AuditLogDAO auditLogDAO = new AuditLogDAO();
         try {
             conn = DbUtils.getConnection();
             conn.setAutoCommit(false);
@@ -153,6 +161,23 @@ public class CustomerBookingDAO {
             psCancel.executeUpdate();
             psCancel.close();
 
+            // 3. AuditLog — CANCEL_BOOKING (luôn ghi, dù forfeit hay free)
+            auditLogDAO.log(conn, accountId, "CANCEL_BOOKING", "Booking",
+                    String.valueOf(bookingId), oldStatus,
+                    "CANCELLED" + (forfeitDeposit ? " (FORFEIT_DEPOSIT)" : " (FREE)")
+                            + (reason != null && !reason.isEmpty() ? " - " + reason : ""),
+                    ipAddress);
+
+            // 4. Free-cancel (không phạt) — hoàn cọc nếu khách đã đóng
+            if (!forfeitDeposit) {
+                refunded = new ExtensionDAO().refundDeposit(conn, bookingId, customerId, reason);
+                if (refunded.compareTo(BigDecimal.ZERO) > 0) {
+                    auditLogDAO.log(conn, accountId, "REFUND_DEPOSIT", "Booking",
+                            String.valueOf(bookingId), "DEPOSIT_COMPLETED",
+                            "REFUNDED " + refunded.toPlainString() + "đ (CUSTOMER_CANCEL)", ipAddress);
+                }
+            }
+
             conn.commit();
         } catch (Exception e) {
             if (conn != null) {
@@ -165,6 +190,7 @@ public class CustomerBookingDAO {
                 conn.close();
             }
         }
+        return refunded;
     }
 
     // ===================== BE-26: Check price =====================

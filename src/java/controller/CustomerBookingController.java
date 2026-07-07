@@ -175,16 +175,19 @@ public class CustomerBookingController extends HttpServlet {
                 return;
             }
 
-            CancelResult result = service.cancelBooking(bookingId, customerId, reason);
+            CancelResult result = service.cancelBooking(bookingId, customerId, reason, request.getRemoteAddr());
 
             response.setStatus(200);
             out.print("{\"success\": true,"
                     + "\"bookingId\":" + result.bookingId + ","
                     + "\"forfeitDeposit\":" + result.forfeitDeposit + ","
                     + "\"penaltyAmount\":" + result.penaltyAmount + ","
+                    + "\"refundedAmount\":" + result.refundedAmount + ","
                     + "\"message\":" + (result.forfeitDeposit
                             ? "\"Hủy booking thành công. Bạn đã mất tiền cọc do hủy quá muộn (trong vòng 12h trước giờ khởi hành).\""
-                            : "\"Hủy booking thành công. Không mất phí do hủy đủ sớm.\"")
+                            : (result.refundedAmount.signum() > 0
+                                    ? "\"Hủy booking thành công. Cọc đã được hoàn lại vào ví của bạn.\""
+                                    : "\"Hủy booking thành công. Không mất phí do hủy đủ sớm.\""))
                     + "}");
 
         } catch (IllegalArgumentException e) {

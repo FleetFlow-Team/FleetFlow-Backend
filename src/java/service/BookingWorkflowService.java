@@ -96,6 +96,10 @@ public class BookingWorkflowService {
                 + "Trạng thái hiện tại: " + booking.getStatus());
         }
 
+        boolean wasUnassigned = "UNASSIGNED".equalsIgnoreCase(booking.getStatus());
+        java.math.BigDecimal refunded = java.math.BigDecimal.ZERO;
+        dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
+
         try (Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
             try {
@@ -103,6 +107,17 @@ public class BookingWorkflowService {
                 auditLogDAO.log(conn, dispatcherAccountId, "REJECT_BOOKING", "Booking",
                         String.valueOf(bookingId), booking.getStatus(),
                         "REJECTED" + (reason != null ? " (" + reason + ")" : ""), ipAddress);
+
+                // Không tìm được tài xế — lỗi không thuộc về khách, hoàn cọc nếu đã đóng
+                if (wasUnassigned) {
+                    refunded = extDAO.refundDeposit(conn, bookingId, booking.getCustomerId(), reason);
+                    if (refunded.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                        auditLogDAO.log(conn, dispatcherAccountId, "REFUND_DEPOSIT", "Booking",
+                                String.valueOf(bookingId), "DEPOSIT_COMPLETED",
+                                "REFUNDED " + refunded.toPlainString() + "đ (UNASSIGNED)", ipAddress);
+                    }
+                }
+
                 conn.commit();
             } catch (Exception e) {
                 conn.rollback();
@@ -113,15 +128,18 @@ public class BookingWorkflowService {
         }
 
         // Notify customer khi dispatcher hủy booking UNASSIGNED
-        if ("UNASSIGNED".equalsIgnoreCase(booking.getStatus())) {
+        if (wasUnassigned) {
             try {
-                dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
                 int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
                 if (customerAccountId != -1) {
+                    String refundMsg = refunded.compareTo(java.math.BigDecimal.ZERO) > 0
+                            ? " Cọc " + refunded.toPlainString() + "đ đã được hoàn lại vào ví của bạn."
+                            : "";
                     extDAO.createNotification(customerAccountId, bookingId,
                             "Booking #" + bookingId + " đã bị hủy",
                             "Rất tiếc, chúng tôi không thể tìm được tài xế cho chuyến của bạn"
                                     + (reason != null && !reason.isEmpty() ? ". Lý do: " + reason : ".")
+                                    + refundMsg
                                     + " Vui lòng đặt lại hoặc liên hệ hỗ trợ.",
                             "BOOKING_CANCELLED", "IN_APP");
                 }

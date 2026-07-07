@@ -285,6 +285,70 @@ public class ExtensionDAO {
     // Thêm phần cuối file — 2 helper lấy AccountID để gửi notification
 
     /**
+     * Hoàn cọc khi booking bị hủy mà khách không có lỗi (dispatcher reject
+     * UNASSIGNED / customer free-cancel >=12h). Chỉ hoàn nếu có Payment
+     * DEPOSIT COMPLETED cho booking này, nếu không có thì bỏ qua (trả về 0).
+     *
+     * Dùng chung 1 Connection với transaction của caller để đảm bảo atomic
+     * với việc update Booking/Cancellation status — KHÔNG tự mở connection
+     * riêng, KHÔNG tự commit/rollback (caller lo việc đó).
+     *
+     * Ghi 2 phía:
+     * - Payment: insert thêm 1 row PaymentType='REFUND' (tiền công ty trả ra
+     *   — Payment table đóng vai trò sổ cái công ty, khỏi cần bảng AdminWallet
+     *   riêng: SUM(DEPOSIT/FINAL) = tiền vào, SUM(REFUND) = tiền ra).
+     * - CustomerWallet: insert +Amount, TransactionType='REFUND' (phía khách).
+     */
+    public BigDecimal refundDeposit(Connection conn, int bookingId, int customerId, String reason) throws Exception {
+        BigDecimal depositAmount = null;
+        String depositMethod = "VNPAY";
+
+        String findSql = "SELECT TOP 1 Amount, Method FROM Payment "
+                + "WHERE BookingID = ? AND PaymentType = 'DEPOSIT' AND Status = 'COMPLETED'";
+        try (PreparedStatement ps = conn.prepareStatement(findSql)) {
+            ps.setInt(1, bookingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    depositAmount = rs.getBigDecimal("Amount");
+                    depositMethod = rs.getString("Method");
+                }
+            }
+        }
+
+        if (depositAmount == null || depositAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO; // Chưa đóng cọc — không có gì để hoàn
+        }
+
+        Timestamp now = new Timestamp(System.currentTimeMillis());
+        String txnRef = "TXN-R-" + bookingId + "-" + System.currentTimeMillis();
+
+        String insertPayment = "INSERT INTO Payment "
+                + "(BookingID, PaymentType, Method, Amount, Status, TransactionRef, PaidAt) "
+                + "VALUES (?, 'REFUND', ?, ?, 'COMPLETED', ?, ?)";
+        try (PreparedStatement ps = conn.prepareStatement(insertPayment)) {
+            ps.setInt(1, bookingId);
+            ps.setString(2, depositMethod);
+            ps.setBigDecimal(3, depositAmount);
+            ps.setString(4, txnRef);
+            ps.setTimestamp(5, now);
+            ps.executeUpdate();
+        }
+
+        String insertWallet = "INSERT INTO CustomerWallet "
+                + "(CustomerID, Amount, TransactionType, BookingID, CreatedAt) "
+                + "VALUES (?, ?, 'REFUND', ?, ?)";
+        try (PreparedStatement ps = conn.prepareStatement(insertWallet)) {
+            ps.setInt(1, customerId);
+            ps.setBigDecimal(2, depositAmount);
+            ps.setInt(3, bookingId);
+            ps.setTimestamp(4, now);
+            ps.executeUpdate();
+        }
+
+        return depositAmount;
+    }
+
+    /**
      * Kiểm tra booking đã đóng cọc (DEPOSIT COMPLETED) chưa.
      * Dùng trong startTrip để block nếu khách chưa thanh toán.
      */

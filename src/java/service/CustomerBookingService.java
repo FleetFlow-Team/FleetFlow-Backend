@@ -28,7 +28,7 @@ public class CustomerBookingService {
     // CustomerWalletLedger từ giờ CHỈ dùng để Admin ghi nhận hoàn tiền (REFUND),
     // không còn dùng để ghi công nợ phạt nữa.
     // Booking đang COMPLETED/CANCELLED → không cho hủy
-    public CancelResult cancelBooking(int bookingId, int customerId, String reason) throws Exception {
+    public CancelResult cancelBooking(int bookingId, int customerId, String reason, String ipAddress) throws Exception {
         Booking booking = dao.findBookingById(bookingId);
         if (booking == null) {
             throw new IllegalArgumentException("Không tìm thấy booking");
@@ -80,12 +80,17 @@ public class CustomerBookingService {
 
         BigDecimal penaltyAmount = isForfeitDeposit ? depositAmount : BigDecimal.ZERO;
 
-        dao.cancelBookingWithPenalty(
+        int customerAccountIdForLog = new dao.CustomerLockDAO().getAccountIdByCustomerId(customerId);
+
+        BigDecimal refunded = dao.cancelBookingWithPenalty(
                 bookingId,
                 customerId,
                 isForfeitDeposit,
                 penaltyAmount,
-                reason
+                reason,
+                customerAccountIdForLog,
+                ipAddress,
+                booking.getStatus()
         );
 
         // Hủy broadcast PENDING — driver không thể start/complete chuyến đã bị cancel
@@ -98,9 +103,14 @@ public class CustomerBookingService {
         // Notify customer, driver, dispatcher khi hủy chuyến
         try {
             dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
-            String penaltyMsg = isForfeitDeposit
-                    ? " Bạn bị mất cọc " + penaltyAmount.toPlainString() + "đ do hủy trong vòng 12h."
-                    : " Không mất phí hủy.";
+            String penaltyMsg;
+            if (isForfeitDeposit) {
+                penaltyMsg = " Bạn bị mất cọc " + penaltyAmount.toPlainString() + "đ do hủy trong vòng 12h.";
+            } else if (refunded.compareTo(BigDecimal.ZERO) > 0) {
+                penaltyMsg = " Không mất phí hủy. Cọc " + refunded.toPlainString() + "đ đã được hoàn lại vào ví của bạn.";
+            } else {
+                penaltyMsg = " Không mất phí hủy.";
+            }
 
             int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
             if (customerAccountId != -1) {
@@ -133,7 +143,8 @@ public class CustomerBookingService {
         return new CancelResult(
                 bookingId,
                 isForfeitDeposit,
-                penaltyAmount
+                penaltyAmount,
+                refunded
         );
     }
 
@@ -142,11 +153,13 @@ public class CustomerBookingService {
         public final int bookingId;
         public final boolean forfeitDeposit;
         public final BigDecimal penaltyAmount;
+        public final BigDecimal refundedAmount;
 
-        public CancelResult(int bookingId, boolean forfeitDeposit, BigDecimal penaltyAmount) {
+        public CancelResult(int bookingId, boolean forfeitDeposit, BigDecimal penaltyAmount, BigDecimal refundedAmount) {
             this.bookingId = bookingId;
             this.forfeitDeposit = forfeitDeposit;
             this.penaltyAmount = penaltyAmount;
+            this.refundedAmount = refundedAmount;
         }
     }
 
