@@ -50,7 +50,11 @@ public class ExtensionDAO {
     }
 
     public void createVoucher(String code, String discountType, BigDecimal discountValue, BigDecimal maxDiscountAmount, BigDecimal minBookingValue, Integer applicableVehicleTypeId, Integer maxUsagePerUser, Timestamp validFrom, Timestamp validTo, int createdBy) throws Exception {
-        String sql = "INSERT INTO Voucher (Code, DiscountType, DiscountValue, MaxDiscountAmount, MinBookingValue, ApplicableVehicleTypeID, MaxUsagePerUser, ValidFrom, ValidTo, Status, CreatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)";
+        createVoucher(code, discountType, discountValue, maxDiscountAmount, minBookingValue, applicableVehicleTypeId, maxUsagePerUser, validFrom, validTo, createdBy, null);
+    }
+
+    public void createVoucher(String code, String discountType, BigDecimal discountValue, BigDecimal maxDiscountAmount, BigDecimal minBookingValue, Integer applicableVehicleTypeId, Integer maxUsagePerUser, Timestamp validFrom, Timestamp validTo, int createdBy, Integer campaignId) throws Exception {
+        String sql = "INSERT INTO Voucher (Code, DiscountType, DiscountValue, MaxDiscountAmount, MinBookingValue, ApplicableVehicleTypeID, MaxUsagePerUser, ValidFrom, ValidTo, Status, CreatedBy, CampaignID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)";
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, code);
             ps.setString(2, discountType);
@@ -70,8 +74,75 @@ public class ExtensionDAO {
             ps.setTimestamp(8, validFrom);
             ps.setTimestamp(9, validTo);
             ps.setInt(10, createdBy);
+            if (campaignId != null) {
+                ps.setInt(11, campaignId);
+            } else {
+                ps.setNull(11, Types.INTEGER);
+            }
             ps.executeUpdate();
         }
+    }
+
+    /**
+     * Trả về CampaignID của campaign "khách inactive 30 ngày" — tạo mới nếu chưa có,
+     * tái sử dụng nếu đã tồn tại (idempotent, tránh tạo trùng mỗi lần scheduler chạy).
+     */
+    public int getOrCreateComebackCampaign(int systemAccountId) throws Exception {
+        String campaignName = "Khách hàng quay lại sau 30 ngày";
+        String selectSql = "SELECT CampaignID FROM MarketingCampaign WHERE Name = ?";
+        String insertSql = "INSERT INTO MarketingCampaign (Name, TriggerCondition, EmailTemplate, Status, CreatedBy, CreatedAt) VALUES (?, ?, ?, 'ACTIVE', ?, GETDATE())";
+        try ( Connection conn = DbUtils.getConnection()) {
+            try ( PreparedStatement ps = conn.prepareStatement(selectSql)) {
+                ps.setString(1, campaignName);
+                try ( ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getInt("CampaignID");
+                    }
+                }
+            }
+            try ( PreparedStatement ps = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
+                ps.setString(1, campaignName);
+                ps.setString(2, "customer_inactive_30_days");
+                ps.setString(3, "comeback_voucher");
+                ps.setInt(4, systemAccountId);
+                ps.executeUpdate();
+                try ( ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        return rs.getInt(1);
+                    }
+                }
+            }
+        }
+        return -1;
+    }
+
+    public void touchCampaignLastRun(int campaignId) throws Exception {
+        String sql = "UPDATE MarketingCampaign SET LastRunAt = GETDATE() WHERE CampaignID = ?";
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, campaignId);
+            ps.executeUpdate();
+        }
+    }
+
+    /**
+     * Trả về code voucher ACTIVE còn hạn của campaign này — tạo mới nếu chưa có
+     * hoặc voucher cũ đã hết hạn (rolling: 1 voucher dùng chung cho cả đợt campaign).
+     */
+    public String getOrCreateComebackVoucherCode(int campaignId, int systemAccountId) throws Exception {
+        String selectSql = "SELECT TOP 1 Code FROM Voucher WHERE CampaignID = ? AND Status = 'ACTIVE' AND ValidTo >= GETDATE() ORDER BY VoucherID DESC";
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(selectSql)) {
+            ps.setInt(1, campaignId);
+            try ( ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("Code");
+                }
+            }
+        }
+        String code = "COMEBACK" + new java.text.SimpleDateFormat("yyyyMMdd").format(new java.util.Date());
+        Timestamp now = new Timestamp(System.currentTimeMillis());
+        Timestamp expiry = new Timestamp(System.currentTimeMillis() + 30L * 24 * 60 * 60 * 1000);
+        createVoucher(code, "PERCENT", BigDecimal.valueOf(10), BigDecimal.valueOf(50000), null, null, 1, now, expiry, systemAccountId, campaignId);
+        return code;
     }
 
     public List<Map<String, Object>> getVouchers(String status) throws Exception {

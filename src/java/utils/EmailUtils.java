@@ -24,6 +24,14 @@ public class EmailUtils {
      * Gửi email luồng ngầm bất đồng bộ và tự động chèn nhật ký vào bảng EmailLog khi hoàn tất
      */
     public static void sendEmailAndLogAsync(Integer accountId, String toEmail, String subject, String content) {
+        sendEmailAndLogAsync(null, accountId, toEmail, subject, content);
+    }
+
+    /**
+     * Bản có campaignId — dùng cho email marketing/campaign để EmailLog ghi đúng
+     * CampaignID, phục vụ query chống gửi trùng (RatingDAO.getInactiveCustomers).
+     */
+    public static void sendEmailAndLogAsync(Integer campaignId, Integer accountId, String toEmail, String subject, String content) {
         emailExecutor.submit(() -> {
             Properties props = new Properties();
             props.put("mail.smtp.host", "smtp.gmail.com");
@@ -57,7 +65,7 @@ public class EmailUtils {
                 // TỰ ĐỘNG GHI LOG XUỐNG TABLE EMAILLOG Ở MỌI TRƯỜNG HỢP
                 try {
                     AccountDAO dao = new AccountDAO();
-                    dao.logEmail(null, accountId, subject, emailStatus);
+                    dao.logEmail(campaignId, accountId, subject, emailStatus);
                     System.out.println("LOG_DB: Đã ghi nhận trạng thái vào bảng EmailLog.");
                 } catch (Exception ex) {
                     ex.printStackTrace();
@@ -88,6 +96,26 @@ public static String buildWelcomeTemplate(String fullName, String email, String 
          + "    </div>"
          + "</div>";
 }
+
+    public static String buildComebackVoucherTemplate(String fullName, String voucherCode, String discountText, String expiryText) {
+        return "<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;\">"
+             + "    <div style=\"background: linear-gradient(135deg, #1e3d59 0%, #17b978 100%); padding: 30px; text-align: center; color: white;\">"
+             + "        <h1 style=\"margin: 0; font-size: 24px;\">FLEETFLOW NHỚ BẠN!</h1>"
+             + "    </div>"
+             + "    <div style=\"padding: 30px; background-color: #ffffff; color: #334155; line-height: 1.6;\">"
+             + "        <p style=\"font-size: 16px;\">Xin chào <strong>" + fullName + "</strong>,</p>"
+             + "        <p>Đã lâu rồi FleetFlow chưa được đồng hành cùng chuyến đi của bạn. Để chào đón bạn quay lại, chúng tôi gửi tặng bạn một ưu đãi đặc biệt:</p>"
+             + "        <div style=\"background-color: #f8fafc; border-left: 4px solid #17b978; padding: 15px; margin: 20px 0; text-align: center;\">"
+             + "            <p style=\"margin: 5px 0; font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #1e3d59;\">" + voucherCode + "</p>"
+             + "            <p style=\"margin: 5px 0;\"><strong>Ưu đãi:</strong> " + discountText + "</p>"
+             + "            <p style=\"margin: 5px 0;\"><strong>Hạn sử dụng:</strong> " + expiryText + "</p>"
+             + "        </div>"
+             + "        <p>Đặt xe ngay hôm nay để không bỏ lỡ ưu đãi này!</p>"
+             + "        <hr style=\"border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;\">"
+             + "        <small style=\"color: #64748b;\">Đây là email thông báo tự động từ hệ thống, vui lòng không phản hồi lại thư này.</small>"
+             + "    </div>"
+             + "</div>";
+    }
 
     public static String buildForgotPasswordTemplate(String temporaryPassword) {
         return "<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;\">"

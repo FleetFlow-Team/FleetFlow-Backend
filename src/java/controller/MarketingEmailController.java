@@ -5,11 +5,10 @@
 package controller;
 
 import com.google.gson.Gson;
-import dao.RatingDAO;
+import service.MarketingEmailService;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -18,13 +17,14 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- *
- * @author asus
+ * Trigger thủ công cho campaign "khách quay lại sau 30 ngày" (dùng lúc test/demo).
+ * Chạy tự động hàng ngày qua {@link service.MarketingEmailScheduler} — không bắt buộc
+ * phải có cron ngoài gọi vào endpoint này nữa.
  */
 @WebServlet("/api/v1/marketing/email/trigger")
 public class MarketingEmailController extends HttpServlet {
 
-    private final RatingDAO dao = new RatingDAO();
+    private final MarketingEmailService service = new MarketingEmailService();
     private final Gson gson = new Gson();
     /**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
@@ -51,15 +51,10 @@ public class MarketingEmailController extends HttpServlet {
                 return;
             }
 
-            List<String> targetEmails = dao.getInactiveCustomerEmails(30);
-
-            for (String email : targetEmails) {
-                String voucherCode = "COMEBACK_" + System.currentTimeMillis();
-                System.out.println(">>> Đã gửi email chứa voucher " + voucherCode + " đến: " + email);
-            }
+            int count = service.runComebackCampaign();
 
             res.put("success", true);
-            res.put("message", "Đã quét và gửi thành công " + targetEmails.size() + " email marketing.");
+            res.put("message", "Đã quét và gửi thành công " + count + " email marketing.");
 
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
