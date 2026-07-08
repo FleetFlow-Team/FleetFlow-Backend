@@ -452,4 +452,74 @@ public class AccountDAO {
         }
         return ids;
     }
+
+    /**
+     * Khóa 1 account bất kỳ theo AccountID — dùng chung cho Admin khóa
+     * Driver/Dispatcher (không ràng buộc công nợ như Customer).
+     */
+    public void lockAccountById(int accountId) throws Exception {
+        String sql = "UPDATE Account SET Status = 'LOCKED', UpdatedAt = ? WHERE AccountID = ?";
+        try (Connection conn = utils.DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setTimestamp(1, new Timestamp(System.currentTimeMillis()));
+            ps.setInt(2, accountId);
+            int updated = ps.executeUpdate();
+            if (updated == 0) {
+                throw new IllegalArgumentException("Không tìm thấy account #" + accountId);
+            }
+        }
+    }
+
+    public void unlockAccountById(int accountId) throws Exception {
+        String sql = "UPDATE Account SET Status = 'ACTIVE', UpdatedAt = ? WHERE AccountID = ?";
+        try (Connection conn = utils.DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setTimestamp(1, new Timestamp(System.currentTimeMillis()));
+            ps.setInt(2, accountId);
+            int updated = ps.executeUpdate();
+            if (updated == 0) {
+                throw new IllegalArgumentException("Không tìm thấy account #" + accountId);
+            }
+        }
+    }
+
+    /**
+     * Kiểm tra 1 account có đúng RoleName mong muốn không — dùng để chặn Admin
+     * lock nhầm account khác vai trò (VD gọi /admin/drivers/{id}/lock nhưng id
+     * đó lại là Customer).
+     */
+    public String getRoleNameByAccountId(int accountId) throws Exception {
+        String sql = "SELECT RoleName FROM Account WHERE AccountID = ?";
+        try (Connection conn = utils.DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, accountId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getString("RoleName") : null;
+            }
+        }
+    }
+
+    /**
+     * Danh sách toàn bộ Dispatcher — cho Admin xem để chọn tài khoản khóa/mở khóa.
+     */
+    public java.util.List<Map<String, Object>> getAllDispatchers() throws Exception {
+        java.util.List<Map<String, Object>> list = new java.util.ArrayList<>();
+        String sql = "SELECT AccountID, FullName, Email, PhoneNumber, Status, CreatedAt "
+                + "FROM Account WHERE RoleName = 'Dispatcher' AND IsDeleted = 0 ORDER BY AccountID";
+        try (Connection conn = utils.DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("accountId", rs.getInt("AccountID"));
+                row.put("fullName", rs.getString("FullName"));
+                row.put("email", rs.getString("Email"));
+                row.put("phoneNumber", rs.getString("PhoneNumber"));
+                row.put("status", rs.getString("Status"));
+                row.put("createdAt", rs.getTimestamp("CreatedAt"));
+                list.add(row);
+            }
+        }
+        return list;
+    }
 }

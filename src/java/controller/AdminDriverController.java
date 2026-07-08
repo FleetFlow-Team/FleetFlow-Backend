@@ -3,6 +3,8 @@ package controller;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dao.AccountDAO;
+import dao.DriverDAO;
+import dao.ExtensionDAO;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -11,6 +13,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.security.Key;
 import java.util.List;
+import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -34,6 +37,9 @@ import service.DriverVerificationService;
 public class AdminDriverController extends HttpServlet {
 
     private final DriverVerificationService service = new DriverVerificationService();
+    private final DriverDAO driverDAO = new DriverDAO();
+    private final AccountDAO accountDAO = new AccountDAO();
+    private final ExtensionDAO extensionDAO = new ExtensionDAO();
 
     private static final String SECRET_STRING = "FleetFlowProjectSuperSecretKey2026SecureBridgesString";
     private static final Key KEY = Keys.hmacShaKeyFor(SECRET_STRING.getBytes());
@@ -75,7 +81,28 @@ public class AdminDriverController extends HttpServlet {
             return;
         }
 
-        String pathInfo = request.getPathInfo(); // "/pending"
+        String pathInfo = request.getPathInfo(); // "/pending" | "/all"
+
+        // BE-mới: GET /api/v1/admin/drivers/all — danh sách toàn bộ driver kèm
+        // Account.Status, dùng cho màn hình Admin khóa/mở khóa tài khoản driver.
+        if ("/all".equals(pathInfo)) {
+            try {
+                List<Map<String, Object>> drivers = driverDAO.getAllDriversForAdmin();
+                StringBuilder json = new StringBuilder();
+                json.append("{\"success\": true, \"data\": [");
+                for (int i = 0; i < drivers.size(); i++) {
+                    json.append(mapToJson(drivers.get(i)));
+                    if (i < drivers.size() - 1) json.append(",");
+                }
+                json.append("]}");
+                response.setStatus(200);
+                out.print(json.toString());
+            } catch (Exception e) {
+                response.setStatus(500);
+                out.print("{\"error\": \"Lỗi server: " + esc(e.getMessage()) + "\"}");
+            }
+            return;
+        }
 
         if (!"/pending".equals(pathInfo)) {
             response.setStatus(404);
@@ -205,9 +232,31 @@ public class AdminDriverController extends HttpServlet {
                     out.print("{\"success\": true, \"message\": \"Từ chối hồ sơ tài xế thành công\"}");
                     break;
 
+                case "lock":
+                    requireRole(accountId, "Driver");
+                    accountDAO.lockAccountById(accountId);
+                    extensionDAO.createNotification(accountId, null,
+                            "Tài khoản đã bị tạm khóa",
+                            "Tài khoản tài xế của bạn đã bị Admin tạm khóa. Vui lòng liên hệ để được hỗ trợ mở lại.",
+                            "ACCOUNT_LOCKED", "BOTH");
+                    response.setStatus(200);
+                    out.print("{\"success\": true, \"message\": \"Đã khóa tài khoản driver #" + accountId + "\"}");
+                    break;
+
+                case "unlock":
+                    requireRole(accountId, "Driver");
+                    accountDAO.unlockAccountById(accountId);
+                    extensionDAO.createNotification(accountId, null,
+                            "Tài khoản đã được mở khóa",
+                            "Tài khoản tài xế của bạn đã được mở khóa. Bạn có thể tiếp tục nhận chuyến.",
+                            "ACCOUNT_UNLOCKED", "BOTH");
+                    response.setStatus(200);
+                    out.print("{\"success\": true, \"message\": \"Đã mở khóa tài khoản driver #" + accountId + "\"}");
+                    break;
+
                 default:
                     response.setStatus(404);
-                    out.print("{\"error\": \"Action không hợp lệ. Chỉ hỗ trợ approve hoặc reject\"}");
+                    out.print("{\"error\": \"Action không hợp lệ. Chỉ hỗ trợ approve, reject, lock, unlock\"}");
             }
 
         } catch (IllegalArgumentException e) {
@@ -278,5 +327,41 @@ public class AdminDriverController extends HttpServlet {
             return "";
         }
         return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    /**
+     * Chặn Admin lock/unlock nhầm 1 account không phải Driver (VD id đó là
+     * Customer hoặc Dispatcher).
+     */
+    private void requireRole(int accountId, String expectedRole) throws Exception {
+        String role = accountDAO.getRoleNameByAccountId(accountId);
+        if (role == null) {
+            throw new IllegalArgumentException("Không tìm thấy account #" + accountId);
+        }
+        if (!expectedRole.equalsIgnoreCase(role)) {
+            throw new IllegalArgumentException("Account #" + accountId + " không phải " + expectedRole
+                    + " (đang là " + role + ")");
+        }
+    }
+
+    private String mapToJson(Map<String, Object> m) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+        int i = 0;
+        for (Map.Entry<String, Object> entry : m.entrySet()) {
+            if (i > 0) sb.append(",");
+            sb.append("\"").append(esc(entry.getKey())).append("\":");
+            Object value = entry.getValue();
+            if (value == null) {
+                sb.append("null");
+            } else if (value instanceof Number || value instanceof Boolean) {
+                sb.append(value.toString());
+            } else {
+                sb.append("\"").append(esc(value.toString())).append("\"");
+            }
+            i++;
+        }
+        sb.append("}");
+        return sb.toString();
     }
 }
