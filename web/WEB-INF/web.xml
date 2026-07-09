@@ -139,8 +139,18 @@
     <servlet>
         <servlet-name>VNPayController</servlet-name>
         <servlet-class>controller.VNPayController</servlet-class>
+    </servlet>
+    <servlet>
         <servlet-name>DispatcherNotificationController</servlet-name>
         <servlet-class>controller.DispatcherNotificationController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>AdminDriverController</servlet-name>
+        <servlet-class>controller.AdminDriverController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>ChangePasswordController</servlet-name>
+        <servlet-class>controller.ChangePasswordController</servlet-class>
     </servlet>
     <servlet>
         <servlet-name>CustomerRatingHistoryController</servlet-name>
@@ -289,6 +299,14 @@
     <servlet-mapping>
         <servlet-name>DispatcherNotificationController</servlet-name>
         <url-pattern>/DispatcherNotificationController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>AdminDriverController</servlet-name>
+        <url-pattern>/AdminDriverController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>ChangePasswordController</servlet-name>
+        <url-pattern>/ChangePasswordController</url-pattern>
     </servlet-mapping>
     <servlet-mapping>
         <servlet-name>CustomerRatingHistoryController</servlet-name>
