@@ -67,6 +67,34 @@ public class RatingDAO {
         return emails;
     }
 
+    /**
+     * Khách hàng không có booking nào trong {@code days} ngày gần nhất, VÀ chưa nhận
+     * email của đúng campaign này trong {@code days} ngày gần nhất (chống spam khi
+     * scheduler chạy lặp lại nhiều lần mà khách vẫn còn inactive).
+     */
+    public List<Map<String, Object>> getInactiveCustomers(int days, int campaignId) throws Exception {
+        List<Map<String, Object>> result = new ArrayList<>();
+        String sql = "SELECT a.AccountID, a.Email, a.FullName "
+                + "FROM Customer c JOIN Account a ON c.AccountID = a.AccountID "
+                + "WHERE c.CustomerID NOT IN (SELECT DISTINCT CustomerID FROM Booking WHERE CreatedAt >= DATEADD(DAY, -?, GETDATE())) "
+                + "AND NOT EXISTS (SELECT 1 FROM EmailLog el WHERE el.CampaignID = ? AND el.RecipientAccountID = a.AccountID AND el.Status = 'Success' AND el.SentAt >= DATEADD(DAY, -?, GETDATE()))";
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, days);
+            ps.setInt(2, campaignId);
+            ps.setInt(3, days);
+            try ( ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("AccountID", rs.getInt("AccountID"));
+                    row.put("Email", rs.getString("Email"));
+                    row.put("FullName", rs.getString("FullName"));
+                    result.add(row);
+                }
+            }
+        }
+        return result;
+    }
+
     public List<Map<String, Object>> getRatingsByCustomerId(int customerId) throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
         String sql = "SELECT cr.RatingID, cr.BookingID, cr.DriverRating, cr.CarRating, cr.Comment, cr.CreatedAt, "
