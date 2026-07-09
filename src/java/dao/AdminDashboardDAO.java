@@ -62,35 +62,34 @@ public class AdminDashboardDAO {
      * trong khoảng thời gian — phần KPI tài chính của dashboard.
      */
     public java.math.BigDecimal getTotalRevenue(String fromDate, String toDate) throws Exception {
-        StringBuilder sql = new StringBuilder(
-                "SELECT SUM(bp.EstimatedTotal) AS Total FROM BookingPricing bp "
-                + "JOIN Booking b ON b.BookingID = bp.BookingID "
-                + "WHERE b.Status = 'COMPLETED' ");
-        List<Object> params = new ArrayList<>();
-
-        if (fromDate != null && !fromDate.isEmpty()) {
-            sql.append("AND b.CreatedAt >= ? ");
-            params.add(fromDate);
+    StringBuilder sql = new StringBuilder(
+            "SELECT SUM(p.Amount) AS Total FROM Payment p "
+            + "JOIN Booking b ON b.BookingID = p.BookingID "
+            + "WHERE p.Status IN ('SUCCESS', 'COMPLETED') "
+            + "AND p.PaymentType IN ('DEPOSIT', 'FINAL') ");
+    List<Object> params = new ArrayList<>();
+    if (fromDate != null && !fromDate.isEmpty()) {
+        sql.append("AND p.PaidAt >= ? ");
+        params.add(fromDate);
+    }
+    if (toDate != null && !toDate.isEmpty()) {
+        sql.append("AND p.PaidAt <= ? ");
+        params.add(toDate);
+    }
+    try (Connection conn = DbUtils.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+        for (int i = 0; i < params.size(); i++) {
+            ps.setString(i + 1, (String) params.get(i));
         }
-        if (toDate != null && !toDate.isEmpty()) {
-            sql.append("AND b.CreatedAt <= ? ");
-            params.add(toDate);
-        }
-
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
-            for (int i = 0; i < params.size(); i++) {
-                ps.setString(i + 1, (String) params.get(i));
+        try (ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                java.math.BigDecimal total = rs.getBigDecimal("Total");
+                return total != null ? total : java.math.BigDecimal.ZERO;
             }
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    java.math.BigDecimal total = rs.getBigDecimal("Total");
-                    return total != null ? total : java.math.BigDecimal.ZERO;
-                }
-                return java.math.BigDecimal.ZERO;
-            }
+            return java.math.BigDecimal.ZERO;
         }
     }
+}
 
     /**
      * Đếm số lệnh dispatch bị driver reject trong khoảng thời gian — KPI vận hành
