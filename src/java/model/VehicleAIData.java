@@ -10,6 +10,7 @@ package model;
  */
 public class VehicleAIData {
     private int vehicleId;
+    private String licensePlate;
     private String brand;
     private String model;
     private String vehicleType;
@@ -26,6 +27,14 @@ public class VehicleAIData {
 
     public void setVehicleId(int vehicleId) {
         this.vehicleId = vehicleId;
+    }
+
+    public String getLicensePlate() {
+        return licensePlate;
+    }
+
+    public void setLicensePlate(String licensePlate) {
+        this.licensePlate = licensePlate;
     }
 
     public String getBrand() {

@@ -106,6 +106,7 @@ public class GeminiService {
             }
             sb.append("{");
             sb.append("\"vehicleId\":").append(v.getVehicleId()).append(",");
+            sb.append("\"licensePlate\":\"").append(escapeJson(v.getLicensePlate())).append("\",");
             sb.append("\"brand\":\"").append(escapeJson(v.getBrand())).append("\",");
             sb.append("\"model\":\"").append(escapeJson(v.getModel())).append("\",");
             sb.append("\"vehicleType\":\"").append(escapeJson(v.getVehicleType())).append("\",");
@@ -215,6 +216,7 @@ public class GeminiService {
 
                 Map<String, Object> m = new LinkedHashMap<>();
                 m.put("vehicleId", v.getVehicleId());
+                m.put("licensePlate", v.getLicensePlate());
                 m.put("brand", v.getBrand());
                 m.put("model", v.getModel());
                 m.put("vehicleType", v.getVehicleType());
@@ -247,6 +249,7 @@ public class GeminiService {
             if (matched) {
                 Map<String, Object> m = new LinkedHashMap<>();
                 m.put("vehicleId", v.getVehicleId());
+                m.put("licensePlate", v.getLicensePlate());
                 m.put("brand", v.getBrand());
                 m.put("model", v.getModel());
                 m.put("vehicleType", v.getVehicleType());
@@ -267,6 +270,7 @@ public class GeminiService {
                 VehicleAIData v = vehicles.get(i);
                 Map<String, Object> m = new LinkedHashMap<>();
                 m.put("vehicleId", v.getVehicleId());
+                m.put("licensePlate", v.getLicensePlate());
                 m.put("brand", v.getBrand());
                 m.put("model", v.getModel());
                 m.put("vehicleType", v.getVehicleType());

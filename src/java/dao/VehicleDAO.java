@@ -530,6 +530,7 @@ public class VehicleDAO {
         String sql =
                 "SELECT " +
                 "v.VehicleID, " +
+                "v.LicensePlate, " +
                 "v.Brand, " +
                 "v.Model, " +
                 "vt.TypeName, " +
@@ -542,6 +543,7 @@ public class VehicleDAO {
                 "LEFT JOIN Tag t ON t.TagID = vtg.TagID " +
                 "GROUP BY " +
                 "v.VehicleID, " +
+                "v.LicensePlate, " +
                 "v.Brand, " +
                 "v.Model, " +
                 "vt.TypeName, " +
@@ -558,6 +560,7 @@ public class VehicleDAO {
                 VehicleAIData vehicle = new VehicleAIData();
 
                 vehicle.setVehicleId(rs.getInt("VehicleID"));
+                vehicle.setLicensePlate(rs.getString("LicensePlate"));
                 vehicle.setBrand(rs.getString("Brand"));
                 vehicle.setModel(rs.getString("Model"));
                 vehicle.setVehicleType(rs.getString("TypeName"));
