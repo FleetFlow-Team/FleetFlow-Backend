@@ -328,17 +328,26 @@ public class ExtensionDAO {
     }
     
     public boolean createPendingPayment(int bookingId, String paymentType, String method, double amount) {
-        // Tạo TransactionRef theo format của bạn (VD: TXN-D-1 hoặc TXN-F-1 kèm timestamp để không bị trùng)
+        // Tạo TransactionRef nội bộ (dùng khi chưa có mã giao dịch thật từ cổng thanh toán,
+        // vd. placeholder deposit được tạo tự động lúc booking CONFIRMED)
         String prefix = paymentType.equalsIgnoreCase("DEPOSIT") ? "D" : "F";
         String txnRef = "TXN-" + prefix + "-" + bookingId + "-" + System.currentTimeMillis();
+        return createPendingPayment(bookingId, paymentType, method, amount, txnRef);
+    }
 
+    /**
+     * Overload cho phép truyền thẳng TransactionRef thật (vd. vnp_TxnRef gửi sang VNPay)
+     * để về sau IPN/QueryDR có thể match update đúng chính xác 1 giao dịch bằng TransactionRef,
+     * thay vì đoán mò theo BookingID (dễ đụng nhầm các payment PENDING khác của cùng booking).
+     */
+    public boolean createPendingPayment(int bookingId, String paymentType, String method, double amount, String txnRef) {
         // Câu lệnh SQL (PaidAt để trống vì chưa thanh toán)
         String sql = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status, TransactionRef) " +
                      "VALUES (?, ?, ?, ?, 'PENDING', ?)";
 
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-             
+
             ps.setInt(1, bookingId);
             ps.setString(2, paymentType); // "DEPOSIT" hoặc "FINAL"
             ps.setString(3, method);      // "VNPAY", "MOMO", "CASH"...
@@ -347,7 +356,7 @@ public class ExtensionDAO {
 
             int rowsAffected = ps.executeUpdate();
             return rowsAffected > 0;
-            
+
         } catch (Exception e) {
             e.printStackTrace();
             return false;
