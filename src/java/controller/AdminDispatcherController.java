@@ -26,10 +26,33 @@ public class AdminDispatcherController extends HttpServlet {
     private final AccountDAO accountDAO = new AccountDAO();
     private final ExtensionDAO extensionDAO = new ExtensionDAO();
 
+    private void setAccessControlHeaders(HttpServletRequest request, HttpServletResponse response) {
+        String clientOrigin = request.getHeader("Origin");
+
+        if (clientOrigin != null) {
+            response.setHeader("Access-Control-Allow-Origin", clientOrigin);
+        } else {
+            response.setHeader("Access-Control-Allow-Origin", "http://127.0.0.1:5500");
+        }
+
+        response.setHeader("Access-Control-Allow-Credentials", "true");
+        response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept");
+    }
+
+    @Override
+    protected void doOptions(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        setAccessControlHeaders(request, response);
+        response.setStatus(HttpServletResponse.SC_OK);
+    }
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
+        setAccessControlHeaders(request, response);
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
@@ -59,6 +82,7 @@ public class AdminDispatcherController extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
+        setAccessControlHeaders(request, response);
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
