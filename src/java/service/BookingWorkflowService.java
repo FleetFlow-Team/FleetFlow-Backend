@@ -307,6 +307,16 @@ public class BookingWorkflowService {
                     "Booking này đang có lệnh dispatch khác chờ phản hồi, không thể dispatch thêm.");
         }
 
+        // Không cho gán chuyến cho driver có account đang bị Admin khóa
+        int driverAccountId = new dao.DriverDAO().getAccountIdByDriverId(driverId);
+        if (driverAccountId == -1) {
+            throw new IllegalArgumentException("Không tìm thấy driver #" + driverId);
+        }
+        if (new dao.CustomerLockDAO().isAccountLocked(driverAccountId)) {
+            throw new IllegalArgumentException(
+                    "Driver #" + driverId + " đang bị khóa tài khoản, không thể gán chuyến.");
+        }
+
         try (Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
             try {
@@ -333,7 +343,6 @@ public class BookingWorkflowService {
                                 "BOOKING_DRIVER_ASSIGNED", "IN_APP");
                     }
 
-                    int driverAccountId = new dao.DriverDAO().getAccountIdByDriverId(driverId);
                     if (driverAccountId != -1) {
                         extDAO.createNotification(driverAccountId, bookingId,
                                 "Bạn được gán chuyến mới",
