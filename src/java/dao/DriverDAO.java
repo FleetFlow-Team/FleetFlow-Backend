@@ -704,4 +704,63 @@ public class DriverDAO {
         }
     }
 
+    /**
+     * Danh sách toàn bộ Driver kèm Account.Status — cho Admin xem để chọn
+     * tài khoản khóa/mở khóa.
+     */
+    public List<Map<String, Object>> getAllDriversForAdmin() throws Exception {
+        List<Map<String, Object>> list = new ArrayList<>();
+        String sql = "SELECT a.AccountID, a.FullName, a.Email, a.PhoneNumber, a.Status, "
+                + "d.DriverID, d.AvailabilityStatus "
+                + "FROM Driver d JOIN Account a ON a.AccountID = d.AccountID "
+                + "WHERE d.IsDeleted = 0 ORDER BY d.DriverID";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("accountId", rs.getInt("AccountID"));
+                row.put("driverId", rs.getInt("DriverID"));
+                row.put("fullName", rs.getString("FullName"));
+                row.put("email", rs.getString("Email"));
+                row.put("phoneNumber", rs.getString("PhoneNumber"));
+                row.put("status", rs.getString("Status"));
+                row.put("availabilityStatus", rs.getString("AvailabilityStatus"));
+                list.add(row);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Danh sách toàn bộ Driver kèm tình trạng (AvailabilityStatus) + số chuyến
+     * đã nhận (đếm DriverJobBroadcast đã ACCEPTED) — cho Dispatcher theo dõi.
+     */
+    public List<Map<String, Object>> getAllDriversForDispatcher() throws Exception {
+        List<Map<String, Object>> list = new ArrayList<>();
+        String sql = "SELECT a.AccountID, a.FullName, a.PhoneNumber, a.Status, "
+                + "d.DriverID, d.AvailabilityStatus, d.AverageRating, "
+                + "(SELECT COUNT(*) FROM DriverJobBroadcast djb "
+                + " WHERE djb.AssignedDriverID = d.DriverID AND djb.Status = 'ACCEPTED') AS AcceptedTripCount "
+                + "FROM Driver d JOIN Account a ON a.AccountID = d.AccountID "
+                + "WHERE d.IsDeleted = 0 ORDER BY d.DriverID";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("accountId", rs.getInt("AccountID"));
+                row.put("driverId", rs.getInt("DriverID"));
+                row.put("fullName", rs.getString("FullName"));
+                row.put("phoneNumber", rs.getString("PhoneNumber"));
+                row.put("accountStatus", rs.getString("Status"));
+                row.put("availabilityStatus", rs.getString("AvailabilityStatus"));
+                row.put("averageRating", rs.getBigDecimal("AverageRating"));
+                row.put("acceptedTripCount", rs.getInt("AcceptedTripCount"));
+                list.add(row);
+            }
+        }
+        return list;
+    }
+
 }

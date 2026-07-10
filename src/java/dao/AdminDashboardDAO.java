@@ -95,6 +95,7 @@ public class AdminDashboardDAO {
      * Đếm số lệnh dispatch bị driver reject trong khoảng thời gian — KPI vận hành
      * (tỷ lệ driver reject cao cảnh báo vấn đề điều phối).
      */
+
     public int getDriverRejectCount(String fromDate, String toDate) throws Exception {
         StringBuilder sql = new StringBuilder(
                 "SELECT COUNT(*) AS Total FROM DriverJobBroadcast "
@@ -119,6 +120,37 @@ public class AdminDashboardDAO {
                 return rs.next() ? rs.getInt("Total") : 0;
             }
         }
+    }
+
+    /**
+     * Thống kê khách hàng cho KPI dashboard:
+     * - totalCustomers: tổng số khách hàng đang hoạt động (không phụ thuộc bộ lọc ngày, vì đây là số lũy kế)
+     * - newCustomersToday: số khách hàng đăng ký mới trong ngày hôm nay (theo giờ server)
+     */
+    public Map<String, Integer> getCustomerStats() throws Exception {
+        Map<String, Integer> stats = new HashMap<>();
+
+        String totalSql = "SELECT COUNT(*) AS Total FROM Customer c "
+                + "JOIN Account a ON a.AccountID = c.AccountID "
+                + "WHERE c.IsDeleted = 0 AND a.IsDeleted = 0";
+
+        String todaySql = "SELECT COUNT(*) AS Total FROM Customer c "
+                + "JOIN Account a ON a.AccountID = c.AccountID "
+                + "WHERE c.IsDeleted = 0 AND a.IsDeleted = 0 "
+                + "AND CAST(c.CreatedAt AS DATE) = CAST(GETDATE() AS DATE)";
+
+        try (Connection conn = DbUtils.getConnection()) {
+            try (PreparedStatement ps = conn.prepareStatement(totalSql);
+                 ResultSet rs = ps.executeQuery()) {
+                stats.put("totalCustomers", rs.next() ? rs.getInt("Total") : 0);
+            }
+            try (PreparedStatement ps = conn.prepareStatement(todaySql);
+                 ResultSet rs = ps.executeQuery()) {
+                stats.put("newCustomersToday", rs.next() ? rs.getInt("Total") : 0);
+            }
+        }
+
+        return stats;
     }
 
     /**
