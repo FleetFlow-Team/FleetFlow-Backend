@@ -60,7 +60,12 @@ public class LoginController extends HttpServlet {
                 AccountDAO dao = new AccountDAO();
                 Account loginUser = dao.checkLogin(email.trim(), password.trim());
 
-                if (loginUser != null) {
+                if (loginUser != null && "LOCKED".equalsIgnoreCase(loginUser.getStatus())) {
+                    // Account bị Admin khóa — không cấp session/token mới
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    apiResponse.put("success", false);
+                    apiResponse.put("message", "Tài khoản của bạn đang bị tạm khóa. Vui lòng liên hệ Admin để được hỗ trợ.");
+                } else if (loginUser != null) {
 
                     // TẠO SESSION
                     HttpSession session = request.getSession();
