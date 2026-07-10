@@ -14,6 +14,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -153,10 +154,8 @@ public class VNPayController extends HttpServlet {
     }
 
     private void handleReturn(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        // Dự án backend thuần JSON (FE ở repo riêng) — trả JSON thay vì forward JSP,
-        // để FE tự dựng trang kết quả, và để test trực tiếp được bằng Postman.
-        response.setContentType("application/json; charset=UTF-8");
-        JsonObject result = new JsonObject();
+        response.setContentType("text/html; charset=UTF-8");
+        PrintWriter out = response.getWriter();
         try {
             Map<String, String> fields = extractVNPayParams(request);
             String vnp_SecureHash = request.getParameter("vnp_SecureHash");
@@ -168,33 +167,44 @@ public class VNPayController extends HttpServlet {
                 paymentId = Integer.parseInt(vnp_TxnRef.split("_")[0]);
             }
 
-            String bankCode = request.getParameter("vnp_BankCode"); // VD: NCB, VCB...
-            String transactionNo = request.getParameter("vnp_TransactionNo"); // Mã GD trên hệ thống VNPay
+            String transactionNo = request.getParameter("vnp_TransactionNo");
             String amountStr = request.getParameter("vnp_Amount");
-            long amount = amountStr != null ? Long.parseLong(amountStr) / 100 : 0; // VNPay nhân 100, chia lại để ra VNĐ thực
+            long amount = amountStr != null ? Long.parseLong(amountStr) / 100 : 0;
 
             boolean success = isValid && "00".equals(request.getParameter("vnp_ResponseCode"));
             Integer bookingId = paymentId != null ? getBookingIdByPaymentId(paymentId) : null;
 
-            result.addProperty("success", success);
-            result.addProperty("status", success ? "success" : "failed");
-            if (paymentId != null) {
-                result.addProperty("paymentId", paymentId);
+            if (success && paymentId != null) {
+                verifyAndSavePayment(paymentId, transactionNo, amount);
             }
-            if (bookingId != null) {
-                result.addProperty("bookingId", bookingId);
-            }
-            result.addProperty("amount", amount);
-            result.addProperty("bankCode", bankCode);
-            result.addProperty("transactionNo", transactionNo);
-            if (!isValid) {
-                result.addProperty("message", "Invalid signature");
-            }
+
+            StringBuilder html = new StringBuilder();
+            html.append("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Xác nhận thanh toán</title></head>");
+            html.append("<body style='background:#f8fafc;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;'>");
+            html.append("<div style='text-align:center;'>");
+            html.append("<h3 style='color:#0f172a;'>Đang xác nhận thanh toán VNPay...</h3>");
+            html.append("</div>");
+            html.append("<script>");
+            html.append("  const resultData = {");
+            html.append("    type: 'VNPAY_RESULT',");
+            html.append("    success: ").append(success).append(",");
+            html.append("    bookingId: ").append(bookingId != null ? bookingId : "null").append(",");
+            html.append("    amount: ").append(amount).append(",");
+            html.append("    message: '").append(success ? "Thanh toán thành công" : "Giao dịch không thành công").append("'");
+            html.append("  };");
+            html.append("  if (window.opener && !window.opener.closed) {");
+            html.append("      window.opener.postMessage(resultData, '*');");
+            html.append("      setTimeout(() => window.close(), 500);");
+            html.append("  } else {");
+            html.append("      window.location.href = 'http://127.0.0.1:5500/pages/customer/tripHistory.html';");
+            html.append("  }");
+            html.append("</script>");
+            html.append("</body></html>");
+
+            out.print(html.toString());
         } catch (Exception e) {
-            result.addProperty("success", false);
-            result.addProperty("message", "Lỗi xử lý Return: " + e.getMessage());
+            out.print("<html><body><h3>Lỗi xử lý Return: " + e.getMessage() + "</h3></body></html>");
         }
-        response.getWriter().print(result.toString());
     }
 
     private void handleIpn(HttpServletRequest request, HttpServletResponse response) throws IOException {
