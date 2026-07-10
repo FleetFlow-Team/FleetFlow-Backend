@@ -314,6 +314,16 @@ public class DriverController extends HttpServlet {
             return;
         }
 
+        // Account đang bị Admin khóa thì không cho tự cập nhật hồ sơ/trạng thái
+        // (tránh driver bị khóa tự bật lại AVAILABLE để lọt vào auto-dispatch)
+        if (new dao.CustomerLockDAO().isAccountLocked(accountId)) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            apiResponse.put("success", false);
+            apiResponse.put("message", "Tài khoản của bạn đang bị tạm khóa, không thể cập nhật hồ sơ hoặc trạng thái. Vui lòng liên hệ Admin.");
+            out.print(gson.toJson(apiResponse));
+            return;
+        }
+
         // 🛑 PHÒNG THỦ TOÀN DIỆN: Kiểm tra cờ điều khoản, nếu chưa ký (false) -> CHẶN ĐỨNG HOÀN TOÀN TẤT CẢ trạng thái gửi lên
         Driver driver = dao.getDriverProfile(accountId);
         if (driver != null && !driver.isTermsAccepted()) {
