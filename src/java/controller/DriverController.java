@@ -352,7 +352,6 @@ public class DriverController extends HttpServlet {
     private void setupResponseHeaders(HttpServletResponse response) {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
-        response.setHeader("Access-Control-Allow-Origin", "*");
     }
 
     private void ensureFolderExists(String path) {
@@ -380,9 +379,15 @@ public class DriverController extends HttpServlet {
     @Override
     protected void doOptions(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        response.setHeader("Access-Control-Allow-Origin", "*");
-        response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-        response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        String clientOrigin = request.getHeader("Origin");
+        if (clientOrigin != null && !clientOrigin.isEmpty()) {
+            response.setHeader("Access-Control-Allow-Origin", clientOrigin);
+        } else {
+            response.setHeader("Access-Control-Allow-Origin", "http://127.0.0.1:5500");
+        }
+        response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept");
+        response.setHeader("Access-Control-Allow-Credentials", "true");
         response.setStatus(HttpServletResponse.SC_OK);
     }
 

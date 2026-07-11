@@ -29,11 +29,14 @@ public class CorsFilter implements Filter {
         HttpServletRequest req = (HttpServletRequest) request;
         HttpServletResponse res = (HttpServletResponse) response;
 
-        // Cho phép gọi từ bất kỳ origin nào (dev mode)
-        // Nếu cần giới hạn, đổi "*" thành "http://127.0.0.1:5501"
-        res.setHeader("Access-Control-Allow-Origin", "*");
+        String clientOrigin = req.getHeader("Origin");
+        if (clientOrigin != null && !clientOrigin.isEmpty()) {
+            res.setHeader("Access-Control-Allow-Origin", clientOrigin);
+        } else {
+            res.setHeader("Access-Control-Allow-Origin", "http://127.0.0.1:5500");
+        }
         res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept");
         res.setHeader("Access-Control-Allow-Credentials", "true");
         res.setHeader("Access-Control-Max-Age", "3600");
 
