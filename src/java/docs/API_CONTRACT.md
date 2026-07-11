@@ -1430,6 +1430,32 @@ Danh sách thông báo của customer
 {
     "success": true,
     "data": [
+-----update 11/7/2026
+------Notification khi thanh toan thanh cong bang tien mat
+        {
+            "NotificationID": 126,
+            "RecipientAccountID": 1,
+            "BookingID": 41,
+            "Title": "Thanh toán thành công",
+            "Message": "Bạn đã thanh toán 73255.00đ tiền mặt cho booking #41. Cảm ơn!",
+            "Type": "PAYMENT_CASH_CONFIRMED",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "Jul 11, 2026 9:32:55 PM"
+        },
+        {
+            "NotificationID": 125,
+            "RecipientAccountID": 1,
+            "BookingID": 41,
+            "Title": "Chuyến đi đã hoàn thành - Yêu cầu thanh toán",
+            "Message": "Chuyến đi #41 đã hoàn thành. Vui lòng thanh toán 73255.00đ còn lại (chuyển khoản hoặc tiền mặt cho tài xế). Cảm ơn bạn đã sử dụng dịch vụ!",
+            "Type": "TRIP_COMPLETED_PAYMENT_REQUIRED",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "Jul 11, 2026 8:55:24 PM"
+        },
+        
+
 ----update 8/7/2026
         {
             "NotificationID": 78,
@@ -1559,6 +1585,9 @@ Tạo yêu cầu thanh toán MoMo cho 1 invoice
     "paymentUrl": "https://test-payment.momo.vn/v2/gateway/api/create?orderId=15"
 }
 
+---------------------
+
+Ðã có thanh toán cu?i chuyen bang CASH
 Thanh toán cuối (Final Payment - Tiền mặt / Chuyển khoản)
 - Path: POST http://localhost:8080/FleetFlow/api/v1/payments/final
 - Input:
@@ -1570,7 +1599,8 @@ Thanh toán cuối (Final Payment - Tiền mặt / Chuyển khoản)
 {
     "success": true,
     "finalAmount": 59000.00
-}
+}   
+---------------------
 
 Tạo yêu cầu thanh toán MoMo cho 1 booking
 - Path: POST http://localhost:8080/FleetFlow/api/v1/payments/momo/create
@@ -2832,6 +2862,16 @@ output:
 {
     "success": true,
     "notifications": [
+//Notification nhac driver thu CASH c?a customer
+        {
+            "createdAt": "2026-07-11 21:32:55.225",
+            "isRead": "false",
+            "notificationId": 127,
+            "title": "Nhắc thu tiền mặt",
+            "message": "Khách chọn thanh toán tiền mặt cho chuyến #41 rồi nha. Nhờ bạn thu giúp FleetFlow 73255.00đ từ khách nhé!",
+            "type": "PAYMENT_CASH_CONFIRMED",
+            "bookingId": 41
+        },
 // notification when booking unassigned
 output:
         {
@@ -3131,6 +3171,18 @@ path GET http://localhost:8080/FleetFlow/api/v1/dispatcher/notifications
 output:
 {
     "data": [
+Notification khi cus thnh toan tien mat
+        {
+            "NotificationID": 128,
+            "RecipientAccountID": 18,
+            "BookingID": 41,
+            "Title": "Booking #41 đã thanh toán tiền mặt",
+            "Message": "Khách đã thanh toán 73255.00đ tiền mặt cho booking #41.",
+            "Type": "PAYMENT_CASH_CONFIRMED",
+            "Channel": "IN_APP",
+            "IsRead": false,
+            "CreatedAt": "Jul 11, 2026 9:32:55 PM"
+        },
         {
             "NotificationID": 7,
             "RecipientAccountID": 18,
