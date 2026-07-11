@@ -548,9 +548,9 @@ public class ExtensionDAO {
             int driverAccountId = getDriverAccountIdByBookingId(bookingId);
             if (driverAccountId != -1) {
                 createNotification(driverAccountId, bookingId,
-                        "Khách đã chuyển khoản thanh toán",
-                        "Booking #" + bookingId + ": khách đã chuyển khoản (" + methodLabel + ") thành công "
-                                + amount.toPlainString() + "đ. Không cần thu thêm tiền mặt.",
+                        "Khách đã chuyển khoản rồi nè",
+                        "Chuyến #" + bookingId + ": khách đã chuyển khoản (" + methodLabel + ") thành công "
+                                + amount.toPlainString() + "đ. Bạn khỏi cần thu tiền mặt nha, xong nhiệm vụ rồi!",
                         "PAYMENT_TRANSFER_CONFIRMED", "IN_APP");
             }
             java.util.List<Integer> dispatcherIds = new AccountDAO().getActiveDispatcherAccountIds();

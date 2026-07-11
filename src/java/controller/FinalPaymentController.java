@@ -74,9 +74,9 @@ public class FinalPaymentController extends HttpServlet {
                     int driverAccountId = dao.getDriverAccountIdByBookingId(bookingId);
                     if (driverAccountId != -1) {
                         dao.createNotification(driverAccountId, bookingId,
-                                "Khách đã xác nhận thanh toán tiền mặt",
-                                "Booking #" + bookingId + " đã được thanh toán "
-                                        + amountToPay.toPlainString() + "đ tiền mặt.",
+                                "Nhắc thu tiền mặt",
+                                "Khách chọn thanh toán tiền mặt cho chuyến #" + bookingId
+                                        + " rồi nha. Nhờ bạn thu giúp FleetFlow " + amountToPay.toPlainString() + "đ từ khách nhé!",
                                 "PAYMENT_CASH_CONFIRMED", "IN_APP");
                     }
                     java.util.List<Integer> dispatcherIds = new dao.AccountDAO().getActiveDispatcherAccountIds();
