@@ -233,6 +233,11 @@ public class DriverDispatchController extends HttpServlet {
                 out.print("{\"error\": \"Không tìm thấy tài khoản\"}");
                 return null;
             }
+            if ("LOCKED".equalsIgnoreCase(acc.getStatus())) {
+                response.setStatus(403);
+                out.print("{\"error\": \"Tài khoản của bạn đang bị tạm khóa, không thể thao tác với chuyến đi. Vui lòng liên hệ Admin.\"}");
+                return null;
+            }
             return acc;
         } catch (Exception e) {
             response.setStatus(500);

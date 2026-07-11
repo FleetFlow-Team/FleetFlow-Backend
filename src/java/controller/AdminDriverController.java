@@ -119,7 +119,8 @@ public class AdminDriverController extends HttpServlet {
             for (int i = 0; i < drivers.size(); i++) {
                 Account acc = drivers.get(i);
 
-                List<IdentityDocument> docs = service.getDocsByAccountId((int) acc.getId());
+                // TODO: tạm tắt lấy giấy tờ tài xế, mở lại khi tính năng duyệt hồ sơ hoạt động
+                // List<IdentityDocument> docs = service.getDocsByAccountId((int) acc.getId());
 
                 json.append("{");
                 json.append("\"accountId\":").append(acc.getId()).append(",");
@@ -129,19 +130,19 @@ public class AdminDriverController extends HttpServlet {
                 json.append("\"createdAt\":\"").append(acc.getCreatedAt()).append("\",");
                 json.append("\"documents\":[");
 
-                for (int j = 0; j < docs.size(); j++) {
-                    IdentityDocument doc = docs.get(j);
-                    json.append("{");
-                    json.append("\"docId\":").append(doc.getId()).append(",");
-                    json.append("\"docType\":\"").append(esc(doc.getDocType())).append("\",");
-                    json.append("\"fileUrl\":\"").append(esc(doc.getSecureFileUrl())).append("\",");
-                    json.append("\"status\":\"").append(esc(doc.getStatus())).append("\",");
-                    json.append("\"uploadedAt\":\"").append(doc.getUploadedAt()).append("\"");
-                    json.append("}");
-                    if (j < docs.size() - 1) {
-                        json.append(",");
-                    }
-                }
+                // for (int j = 0; j < docs.size(); j++) {
+                //     IdentityDocument doc = docs.get(j);
+                //     json.append("{");
+                //     json.append("\"docId\":").append(doc.getId()).append(",");
+                //     json.append("\"docType\":\"").append(esc(doc.getDocType())).append("\",");
+                //     json.append("\"fileUrl\":\"").append(esc(doc.getSecureFileUrl())).append("\",");
+                //     json.append("\"status\":\"").append(esc(doc.getStatus())).append("\",");
+                //     json.append("\"uploadedAt\":\"").append(doc.getUploadedAt()).append("\"");
+                //     json.append("}");
+                //     if (j < docs.size() - 1) {
+                //         json.append(",");
+                //     }
+                // }
 
                 json.append("]}");
                 if (i < drivers.size() - 1) {

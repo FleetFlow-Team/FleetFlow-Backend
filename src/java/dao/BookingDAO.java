@@ -502,8 +502,10 @@ public class BookingDAO {
             // SQL Server: TOP 1, ISNULL để driver chưa gán bao giờ lên đầu
             sql = "SELECT TOP 1 d.DriverID "
                     + "FROM Driver d "
+                    + "JOIN Account a ON a.AccountID = d.AccountID "
                     + "WHERE d.AvailabilityStatus = 'AVAILABLE' "
                     + "AND d.IsDeleted = 0 "
+                    + "AND a.Status <> 'LOCKED' "
                     + "AND d.DriverID NOT IN (" + placeholders + ") "
                     + "AND d.DriverID NOT IN ("
                     + "    SELECT AssignedDriverID FROM DriverJobBroadcast WHERE Status = 'PENDING'"
@@ -512,8 +514,10 @@ public class BookingDAO {
         } else {
             sql = "SELECT TOP 1 d.DriverID "
                     + "FROM Driver d "
+                    + "JOIN Account a ON a.AccountID = d.AccountID "
                     + "WHERE d.AvailabilityStatus = 'AVAILABLE' "
                     + "AND d.IsDeleted = 0 "
+                    + "AND a.Status <> 'LOCKED' "
                     + "AND d.DriverID NOT IN ("
                     + "    SELECT AssignedDriverID FROM DriverJobBroadcast WHERE Status = 'PENDING'"
                     + ") "

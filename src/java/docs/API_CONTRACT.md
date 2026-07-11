@@ -3234,3 +3234,343 @@ output:
     "address": "123-125 Nguyễn Huệ Phường Sài Gòn,Thành Phố Hồ Chí Minh",
     "display": "123-125 Nguyễn Huệ Phường Sài Gòn,Thành Phố Hồ Chí Minh"
 }
+
+---------------------------------------------------------------
+# BE → FE: Cập nhật API sau đợt vá Lock/Unlock tài khoản (11/07/2026)
+
+## CHUNG
+
+Login bằng account đang bị Admin khóa (mọi role) — HTTP 403
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/auth/login
+
+- Input:
+
+```json
+{
+  "email": "driver1@fleetflow.com",
+  "password": "<mật khẩu đúng>"
+}
+```
+
+- Output:
+
+```json
+{
+    "success": false,
+    "message": "Tài khoản của bạn đang bị tạm khóa. Vui lòng liên hệ Admin để được hỗ trợ."
+}
+```
+
+---
+
+## DRIVER
+
+Driver bị khóa xem danh sách chuyến đang chờ nhận — HTTP 403
+
+- Path: GET http://localhost:8080/FleetFlow/api/v1/driver/dispatch/pending
+
+- Input:
+
+```
+Header: Authorization: Bearer <token Driver>
+```
+
+- Output:
+
+```json
+{
+    "error": "Tài khoản của bạn đang bị tạm khóa, không thể thao tác với chuyến đi. Vui lòng liên hệ Admin."
+}
+```
+
+---
+
+Driver bị khóa xem lịch sử chuyến — HTTP 403
+
+- Path: GET http://localhost:8080/FleetFlow/api/v1/driver/dispatch/history
+
+- Input:
+
+```
+Header: Authorization: Bearer <token Driver>
+```
+
+- Output:
+
+```json
+{
+    "error": "Tài khoản của bạn đang bị tạm khóa, không thể thao tác với chuyến đi. Vui lòng liên hệ Admin."
+}
+```
+
+---
+
+Driver bị khóa xem thông báo chuyến — HTTP 403
+
+- Path: GET http://localhost:8080/FleetFlow/api/v1/driver/dispatch/notifications
+
+- Input:
+
+```
+Header: Authorization: Bearer <token Driver>
+```
+
+- Output:
+
+```json
+{
+    "error": "Tài khoản của bạn đang bị tạm khóa, không thể thao tác với chuyến đi. Vui lòng liên hệ Admin."
+}
+```
+
+---
+
+Driver bị khóa bấm nhận chuyến — HTTP 403
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/driver/dispatch/{broadcastId}/accept
+
+- Input:
+
+```
+Header: Authorization: Bearer <token Driver>
+```
+
+- Output:
+
+```json
+{
+    "error": "Tài khoản của bạn đang bị tạm khóa, không thể thao tác với chuyến đi. Vui lòng liên hệ Admin."
+}
+```
+
+---
+
+Driver bị khóa từ chối chuyến — HTTP 403
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/driver/dispatch/{broadcastId}/reject
+
+- Input:
+
+```json
+{
+  "reason": "Lý do từ chối (optional)"
+}
+```
+
+- Output:
+
+```json
+{
+    "error": "Tài khoản của bạn đang bị tạm khóa, không thể thao tác với chuyến đi. Vui lòng liên hệ Admin."
+}
+```
+
+---
+
+Driver bị khóa cập nhật hồ sơ / tự bật lại AVAILABLE — HTTP 403
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/driver/profile/update
+
+- Input:
+
+```
+accountID=3
+fullName=Tài xế Tuấn
+phoneNumber=0900000003
+availabilityStatus=AVAILABLE
+```
+
+- Output:
+
+```json
+{
+    "success": false,
+    "message": "Tài khoản của bạn đang bị tạm khóa, không thể cập nhật hồ sơ hoặc trạng thái. Vui lòng liên hệ Admin."
+}
+```
+
+---
+
+## DISPATCHER
+
+Dispatcher phân tài thủ công cho driver đang bị khóa — HTTP 400 (trước đây báo thành công, là bug đã báo)
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings/{bookingId}/dispatch
+
+- Input:
+
+```json
+{
+  "driverId": 1
+}
+```
+
+- Output:
+
+```json
+{
+    "error": "Driver #1 đang bị khóa tài khoản, không thể gán chuyến."
+}
+```
+
+---
+
+Dispatcher xem danh sách tài xế — HTTP 200, không đổi; FE dùng accountStatus để disable driver bị khóa khi phân tài
+
+- Path: GET http://localhost:8080/FleetFlow/api/v1/dispatcher/drivers
+
+- Input:
+
+```
+Header: Authorization: Bearer <token Dispatcher hoặc Admin>
+```
+
+- Output:
+
+```json
+{
+    "success": true,
+    "data": [
+        {
+            "accountId": 3,
+            "driverId": 1,
+            "fullName": "Tài xế Tuấn",
+            "phoneNumber": "0900000003",
+            "accountStatus": "LOCKED",
+            "availabilityStatus": "AVAILABLE",
+            "averageRating": 4.80,
+            "acceptedTripCount": 2
+        }
+    ]
+}
+```
+
+---
+
+## ADMIN
+
+Admin xem danh sách driver chờ duyệt — HTTP 200, field documents TẠM THỜI luôn rỗng
+
+- Path: GET http://localhost:8080/FleetFlow/api/v1/admin/drivers/pending
+
+- Input:
+
+```
+Header: Authorization: Bearer <token Admin>
+```
+
+- Output:
+
+```json
+{
+    "success": true,
+    "data": [
+        {
+            "accountId": 10,
+            "fullName": "Nguyễn Văn A",
+            "email": "a@example.com",
+            "phone": "0900000010",
+            "createdAt": "2026-07-01 10:00:00.0",
+            "documents": []
+        }
+    ]
+}
+```
+
+---
+
+Admin khóa tài khoản driver — HTTP 200, không đổi (truyền accountId, không phải driverId)
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/admin/drivers/{accountId}/lock
+
+- Input:
+
+```
+Header: Authorization: Bearer <token Admin>
+```
+
+- Output:
+
+```json
+{
+    "success": true,
+    "message": "Đã khóa tài khoản driver #3"
+}
+```
+
+---
+
+Admin mở khóa tài khoản driver — HTTP 200, không đổi
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/admin/drivers/{accountId}/unlock
+
+- Input:
+
+```
+Header: Authorization: Bearer <token Admin>
+```
+
+- Output:
+
+```json
+{
+    "success": true,
+    "message": "Đã mở khóa tài khoản driver #3"
+}
+```
+
+---
+
+Admin khóa tài khoản dispatcher — HTTP 200, không đổi
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/admin/dispatchers/{accountId}/lock
+
+- Input:
+
+```
+Header: Authorization: Bearer <token Admin>
+```
+
+- Output:
+
+```json
+{
+    "success": true,
+    "message": "Đã khóa tài khoản dispatcher #2"
+}
+```
+
+---
+
+Admin mở khóa tài khoản dispatcher — HTTP 200, không đổi
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/admin/dispatchers/{accountId}/unlock
+
+- Input:
+
+```
+Header: Authorization: Bearer <token Admin>
+```
+
+- Output:
+
+```json
+{
+    "success": true,
+    "message": "Đã mở khóa tài khoản dispatcher #2"
+}
+```
+
+---
+
+## GHI CHÚ
+
+- Login: input thực tế gửi dạng form x-www-form-urlencoded (email=..., password=...); sai mật khẩu vẫn trả HTTP 200 + "Incorrect email or password" như cũ — FE phân biệt case bị khóa bằng HTTP 403.
+
+- Auto-dispatch (BE tự tìm tài xế) đã tự loại driver có account LOCKED — FE không cần làm gì.
+
+- Đã thêm CORS + preflight OPTIONS cho /api/v1/dispatcher/drivers và /api/v1/admin/dispatchers/* — gọi từ Live Server (127.0.0.1:5500) không còn bị chặn.
+
+- Toàn bộ Output ở trên là kết quả test thật (curl/Postman) trên Tomcat 9 + DB dev.
+
