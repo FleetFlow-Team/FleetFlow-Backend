@@ -383,8 +383,13 @@ public class ExtensionDAO {
         BigDecimal depositAmount = null;
         String depositMethod = "VNPAY";
 
+        // Cùng điều kiện với isDepositPaid: cọc có thể bị ghi PaymentType='FINAL'
+        // (FE cũ không gửi paymentType) và Status='SUCCESS' (luồng Momo).
+        // Ưu tiên bản ghi DEPOSIT nếu tồn tại cả hai loại.
         String findSql = "SELECT TOP 1 Amount, Method FROM Payment "
-                + "WHERE BookingID = ? AND PaymentType = 'DEPOSIT' AND Status = 'COMPLETED'";
+                + "WHERE BookingID = ? AND PaymentType IN ('DEPOSIT', 'FINAL') "
+                + "AND Status IN ('COMPLETED', 'SUCCESS') "
+                + "ORDER BY CASE WHEN PaymentType = 'DEPOSIT' THEN 0 ELSE 1 END, PaymentID";
         try (PreparedStatement ps = conn.prepareStatement(findSql)) {
             ps.setInt(1, bookingId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -429,12 +434,18 @@ public class ExtensionDAO {
     }
 
     /**
-     * Kiểm tra booking đã đóng cọc (DEPOSIT COMPLETED) chưa.
+     * Kiểm tra booking đã đóng cọc chưa.
      * Dùng trong startTrip để block nếu khách chưa thanh toán.
+     *
+     * Chấp nhận cả PaymentType = 'FINAL': FE cũ không gửi paymentType nên
+     * VNPayController từng ghi cọc thành FINAL — khách trả đủ tiền trước thì
+     * hiển nhiên đã đủ điều kiện cọc. Status 'SUCCESS' là do luồng Momo ghi
+     * khác VNPay ('COMPLETED').
      */
     public boolean isDepositPaid(int bookingId) throws Exception {
         String sql = "SELECT COUNT(*) FROM Payment "
-                + "WHERE BookingID = ? AND PaymentType = 'DEPOSIT' AND Status = 'COMPLETED'";
+                + "WHERE BookingID = ? AND PaymentType IN ('DEPOSIT', 'FINAL') "
+                + "AND Status IN ('COMPLETED', 'SUCCESS')";
         try (java.sql.Connection conn = utils.DbUtils.getConnection();
              java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, bookingId);
