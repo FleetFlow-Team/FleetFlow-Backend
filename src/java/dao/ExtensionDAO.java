@@ -304,10 +304,19 @@ public class ExtensionDAO {
         }
     }
 
+    /**
+     * Chỉ tính Payment đã thực sự COMPLETED (tiền đã về công ty). Trước đây
+     * SUM(Amount) không lọc Status, nên các giao dịch VNPay/MoMo bị bỏ ngang
+     * (kẹt PENDING) hoặc REFUND vẫn bị cộng vào "đã trả", khiến số tiền còn
+     * lại tính SAI (thấp hơn thực tế) — tài xế thu thiếu tiền của khách.
+     * PaymentType chỉ tính DEPOSIT/FINAL, không tính REFUND (tiền công ty trả
+     * ra, không phải khách trả vào).
+     */
     public BigDecimal calculateFinalPayment(int bookingId) throws Exception {
         String sql = "SELECT " +
                      "(SELECT COALESCE(EstimatedTotal, 0) FROM BookingPricing WHERE BookingID = ?) - " +
-                     "(SELECT COALESCE(SUM(Amount), 0) FROM Payment WHERE BookingID = ?) AS Remaining";
+                     "(SELECT COALESCE(SUM(Amount), 0) FROM Payment WHERE BookingID = ? " +
+                     "AND Status = 'COMPLETED' AND PaymentType IN ('DEPOSIT', 'FINAL')) AS Remaining";
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, bookingId);
             ps.setInt(2, bookingId);
@@ -471,6 +480,24 @@ public class ExtensionDAO {
         }
     }
 
+    /**
+     * Kiểm tra booking đã có Payment DEPOSIT (PENDING hoặc COMPLETED) chưa —
+     * dùng để tránh tạo cọc trùng nếu logic "driver accept" bị gọi lại lần 2
+     * (double-click, retry mạng, v.v). Chấp nhận cả PaymentType='FINAL' do
+     * bug FE cũ không gửi paymentType (cùng lý do với isDepositPaid).
+     */
+    public boolean hasExistingDeposit(int bookingId) throws Exception {
+        String sql = "SELECT COUNT(*) FROM Payment "
+                + "WHERE BookingID = ? AND PaymentType IN ('DEPOSIT', 'FINAL') "
+                + "AND Status IN ('PENDING', 'COMPLETED')";
+        try (Connection conn = DbUtils.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        }
+    }
+
     public int getCustomerAccountIdByBookingId(int bookingId) throws Exception {
         String sql = "SELECT a.AccountID FROM Booking b "
                 + "JOIN Customer c ON c.CustomerID = b.CustomerID "
@@ -550,7 +577,7 @@ public class ExtensionDAO {
                 createNotification(driverAccountId, bookingId,
                         "Khách đã chuyển khoản rồi nè",
                         "Chuyến #" + bookingId + ": khách đã chuyển khoản (" + methodLabel + ") thành công "
-                                + amount.toPlainString() + "đ. Bạn khỏi cần thu tiền mặt nha, xong nhiệm vụ rồi!",
+                                + amount.toPlainString() + "đ. Khỏi cần thu tiền mặt nha, xong nhiệm vụ rồi!",
                         "PAYMENT_TRANSFER_CONFIRMED", "IN_APP");
             }
             java.util.List<Integer> dispatcherIds = new AccountDAO().getActiveDispatcherAccountIds();

@@ -71,7 +71,17 @@ public class VNPayController extends HttpServlet {
             JsonObject body = JsonParser.parseReader(request.getReader()).getAsJsonObject();
             int bookingId = body.get("bookingId").getAsInt();
             long amount = body.get("amount").getAsLong();
-            String paymentType = body.has("paymentType") ? body.get("paymentType").getAsString() : "FINAL"; // Hoặc DEPOSIT
+            String paymentType;
+            if (body.has("paymentType")) {
+                paymentType = body.get("paymentType").getAsString();
+            } else {
+                // FE không gửi paymentType (bug cũ) — tự suy luận thay vì mặc định
+                // "FINAL": nếu booking CHƯA có cọc nào thì đây chắc chắn là bước
+                // trả cọc, còn lại mới coi là FINAL. Tránh lặp lại lỗi ghi nhầm
+                // PaymentType khiến các check sau này (vd notify "khách đã chuyển
+                // khoản xong") bắn nhầm lúc mới trả cọc.
+                paymentType = paymentDAO.hasExistingDeposit(bookingId) ? "FINAL" : "DEPOSIT";
+            }
 
             // Tạo giao dịch PENDING trong Database trước, lấy PaymentID để đối soát chính xác ở bước IPN
             int paymentId = paymentDAO.createPayment(bookingId, paymentType, BigDecimal.valueOf(amount), "VNPAY");
