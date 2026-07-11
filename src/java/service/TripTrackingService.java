@@ -92,15 +92,24 @@ public class TripTrackingService {
             }
         }
 
-        // Notify customer: chuyến đã hoàn thành
+        // Notify customer: chuyến đã hoàn thành + yêu cầu thanh toán phần còn lại
         try {
             dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
             int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
             if (customerAccountId != -1) {
+                java.math.BigDecimal remaining = extDAO.calculateFinalPayment(bookingId);
+                String message;
+                if (remaining != null && remaining.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                    message = "Chuyến đi #" + bookingId + " đã hoàn thành. Vui lòng thanh toán "
+                            + remaining.toPlainString() + "đ còn lại (chuyển khoản hoặc tiền mặt cho tài xế). "
+                            + "Cảm ơn bạn đã sử dụng dịch vụ!";
+                } else {
+                    message = "Chuyến đi #" + bookingId + " đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!";
+                }
                 extDAO.createNotification(customerAccountId, bookingId,
-                        "Chuyến đi đã hoàn thành",
-                        "Chuyến đi #" + bookingId + " đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!",
-                        "TRIP_COMPLETED", "IN_APP");
+                        "Chuyến đi đã hoàn thành - Yêu cầu thanh toán",
+                        message,
+                        "TRIP_COMPLETED_PAYMENT_REQUIRED", "IN_APP");
             }
         } catch (Exception e) {
             e.printStackTrace();

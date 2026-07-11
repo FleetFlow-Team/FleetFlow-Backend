@@ -283,8 +283,15 @@ public class ExtensionDAO {
         }
     }
 
+    /**
+     * Cập nhật Payment khi cổng thanh toán báo giao dịch thành công (VNPay IPN,
+     * MoMo callback, ...). Status LUÔN chuẩn hoá về 'COMPLETED' — dùng chung 1
+     * giá trị duy nhất cho mọi cổng để tránh lệch dữ liệu (trước đây MoMo tự ghi
+     * 'SUCCESS' trong khi VNPay ghi 'COMPLETED', khiến các query như
+     * isDepositPaid/refundDeposit phải dò cả 2 giá trị).
+     */
     public void processSuccessfulPayment(int paymentId, String transId, String payType) throws Exception {
-        String sql = "UPDATE Payment SET Status = 'SUCCESS', TransactionRef = ?, Method = ?, PaidAt = ? WHERE PaymentID = ?";
+        String sql = "UPDATE Payment SET Status = 'COMPLETED', TransactionRef = ?, Method = ?, PaidAt = ? WHERE PaymentID = ?";
 
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
 
@@ -313,8 +320,14 @@ public class ExtensionDAO {
         return BigDecimal.ZERO;
     }
 
+    /**
+     * Ghi nhận thanh toán phần còn lại (FINAL) — dùng cho nhánh CASH của
+     * FinalPaymentController (chuyển khoản VNPay/MoMo đi qua processSuccessfulPayment
+     * ở trên, không qua đây). Status chuẩn hoá 'COMPLETED', đồng bộ với mọi
+     * cổng thanh toán khác thay vì tự ghi 'SUCCESS' riêng.
+     */
     public boolean processFinalPayment(int bookingId, String paymentMethod, BigDecimal amount) throws Exception {
-        String sql = "INSERT INTO Payment (BookingID, PaymentType, Amount, Method, Status, PaidAt, TransactionRef) VALUES (?, 'FINAL', ?, ?, 'SUCCESS', GETDATE(), ?)";
+        String sql = "INSERT INTO Payment (BookingID, PaymentType, Amount, Method, Status, PaidAt, TransactionRef) VALUES (?, 'FINAL', ?, ?, 'COMPLETED', GETDATE(), ?)";
         
         try (Connection conn = DbUtils.getConnection(); 
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -378,17 +391,20 @@ public class ExtensionDAO {
      *   — Payment table đóng vai trò sổ cái công ty, khỏi cần bảng AdminWallet
      *   riêng: SUM(DEPOSIT/FINAL) = tiền vào, SUM(REFUND) = tiền ra).
      * - CustomerWallet: insert +Amount, TransactionType='REFUND' (phía khách).
+     *
+     * Chỉ còn dò Status = 'COMPLETED' — mọi cổng thanh toán giờ đã ghi thống
+     * nhất 1 giá trị (xem processSuccessfulPayment/processFinalPayment), nên
+     * không cần IN ('COMPLETED','SUCCESS') nữa. Vẫn giữ PaymentType IN
+     * ('DEPOSIT','FINAL') vì đây là bug thật khác: FE cũ có lúc không gửi
+     * paymentType nên cọc bị ghi nhầm thành FINAL.
      */
     public BigDecimal refundDeposit(Connection conn, int bookingId, int customerId, String reason) throws Exception {
         BigDecimal depositAmount = null;
         String depositMethod = "VNPAY";
 
-        // Cùng điều kiện với isDepositPaid: cọc có thể bị ghi PaymentType='FINAL'
-        // (FE cũ không gửi paymentType) và Status='SUCCESS' (luồng Momo).
-        // Ưu tiên bản ghi DEPOSIT nếu tồn tại cả hai loại.
         String findSql = "SELECT TOP 1 Amount, Method FROM Payment "
                 + "WHERE BookingID = ? AND PaymentType IN ('DEPOSIT', 'FINAL') "
-                + "AND Status IN ('COMPLETED', 'SUCCESS') "
+                + "AND Status = 'COMPLETED' "
                 + "ORDER BY CASE WHEN PaymentType = 'DEPOSIT' THEN 0 ELSE 1 END, PaymentID";
         try (PreparedStatement ps = conn.prepareStatement(findSql)) {
             ps.setInt(1, bookingId);
@@ -437,15 +453,15 @@ public class ExtensionDAO {
      * Kiểm tra booking đã đóng cọc chưa.
      * Dùng trong startTrip để block nếu khách chưa thanh toán.
      *
-     * Chấp nhận cả PaymentType = 'FINAL': FE cũ không gửi paymentType nên
-     * VNPayController từng ghi cọc thành FINAL — khách trả đủ tiền trước thì
-     * hiển nhiên đã đủ điều kiện cọc. Status 'SUCCESS' là do luồng Momo ghi
-     * khác VNPay ('COMPLETED').
+     * Chỉ còn dò Status = 'COMPLETED' (lý do xem ghi chú ở refundDeposit).
+     * Vẫn giữ PaymentType IN ('DEPOSIT','FINAL') vì FE cũ từng không gửi
+     * paymentType nên cọc bị ghi nhầm thành FINAL — khách trả đủ tiền trước
+     * thì hiển nhiên đã đủ điều kiện cọc.
      */
     public boolean isDepositPaid(int bookingId) throws Exception {
         String sql = "SELECT COUNT(*) FROM Payment "
                 + "WHERE BookingID = ? AND PaymentType IN ('DEPOSIT', 'FINAL') "
-                + "AND Status IN ('COMPLETED', 'SUCCESS')";
+                + "AND Status = 'COMPLETED'";
         try (java.sql.Connection conn = utils.DbUtils.getConnection();
              java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, bookingId);
@@ -482,6 +498,71 @@ public class ExtensionDAO {
             try (java.sql.ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getInt("AccountID") : -1;
             }
+        }
+    }
+
+    /**
+     * Tra BookingID tu 1 PaymentID — dung cho IPN/callback (VNPay, MoMo) de
+     * biet giao dich thanh toan nay thuoc booking nao ma gui notification.
+     */
+    public int getBookingIdByPaymentId(int paymentId) throws Exception {
+        String sql = "SELECT BookingID FROM Payment WHERE PaymentID = ?";
+        try (Connection conn = DbUtils.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, paymentId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt("BookingID") : -1;
+            }
+        }
+    }
+
+    /**
+     * Tra PaymentType ('DEPOSIT'/'FINAL') tu 1 PaymentID — dung de phan biet
+     * IPN nay la xac nhan coc hay xac nhan thanh toan phan con lai, tranh gui
+     * nham notification "khach da chuyen xong" cho truong hop dat coc.
+     */
+    public String getPaymentTypeById(int paymentId) throws Exception {
+        String sql = "SELECT PaymentType FROM Payment WHERE PaymentID = ?";
+        try (Connection conn = DbUtils.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, paymentId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getString("PaymentType") : null;
+            }
+        }
+    }
+
+    /**
+     * Notify khach + tai xe + dispatcher khi thanh toan phan con lai (FINAL)
+     * qua chuyen khoan (VNPay/MoMo) da duoc xac nhan thanh cong qua IPN/callback.
+     * Dung chung cho ca 2 cong thanh toan de khong lap logic.
+     */
+    public void notifyFinalPaymentSuccess(int bookingId, BigDecimal amount, String methodLabel) {
+        try {
+            int customerAccountId = getCustomerAccountIdByBookingId(bookingId);
+            if (customerAccountId != -1) {
+                createNotification(customerAccountId, bookingId,
+                        "Thanh toán thành công",
+                        "Bạn đã chuyển khoản " + methodLabel + " thành công " + amount.toPlainString()
+                                + "đ cho booking #" + bookingId + ". Cảm ơn!",
+                        "PAYMENT_TRANSFER_CONFIRMED", "IN_APP");
+            }
+            int driverAccountId = getDriverAccountIdByBookingId(bookingId);
+            if (driverAccountId != -1) {
+                createNotification(driverAccountId, bookingId,
+                        "Khách đã chuyển khoản thanh toán",
+                        "Booking #" + bookingId + ": khách đã chuyển khoản (" + methodLabel + ") thành công "
+                                + amount.toPlainString() + "đ. Không cần thu thêm tiền mặt.",
+                        "PAYMENT_TRANSFER_CONFIRMED", "IN_APP");
+            }
+            java.util.List<Integer> dispatcherIds = new AccountDAO().getActiveDispatcherAccountIds();
+            for (int dispId : dispatcherIds) {
+                createNotification(dispId, bookingId,
+                        "Booking #" + bookingId + " đã thanh toán chuyển khoản",
+                        "Khách đã chuyển khoản " + amount.toPlainString() + "đ (" + methodLabel
+                                + ") cho booking #" + bookingId + ".",
+                        "PAYMENT_TRANSFER_CONFIRMED", "IN_APP");
+            }
+        } catch (Exception notifEx) {
+            notifEx.printStackTrace();
         }
     }
 }

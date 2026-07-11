@@ -226,6 +226,21 @@ public class VNPayController extends HttpServlet {
                     long vnpAmountVnd = Long.parseLong(request.getParameter("vnp_Amount")) / 100;
 
                     String rspCode = verifyAndSavePayment(paymentId, vnpTransactionNo, vnpAmountVnd);
+                    if ("00".equals(rspCode)) {
+                        // Chỉ notify "khách đã chuyển xong" cho thanh toán phần còn lại (FINAL),
+                        // không notify kiểu này cho DEPOSIT (đặt cọc có luồng thông báo riêng)
+                        try {
+                            String paymentType = paymentDAO.getPaymentTypeById(paymentId);
+                            if ("FINAL".equalsIgnoreCase(paymentType)) {
+                                int bId = paymentDAO.getBookingIdByPaymentId(paymentId);
+                                if (bId != -1) {
+                                    paymentDAO.notifyFinalPaymentSuccess(bId, BigDecimal.valueOf(vnpAmountVnd), "VNPay");
+                                }
+                            }
+                        } catch (Exception notifEx) {
+                            notifEx.printStackTrace();
+                        }
+                    }
                     switch (rspCode) {
                         case "00":
                             result.addProperty("RspCode", "00");
