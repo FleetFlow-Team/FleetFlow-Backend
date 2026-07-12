@@ -74,9 +74,8 @@ public class CustomerBookingService {
             System.err.println("Không lấy được giá booking: " + e.getMessage());
         }
 
-        BigDecimal depositAmount = totalAmount
-                .multiply(new BigDecimal("0.30"))
-                .setScale(0, RoundingMode.HALF_UP);
+        // BigDecimal depositAmount = totalAmount.multiply(new BigDecimal("0.30")).setScale(0, RoundingMode.HALF_UP); // code cũ
+        BigDecimal depositAmount = PaymentService.depositAmountOf(totalAmount);
 
         BigDecimal penaltyAmount = isForfeitDeposit ? depositAmount : BigDecimal.ZERO;
 
@@ -222,8 +221,8 @@ public class CustomerBookingService {
         }
 
         BigDecimal estimatedTotal = baseFare.add(weekendSurcharge);
-        BigDecimal deposit = estimatedTotal.multiply(new BigDecimal("0.30"))
-                .setScale(0, RoundingMode.HALF_UP);
+        // BigDecimal deposit = estimatedTotal.multiply(new BigDecimal("0.30")).setScale(0, RoundingMode.HALF_UP); // code cũ
+        BigDecimal deposit = PaymentService.depositAmountOf(estimatedTotal);
 
         return new PriceResult(rule.getId(), baseFare, weekendSurcharge, estimatedTotal, deposit,
                 distanceKm, returnDistanceKm);

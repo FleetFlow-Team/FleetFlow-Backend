@@ -110,7 +110,8 @@ public class BookingWorkflowService {
 
                 // Không tìm được tài xế — lỗi không thuộc về khách, hoàn cọc nếu đã đóng
                 if (wasUnassigned) {
-                    refunded = extDAO.refundDeposit(conn, bookingId, booking.getCustomerId(), reason);
+                    // refunded = extDAO.refundDeposit(...) — code cũ, đã chuyển sang PaymentService
+                    refunded = new PaymentService().refundDeposit(conn, bookingId, booking.getCustomerId(), reason);
                     if (refunded.compareTo(java.math.BigDecimal.ZERO) > 0) {
                         auditLogDAO.log(conn, dispatcherAccountId, "REFUND_DEPOSIT", "Booking",
                                 String.valueOf(bookingId), "DEPOSIT_COMPLETED",
@@ -401,34 +402,46 @@ public class BookingWorkflowService {
             e.printStackTrace();
         }
 
-        // Tự động tạo Payment DEPOSIT 30% sau khi booking CONFIRMED
+        // Tự động tạo (hoặc tái sử dụng) Payment DEPOSIT 30% sau khi booking CONFIRMED
         // FE sẽ dùng thông tin này để redirect khách sang VNPay
+        //
+        // ---- Code cũ của teammate (comment lại để đối chiếu, không xóa) ----
+        // dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
+        // if (!extDAO.hasExistingDeposit(bookingId)) {
+        //     java.math.BigDecimal estimatedTotal = extDAO.calculateFinalPayment(bookingId);
+        //     if (estimatedTotal != null && estimatedTotal.compareTo(java.math.BigDecimal.ZERO) > 0) {
+        //         java.math.BigDecimal deposit = estimatedTotal
+        //                 .multiply(new java.math.BigDecimal("0.30"))
+        //                 .setScale(0, java.math.RoundingMode.HALF_UP);
+        //         boolean created = extDAO.createPendingPayment(bookingId, "DEPOSIT", "VNPAY", deposit.doubleValue());
+        //         if (created) {
+        //             int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
+        //             if (customerAccountId != -1) {
+        //                 extDAO.createNotification(customerAccountId, bookingId, ...);
+        //             }
+        //         }
+        //     }
+        // }
+        // ---------------------------------------------------------------------
         try {
             dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
-            // Guard: nếu logic này chạy lại lần 2 cho cùng booking (double-click,
-            // retry...) thì bỏ qua, KHÔNG tạo cọc chồng lên cọc đã có — trước đây
-            // thiếu check này khiến deposit thứ 2 bị tính nhầm = 30% của phần còn
-            // lại sau cọc 1, đẻ ra 1 khoản cọc ảo dù cọc thật đã COMPLETED.
+            PaymentService paymentService = new PaymentService();
+            // Guard giữ từ teammate: nếu driverAccept chạy lại lần 2 cho cùng booking
+            // (double-click, retry...) thì bỏ qua toàn bộ khối tạo cọc + notify —
+            // getOrCreatePending tự nó đã chống tạo Payment trùng, nhưng guard này
+            // thêm lớp chống gửi thông báo "vui lòng thanh toán cọc" trùng lặp.
             if (!extDAO.hasExistingDeposit(bookingId)) {
-                java.math.BigDecimal estimatedTotal = extDAO.calculateFinalPayment(bookingId);
-                // calculateFinalPayment trả về số còn lại sau khi trừ đã trả
-                // Lần đầu chưa có payment nào nên = EstimatedTotal
-                if (estimatedTotal != null && estimatedTotal.compareTo(java.math.BigDecimal.ZERO) > 0) {
-                    java.math.BigDecimal deposit = estimatedTotal
-                            .multiply(new java.math.BigDecimal("0.30"))
-                            .setScale(0, java.math.RoundingMode.HALF_UP);
-                    boolean created = extDAO.createPendingPayment(bookingId, "DEPOSIT", "VNPAY", deposit.doubleValue());
-                    if (created) {
-                        // Notify customer: cần thanh toán cọc
-                        int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
-                        if (customerAccountId != -1) {
-                            extDAO.createNotification(customerAccountId, bookingId,
-                                    "Vui lòng thanh toán cọc 30%",
-                                    "Chuyến đi #" + bookingId + " đã có tài xế. "
-                                            + "Vui lòng thanh toán cọc " + deposit.toPlainString()
-                                            + "đ để xác nhận chuyến.",
-                                    "PAYMENT_DEPOSIT_REQUIRED", "IN_APP");
-                        }
+                java.math.BigDecimal deposit = paymentService.depositAmountOf(bookingId);
+                if (deposit.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                    paymentService.getOrCreatePending(bookingId, "DEPOSIT", "VNPAY", deposit);
+                    int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
+                    if (customerAccountId != -1) {
+                        extDAO.createNotification(customerAccountId, bookingId,
+                                "Vui lòng thanh toán cọc 30%",
+                                "Chuyến đi #" + bookingId + " đã có tài xế. "
+                                        + "Vui lòng thanh toán cọc " + deposit.toPlainString()
+                                        + "đ để xác nhận chuyến.",
+                                "PAYMENT_DEPOSIT_REQUIRED", "IN_APP");
                     }
                 }
             }

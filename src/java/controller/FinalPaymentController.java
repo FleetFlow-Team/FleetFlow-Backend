@@ -47,13 +47,44 @@ public class FinalPaymentController extends HttpServlet {
             int bookingId = body.get("bookingId").getAsInt();
             String paymentMethod = body.get("paymentMethod").getAsString();
 
-            BigDecimal amountToPay = dao.calculateFinalPayment(bookingId);
+            // ---- Code cũ của teammate (comment lại để đối chiếu, không xóa) ----
+            // BigDecimal amountToPay = dao.calculateFinalPayment(bookingId);
+            // boolean success = false;
+            // if ("CASH".equals(paymentMethod)) {
+            //     success = dao.processFinalPayment(bookingId, paymentMethod, amountToPay);
+            //     res.put("success", success);
+            // } else {
+            //     success = true;
+            //     res.put("success", true);
+            // }
+            // res.put("finalAmount", amountToPay);
+            // ---------------------------------------------------------------------
+
+            model.Booking booking = new dao.BookingDAO().findById(bookingId);
+            if (booking == null || !"COMPLETED".equals(booking.getStatus())) {
+                response.setStatus(400);
+                res.put("success", false);
+                res.put("message", "Chỉ thanh toán phần còn lại khi chuyến đã hoàn thành.");
+                response.getWriter().print(gson.toJson(res));
+                return;
+            }
+
+            service.PaymentService paymentService = new service.PaymentService();
+            BigDecimal amountToPay = paymentService.remainingOf(bookingId);
+            if (amountToPay.compareTo(BigDecimal.ZERO) <= 0) {
+                response.setStatus(400);
+                res.put("success", false);
+                res.put("message", "Booking đã tất toán — không còn khoản nào phải trả.");
+                response.getWriter().print(gson.toJson(res));
+                return;
+            }
 
             boolean success = false;
             if ("CASH".equals(paymentMethod)) {
-                success = dao.processFinalPayment(bookingId, paymentMethod, amountToPay);
+                success = paymentService.recordCashFinal(bookingId, amountToPay);
                 res.put("success", success);
             } else {
+                // VNPay: FE gọi tiếp /payments/vnpay/create; ở đây chỉ báo số tiền
                 success = true;
                 res.put("success", true);
             }

@@ -304,181 +304,188 @@ public class ExtensionDAO {
         }
     }
 
-    /**
-     * Chỉ tính Payment đã thực sự COMPLETED (tiền đã về công ty). Trước đây
-     * SUM(Amount) không lọc Status, nên các giao dịch VNPay/MoMo bị bỏ ngang
-     * (kẹt PENDING) hoặc REFUND vẫn bị cộng vào "đã trả", khiến số tiền còn
-     * lại tính SAI (thấp hơn thực tế) — tài xế thu thiếu tiền của khách.
-     * PaymentType chỉ tính DEPOSIT/FINAL, không tính REFUND (tiền công ty trả
-     * ra, không phải khách trả vào).
-     */
-    public BigDecimal calculateFinalPayment(int bookingId) throws Exception {
-        String sql = "SELECT " +
-                     "(SELECT COALESCE(EstimatedTotal, 0) FROM BookingPricing WHERE BookingID = ?) - " +
-                     "(SELECT COALESCE(SUM(Amount), 0) FROM Payment WHERE BookingID = ? " +
-                     "AND Status = 'COMPLETED' AND PaymentType IN ('DEPOSIT', 'FINAL')) AS Remaining";
-        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, bookingId);
-            ps.setInt(2, bookingId);
-            try ( ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getBigDecimal("Remaining");
-                }
-            }
-        }
-        return BigDecimal.ZERO;
-    }
-
-    /**
-     * Ghi nhận thanh toán phần còn lại (FINAL) — dùng cho nhánh CASH của
-     * FinalPaymentController (chuyển khoản VNPay/MoMo đi qua processSuccessfulPayment
-     * ở trên, không qua đây). Status chuẩn hoá 'COMPLETED', đồng bộ với mọi
-     * cổng thanh toán khác thay vì tự ghi 'SUCCESS' riêng.
-     */
-    public boolean processFinalPayment(int bookingId, String paymentMethod, BigDecimal amount) throws Exception {
-        String sql = "INSERT INTO Payment (BookingID, PaymentType, Amount, Method, Status, PaidAt, TransactionRef) VALUES (?, 'FINAL', ?, ?, 'COMPLETED', GETDATE(), ?)";
-        
-        try (Connection conn = DbUtils.getConnection(); 
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-             
-            ps.setInt(1, bookingId);
-            ps.setBigDecimal(2, amount);
-            ps.setString(3, paymentMethod);
-            ps.setString(4, "TXN-F-" + bookingId);
-            return ps.executeUpdate() > 0;
-        }
-    }
-    
-    public boolean createPendingPayment(int bookingId, String paymentType, String method, double amount) {
-        // Tạo TransactionRef nội bộ (dùng khi chưa có mã giao dịch thật từ cổng thanh toán,
-        // vd. placeholder deposit được tạo tự động lúc booking CONFIRMED)
-        String prefix = paymentType.equalsIgnoreCase("DEPOSIT") ? "D" : "F";
-        String txnRef = "TXN-" + prefix + "-" + bookingId + "-" + System.currentTimeMillis();
-        return createPendingPayment(bookingId, paymentType, method, amount, txnRef);
-    }
-
-    /**
-     * Overload cho phép truyền thẳng TransactionRef thật (vd. vnp_TxnRef gửi sang VNPay)
-     * để về sau IPN/QueryDR có thể match update đúng chính xác 1 giao dịch bằng TransactionRef,
-     * thay vì đoán mò theo BookingID (dễ đụng nhầm các payment PENDING khác của cùng booking).
-     */
-    public boolean createPendingPayment(int bookingId, String paymentType, String method, double amount, String txnRef) {
-        // Câu lệnh SQL (PaidAt để trống vì chưa thanh toán)
-        String sql = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status, TransactionRef) " +
-                     "VALUES (?, ?, ?, ?, 'PENDING', ?)";
-
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, bookingId);
-            ps.setString(2, paymentType); // "DEPOSIT" hoặc "FINAL"
-            ps.setString(3, method);      // "VNPAY", "MOMO", "CASH"...
-            ps.setDouble(4, amount);
-            ps.setString(5, txnRef);
-
-            int rowsAffected = ps.executeUpdate();
-            return rowsAffected > 0;
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-    // Thêm phần cuối file — 2 helper lấy AccountID để gửi notification
-
-    /**
-     * Hoàn cọc khi booking bị hủy mà khách không có lỗi (dispatcher reject
-     * UNASSIGNED / customer free-cancel >=12h). Chỉ hoàn nếu có Payment
-     * DEPOSIT COMPLETED cho booking này, nếu không có thì bỏ qua (trả về 0).
-     *
-     * Dùng chung 1 Connection với transaction của caller để đảm bảo atomic
-     * với việc update Booking/Cancellation status — KHÔNG tự mở connection
-     * riêng, KHÔNG tự commit/rollback (caller lo việc đó).
-     *
-     * Ghi 2 phía:
-     * - Payment: insert thêm 1 row PaymentType='REFUND' (tiền công ty trả ra
-     *   — Payment table đóng vai trò sổ cái công ty, khỏi cần bảng AdminWallet
-     *   riêng: SUM(DEPOSIT/FINAL) = tiền vào, SUM(REFUND) = tiền ra).
-     * - CustomerWallet: insert +Amount, TransactionType='REFUND' (phía khách).
-     *
-     * Chỉ còn dò Status = 'COMPLETED' — mọi cổng thanh toán giờ đã ghi thống
-     * nhất 1 giá trị (xem processSuccessfulPayment/processFinalPayment), nên
-     * không cần IN ('COMPLETED','SUCCESS') nữa. Vẫn giữ PaymentType IN
-     * ('DEPOSIT','FINAL') vì đây là bug thật khác: FE cũ có lúc không gửi
-     * paymentType nên cọc bị ghi nhầm thành FINAL.
-     */
-    public BigDecimal refundDeposit(Connection conn, int bookingId, int customerId, String reason) throws Exception {
-        BigDecimal depositAmount = null;
-        String depositMethod = "VNPAY";
-
-        String findSql = "SELECT TOP 1 Amount, Method FROM Payment "
-                + "WHERE BookingID = ? AND PaymentType IN ('DEPOSIT', 'FINAL') "
-                + "AND Status = 'COMPLETED' "
-                + "ORDER BY CASE WHEN PaymentType = 'DEPOSIT' THEN 0 ELSE 1 END, PaymentID";
-        try (PreparedStatement ps = conn.prepareStatement(findSql)) {
-            ps.setInt(1, bookingId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    depositAmount = rs.getBigDecimal("Amount");
-                    depositMethod = rs.getString("Method");
-                }
-            }
-        }
-
-        if (depositAmount == null || depositAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            return BigDecimal.ZERO; // Chưa đóng cọc — không có gì để hoàn
-        }
-
-        Timestamp now = new Timestamp(System.currentTimeMillis());
-        String txnRef = "TXN-R-" + bookingId + "-" + System.currentTimeMillis();
-
-        String insertPayment = "INSERT INTO Payment "
-                + "(BookingID, PaymentType, Method, Amount, Status, TransactionRef, PaidAt) "
-                + "VALUES (?, 'REFUND', ?, ?, 'COMPLETED', ?, ?)";
-        try (PreparedStatement ps = conn.prepareStatement(insertPayment)) {
-            ps.setInt(1, bookingId);
-            ps.setString(2, depositMethod);
-            ps.setBigDecimal(3, depositAmount);
-            ps.setString(4, txnRef);
-            ps.setTimestamp(5, now);
-            ps.executeUpdate();
-        }
-
-        String insertWallet = "INSERT INTO CustomerWallet "
-                + "(CustomerID, Amount, TransactionType, BookingID, CreatedAt) "
-                + "VALUES (?, ?, 'REFUND', ?, ?)";
-        try (PreparedStatement ps = conn.prepareStatement(insertWallet)) {
-            ps.setInt(1, customerId);
-            ps.setBigDecimal(2, depositAmount);
-            ps.setInt(3, bookingId);
-            ps.setTimestamp(4, now);
-            ps.executeUpdate();
-        }
-
-        return depositAmount;
-    }
-
-    /**
-     * Kiểm tra booking đã đóng cọc chưa.
-     * Dùng trong startTrip để block nếu khách chưa thanh toán.
-     *
-     * Chỉ còn dò Status = 'COMPLETED' (lý do xem ghi chú ở refundDeposit).
-     * Vẫn giữ PaymentType IN ('DEPOSIT','FINAL') vì FE cũ từng không gửi
-     * paymentType nên cọc bị ghi nhầm thành FINAL — khách trả đủ tiền trước
-     * thì hiển nhiên đã đủ điều kiện cọc.
-     */
-    public boolean isDepositPaid(int bookingId) throws Exception {
-        String sql = "SELECT COUNT(*) FROM Payment "
-                + "WHERE BookingID = ? AND PaymentType IN ('DEPOSIT', 'FINAL') "
-                + "AND Status = 'COMPLETED'";
-        try (java.sql.Connection conn = utils.DbUtils.getConnection();
-             java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, bookingId);
-            try (java.sql.ResultSet rs = ps.executeQuery()) {
-                return rs.next() && rs.getInt(1) > 0;
-            }
-        }
-    }
+    // ========================================================================
+    // 5 method dưới đây đã chuyển sang service.PaymentService (chủ sở hữu duy
+    // nhất của logic tiền: server tự tính amount, tái sử dụng row PENDING,
+    // remainingOf cộng lại REFUND, chống double-pay). Comment lại (không xóa)
+    // vì đây là code teammate vừa sửa song song trên master — giữ để đối
+    // chiếu, KHÔNG dùng nữa. createPayment ở trên GIỮ LẠI vì luồng Momo còn dùng.
+    // ========================================================================
+    //
+    // /**
+    //  * Chỉ tính Payment đã thực sự COMPLETED (tiền đã về công ty). Trước đây
+    //  * SUM(Amount) không lọc Status, nên các giao dịch VNPay/MoMo bị bỏ ngang
+    //  * (kẹt PENDING) hoặc REFUND vẫn bị cộng vào "đã trả", khiến số tiền còn
+    //  * lại tính SAI (thấp hơn thực tế) — tài xế thu thiếu tiền của khách.
+    //  * PaymentType chỉ tính DEPOSIT/FINAL, không tính REFUND (tiền công ty trả
+    //  * ra, không phải khách trả vào).
+    //  */
+    // public BigDecimal calculateFinalPayment(int bookingId) throws Exception {
+    //     String sql = "SELECT " +
+    //                  "(SELECT COALESCE(EstimatedTotal, 0) FROM BookingPricing WHERE BookingID = ?) - " +
+    //                  "(SELECT COALESCE(SUM(Amount), 0) FROM Payment WHERE BookingID = ? " +
+    //                  "AND Status = 'COMPLETED' AND PaymentType IN ('DEPOSIT', 'FINAL')) AS Remaining";
+    //     try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
+    //         ps.setInt(1, bookingId);
+    //         ps.setInt(2, bookingId);
+    //         try ( ResultSet rs = ps.executeQuery()) {
+    //             if (rs.next()) {
+    //                 return rs.getBigDecimal("Remaining");
+    //             }
+    //         }
+    //     }
+    //     return BigDecimal.ZERO;
+    // }
+    //
+    // /**
+    //  * Ghi nhận thanh toán phần còn lại (FINAL) — dùng cho nhánh CASH của
+    //  * FinalPaymentController (chuyển khoản VNPay/MoMo đi qua processSuccessfulPayment
+    //  * ở trên, không qua đây). Status chuẩn hoá 'COMPLETED', đồng bộ với mọi
+    //  * cổng thanh toán khác thay vì tự ghi 'SUCCESS' riêng.
+    //  */
+    // public boolean processFinalPayment(int bookingId, String paymentMethod, BigDecimal amount) throws Exception {
+    //     String sql = "INSERT INTO Payment (BookingID, PaymentType, Amount, Method, Status, PaidAt, TransactionRef) VALUES (?, 'FINAL', ?, ?, 'COMPLETED', GETDATE(), ?)";
+    //
+    //     try (Connection conn = DbUtils.getConnection();
+    //          PreparedStatement ps = conn.prepareStatement(sql)) {
+    //
+    //         ps.setInt(1, bookingId);
+    //         ps.setBigDecimal(2, amount);
+    //         ps.setString(3, paymentMethod);
+    //         ps.setString(4, "TXN-F-" + bookingId);
+    //         return ps.executeUpdate() > 0;
+    //     }
+    // }
+    //
+    // public boolean createPendingPayment(int bookingId, String paymentType, String method, double amount) {
+    //     // Tạo TransactionRef nội bộ (dùng khi chưa có mã giao dịch thật từ cổng thanh toán,
+    //     // vd. placeholder deposit được tạo tự động lúc booking CONFIRMED)
+    //     String prefix = paymentType.equalsIgnoreCase("DEPOSIT") ? "D" : "F";
+    //     String txnRef = "TXN-" + prefix + "-" + bookingId + "-" + System.currentTimeMillis();
+    //     return createPendingPayment(bookingId, paymentType, method, amount, txnRef);
+    // }
+    //
+    // /**
+    //  * Overload cho phép truyền thẳng TransactionRef thật (vd. vnp_TxnRef gửi sang VNPay)
+    //  * để về sau IPN/QueryDR có thể match update đúng chính xác 1 giao dịch bằng TransactionRef,
+    //  * thay vì đoán mò theo BookingID (dễ đụng nhầm các payment PENDING khác của cùng booking).
+    //  */
+    // public boolean createPendingPayment(int bookingId, String paymentType, String method, double amount, String txnRef) {
+    //     // Câu lệnh SQL (PaidAt để trống vì chưa thanh toán)
+    //     String sql = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status, TransactionRef) " +
+    //                  "VALUES (?, ?, ?, ?, 'PENDING', ?)";
+    //
+    //     try (Connection conn = DbUtils.getConnection();
+    //          PreparedStatement ps = conn.prepareStatement(sql)) {
+    //
+    //         ps.setInt(1, bookingId);
+    //         ps.setString(2, paymentType); // "DEPOSIT" hoặc "FINAL"
+    //         ps.setString(3, method);      // "VNPAY", "MOMO", "CASH"...
+    //         ps.setDouble(4, amount);
+    //         ps.setString(5, txnRef);
+    //
+    //         int rowsAffected = ps.executeUpdate();
+    //         return rowsAffected > 0;
+    //
+    //     } catch (Exception e) {
+    //         e.printStackTrace();
+    //         return false;
+    //     }
+    // }
+    //
+    // /**
+    //  * Hoàn cọc khi booking bị hủy mà khách không có lỗi (dispatcher reject
+    //  * UNASSIGNED / customer free-cancel >=12h). Chỉ hoàn nếu có Payment
+    //  * DEPOSIT COMPLETED cho booking này, nếu không có thì bỏ qua (trả về 0).
+    //  *
+    //  * Dùng chung 1 Connection với transaction của caller để đảm bảo atomic
+    //  * với việc update Booking/Cancellation status — KHÔNG tự mở connection
+    //  * riêng, KHÔNG tự commit/rollback (caller lo việc đó).
+    //  *
+    //  * Ghi 2 phía:
+    //  * - Payment: insert thêm 1 row PaymentType='REFUND' (tiền công ty trả ra
+    //  *   — Payment table đóng vai trò sổ cái công ty, khỏi cần bảng AdminWallet
+    //  *   riêng: SUM(DEPOSIT/FINAL) = tiền vào, SUM(REFUND) = tiền ra).
+    //  * - CustomerWallet: insert +Amount, TransactionType='REFUND' (phía khách).
+    //  *
+    //  * Chỉ còn dò Status = 'COMPLETED' — mọi cổng thanh toán giờ đã ghi thống
+    //  * nhất 1 giá trị (xem processSuccessfulPayment/processFinalPayment), nên
+    //  * không cần IN ('COMPLETED','SUCCESS') nữa. Vẫn giữ PaymentType IN
+    //  * ('DEPOSIT','FINAL') vì đây là bug thật khác: FE cũ có lúc không gửi
+    //  * paymentType nên cọc bị ghi nhầm thành FINAL.
+    //  */
+    // public BigDecimal refundDeposit(Connection conn, int bookingId, int customerId, String reason) throws Exception {
+    //     BigDecimal depositAmount = null;
+    //     String depositMethod = "VNPAY";
+    //
+    //     String findSql = "SELECT TOP 1 Amount, Method FROM Payment "
+    //             + "WHERE BookingID = ? AND PaymentType IN ('DEPOSIT', 'FINAL') "
+    //             + "AND Status = 'COMPLETED' "
+    //             + "ORDER BY CASE WHEN PaymentType = 'DEPOSIT' THEN 0 ELSE 1 END, PaymentID";
+    //     try (PreparedStatement ps = conn.prepareStatement(findSql)) {
+    //         ps.setInt(1, bookingId);
+    //         try (ResultSet rs = ps.executeQuery()) {
+    //             if (rs.next()) {
+    //                 depositAmount = rs.getBigDecimal("Amount");
+    //                 depositMethod = rs.getString("Method");
+    //             }
+    //         }
+    //     }
+    //
+    //     if (depositAmount == null || depositAmount.compareTo(BigDecimal.ZERO) <= 0) {
+    //         return BigDecimal.ZERO;
+    //     }
+    //
+    //     Timestamp now = new Timestamp(System.currentTimeMillis());
+    //     String txnRef = "TXN-R-" + bookingId + "-" + System.currentTimeMillis();
+    //
+    //     String insertPayment = "INSERT INTO Payment "
+    //             + "(BookingID, PaymentType, Method, Amount, Status, TransactionRef, PaidAt) "
+    //             + "VALUES (?, 'REFUND', ?, ?, 'COMPLETED', ?, ?)";
+    //     try (PreparedStatement ps = conn.prepareStatement(insertPayment)) {
+    //         ps.setInt(1, bookingId);
+    //         ps.setString(2, depositMethod);
+    //         ps.setBigDecimal(3, depositAmount);
+    //         ps.setString(4, txnRef);
+    //         ps.setTimestamp(5, now);
+    //         ps.executeUpdate();
+    //     }
+    //
+    //     String insertWallet = "INSERT INTO CustomerWallet "
+    //             + "(CustomerID, Amount, TransactionType, BookingID, CreatedAt) "
+    //             + "VALUES (?, ?, 'REFUND', ?, ?)";
+    //     try (PreparedStatement ps = conn.prepareStatement(insertWallet)) {
+    //         ps.setInt(1, customerId);
+    //         ps.setBigDecimal(2, depositAmount);
+    //         ps.setInt(3, bookingId);
+    //         ps.setTimestamp(4, now);
+    //         ps.executeUpdate();
+    //     }
+    //
+    //     return depositAmount;
+    // }
+    //
+    // /**
+    //  * Kiểm tra booking đã đóng cọc chưa.
+    //  * Dùng trong startTrip để block nếu khách chưa thanh toán.
+    //  *
+    //  * Chỉ còn dò Status = 'COMPLETED' (lý do xem ghi chú ở refundDeposit).
+    //  * Vẫn giữ PaymentType IN ('DEPOSIT','FINAL') vì FE cũ từng không gửi
+    //  * paymentType nên cọc bị ghi nhầm thành FINAL — khách trả đủ tiền trước
+    //  * thì hiển nhiên đã đủ điều kiện cọc.
+    //  */
+    // public boolean isDepositPaid(int bookingId) throws Exception {
+    //     String sql = "SELECT COUNT(*) FROM Payment "
+    //             + "WHERE BookingID = ? AND PaymentType IN ('DEPOSIT', 'FINAL') "
+    //             + "AND Status = 'COMPLETED'";
+    //     try (java.sql.Connection conn = utils.DbUtils.getConnection();
+    //          java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+    //         ps.setInt(1, bookingId);
+    //         try (java.sql.ResultSet rs = ps.executeQuery()) {
+    //             return rs.next() && rs.getInt(1) > 0;
+    //         }
+    //     }
+    // }
 
     /**
      * Kiểm tra booking đã có Payment DEPOSIT (PENDING hoặc COMPLETED) chưa —

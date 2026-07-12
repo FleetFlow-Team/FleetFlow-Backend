@@ -40,7 +40,8 @@ public class TripTrackingService {
         requireDriverOwnsBooking(bookingId, driverId);
 
         // Kiểm tra khách đã đóng cọc 30% chưa — bắt buộc trước khi start
-        boolean depositPaid = new dao.ExtensionDAO().isDepositPaid(bookingId);
+        // boolean depositPaid = new dao.ExtensionDAO().isDepositPaid(bookingId); // code cũ
+        boolean depositPaid = new PaymentService().isDepositPaid(bookingId);
         if (!depositPaid) {
             throw new IllegalArgumentException(
                     "Khách hàng chưa đóng cọc 30%. Vui lòng yêu cầu khách thanh toán trước khi bắt đầu chuyến.");
@@ -97,7 +98,8 @@ public class TripTrackingService {
             dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
             int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
             if (customerAccountId != -1) {
-                java.math.BigDecimal remaining = extDAO.calculateFinalPayment(bookingId);
+                // java.math.BigDecimal remaining = extDAO.calculateFinalPayment(bookingId); // code cũ
+                java.math.BigDecimal remaining = new PaymentService().remainingOf(bookingId);
                 String message;
                 if (remaining != null && remaining.compareTo(java.math.BigDecimal.ZERO) > 0) {
                     message = "Chuyến đi #" + bookingId + " đã hoàn thành. Vui lòng thanh toán "
