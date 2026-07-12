@@ -116,10 +116,13 @@ public class VNPayController extends HttpServlet {
                 paymentType = "DEPOSIT";
                 payAmount = paymentService.depositAmountOf(bookingId);
             } else {
-                if (!"COMPLETED".equals(booking.getStatus())) {
+                // Cho phép trả phần còn lại ngay khi chuyến đang chạy (ONGOING), không bắt
+                // buộc đợi tài xế bấm hoàn thành — vì giờ completeTrip() chặn tài xế hoàn
+                // thành nếu khách chưa trả xong, nên khách phải trả được TRƯỚC COMPLETED.
+                if (!"ONGOING".equals(booking.getStatus()) && !"COMPLETED".equals(booking.getStatus())) {
                     response.setStatus(400);
                     apiResponse.put("success", false);
-                    apiResponse.put("message", "Chuyến chưa hoàn thành — chưa thể thanh toán phần còn lại.");
+                    apiResponse.put("message", "Chuyến chưa bắt đầu — chưa thể thanh toán phần còn lại.");
                     response.getWriter().print(gson.toJson(apiResponse));
                     return;
                 }

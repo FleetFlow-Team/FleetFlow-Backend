@@ -61,10 +61,14 @@ public class FinalPaymentController extends HttpServlet {
             // ---------------------------------------------------------------------
 
             model.Booking booking = new dao.BookingDAO().findById(bookingId);
-            if (booking == null || !"COMPLETED".equals(booking.getStatus())) {
+            // Cho phép trả ngay khi ONGOING (không cần đợi COMPLETED) — completeTrip() giờ
+            // chặn tài xế hoàn thành nếu khách chưa trả xong, nên khách phải trả được trước đó.
+            boolean payableStatus = booking != null
+                    && ("ONGOING".equals(booking.getStatus()) || "COMPLETED".equals(booking.getStatus()));
+            if (!payableStatus) {
                 response.setStatus(400);
                 res.put("success", false);
-                res.put("message", "Chỉ thanh toán phần còn lại khi chuyến đã hoàn thành.");
+                res.put("message", "Chuyến chưa bắt đầu — chưa thể thanh toán phần còn lại.");
                 response.getWriter().print(gson.toJson(res));
                 return;
             }
