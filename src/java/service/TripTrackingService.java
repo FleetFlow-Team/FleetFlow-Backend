@@ -121,6 +121,44 @@ public class TripTrackingService {
         }
     }
 
+    // ===================== Xác nhận tiền mặt (FINAL) =====================
+
+    /**
+     * Tài xế bấm "Xác nhận đã nhận tiền mặt" sau khi khách chọn trả FINAL bằng CASH
+     * (khách "khai ý định" trước qua FinalPaymentController, tạo row PENDING/CASH).
+     * Chỉ đúng tài xế đã ACCEPT booking mới xác nhận được — chống người khác xác nhận hộ.
+     * Trả về số tiền vừa xác nhận.
+     */
+    public BigDecimal confirmCashPayment(int bookingId, int driverId, String ipAddress) throws Exception {
+        requireDriverOwnsBooking(bookingId, driverId);
+
+        BigDecimal confirmedAmount = new PaymentService().confirmCashFinal(bookingId);
+
+        int driverAccId = new dao.DriverDAO().getAccountIdByDriverId(driverId);
+        try (Connection conn = DbUtils.getConnection()) {
+            auditLogDAO.log(conn, driverAccId, "CONFIRM_CASH_FINAL", "Booking",
+                    String.valueOf(bookingId), "CASH_PENDING",
+                    "CASH_COMPLETED " + confirmedAmount.toPlainString() + "đ", ipAddress);
+        }
+
+        // Notify customer: tài xế đã xác nhận nhận tiền — tất toán xong
+        try {
+            dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
+            int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
+            if (customerAccountId != -1) {
+                extDAO.createNotification(customerAccountId, bookingId,
+                        "Tài xế đã xác nhận nhận tiền",
+                        "Tài xế đã xác nhận nhận đủ " + confirmedAmount.toPlainString()
+                                + "đ tiền mặt cho chuyến #" + bookingId + ". Cảm ơn bạn!",
+                        "PAYMENT_CASH_CONFIRMED", "IN_APP");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return confirmedAmount;
+    }
+
     // ===================== GPS tracking =====================
 
     /**

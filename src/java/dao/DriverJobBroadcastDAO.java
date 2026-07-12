@@ -352,6 +352,13 @@ public class DriverJobBroadcastDAO {
                     java.math.BigDecimal total = rs.getBigDecimal("EstimatedTotal");
                     row.put("estimatedTotal", total != null ? total.toPlainString() : null);
                     row.put("acceptedAt", rs.getTimestamp("RespondedAt").toString());
+                    boolean pendingCashFinal = false;
+                    try {
+                        pendingCashFinal = new service.PaymentService().hasPendingCashFinal(rs.getInt("BookingID"));
+                    } catch (Exception cashErr) {
+                        cashErr.printStackTrace();
+                    }
+                    row.put("pendingCashFinal", pendingCashFinal);
                     list.add(row);
                 }
             }

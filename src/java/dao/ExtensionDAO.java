@@ -240,23 +240,6 @@ public class ExtensionDAO {
         }
     }
 
-    public int createPayment(int bookingId, String paymentType, BigDecimal amount, String paymentMethod) throws Exception {
-        String sql = "INSERT INTO Payment (BookingID, PaymentType, Method, Amount, Status, TransactionRef) VALUES (?, ?, ?, ?, 'PENDING', ?)";
-        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setInt(1, bookingId);
-            ps.setString(2, paymentType);
-            ps.setString(3, paymentMethod);
-            ps.setBigDecimal(4, amount);
-            ps.setString(5, "CASH".equals(paymentMethod) ? "TXN-D-" + bookingId : null);
-            ps.executeUpdate();
-            ResultSet rs = ps.getGeneratedKeys();
-            if (rs.next()) {
-                return rs.getInt(1);
-            }
-        }
-        return -1;
-    }
-
     /**
      * Tạo 1 Notification mới — dùng cho cảnh báo nợ xấu, thông báo khóa/mở tài
      * khoản, v.v. bookingId truyền null nếu thông báo không gắn với booking cụ
@@ -309,7 +292,7 @@ public class ExtensionDAO {
     // nhất của logic tiền: server tự tính amount, tái sử dụng row PENDING,
     // remainingOf cộng lại REFUND, chống double-pay). Comment lại (không xóa)
     // vì đây là code teammate vừa sửa song song trên master — giữ để đối
-    // chiếu, KHÔNG dùng nữa. createPayment ở trên GIỮ LẠI vì luồng Momo còn dùng.
+    // chiếu, KHÔNG dùng nữa. (createPayment cũng đã xóa — hết nơi gọi sau khi Momo bị gỡ.)
     // ========================================================================
     //
     // /**

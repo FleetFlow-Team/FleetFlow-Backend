@@ -147,6 +147,13 @@ public class CustomerBookingController extends HttpServlet {
                     remErr.printStackTrace();
                 }
                 json.append("\"remainingAmount\":").append(remainingAmount).append(",");
+                boolean pendingCashFinal = false;
+                try {
+                    pendingCashFinal = new service.PaymentService().hasPendingCashFinal(b.bookingId);
+                } catch (Exception cashErr) {
+                    cashErr.printStackTrace();
+                }
+                json.append("\"pendingCashFinal\":").append(pendingCashFinal).append(",");
                 json.append("\"pickupAddress\":\"").append(esc(b.pickupAddress)).append("\",");
                 json.append("\"dropoffAddress\":\"").append(esc(b.dropoffAddress)).append("\",");
                 json.append("\"departureTime\":\"").append(b.departureTime).append("\",");

@@ -178,6 +178,23 @@ public class PaymentService {
         }
     }
 
+    /**
+     * Khách đã "khai ý định" trả FINAL bằng tiền mặt nhưng tài xế CHƯA xác nhận nhận
+     * tiền — dùng để FE hiện nút "Xác nhận đã nhận tiền mặt" bên tài xế, và hiện
+     * đúng trạng thái "chờ xác nhận" (thay vì "chưa chọn gì") bên khách.
+     */
+    public boolean hasPendingCashFinal(int bookingId) throws Exception {
+        String sql = "SELECT COUNT(*) FROM Payment "
+                + "WHERE BookingID = ? AND PaymentType = 'FINAL' AND Method = 'CASH' AND Status = 'PENDING'";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        }
+    }
+
     /** Khách đã đóng cọc chưa — gate cho driver start trip. */
     public boolean isDepositPaid(int bookingId) throws Exception {
         String sql = "SELECT COUNT(*) FROM Payment "
@@ -191,16 +208,35 @@ public class PaymentService {
         }
     }
 
-    /** Ghi nhận khách trả phần còn lại bằng tiền mặt (đã qua guard ở controller). */
-    public boolean recordCashFinal(int bookingId, BigDecimal amount) throws Exception {
-        String sql = "INSERT INTO Payment (BookingID, PaymentType, Amount, Method, Status, PaidAt, TransactionRef) "
-                + "VALUES (?, 'FINAL', ?, 'CASH', 'COMPLETED', GETDATE(), ?)";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, bookingId);
-            ps.setBigDecimal(2, amount);
-            ps.setString(3, "TXN-F-" + bookingId + "-" + System.currentTimeMillis());
-            return ps.executeUpdate() > 0;
+    /**
+     * Tài xế xác nhận đã trực tiếp nhận đủ tiền mặt phần còn lại (FINAL) từ khách —
+     * chỉ tài xế mới xác nhận được (không phải khách tự khai) để chống gian lận.
+     * Tìm row FINAL/CASH/PENDING đã được khách "khai ý định" trả tiền mặt trước đó
+     * (qua FinalPaymentController) → chuyển COMPLETED. Không tìm thấy → báo lỗi rõ.
+     */
+    public BigDecimal confirmCashFinal(int bookingId) throws Exception {
+        String selectSql = "SELECT PaymentID, Amount FROM Payment "
+                + "WHERE BookingID = ? AND PaymentType = 'FINAL' AND Method = 'CASH' AND Status = 'PENDING'";
+        String updateSql = "UPDATE Payment SET Status = 'COMPLETED', PaidAt = GETDATE() WHERE PaymentID = ?";
+        try (Connection conn = DbUtils.getConnection()) {
+            int paymentId;
+            BigDecimal amount;
+            try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
+                ps.setInt(1, bookingId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new IllegalArgumentException(
+                                "Không có giao dịch tiền mặt nào đang chờ xác nhận cho booking này.");
+                    }
+                    paymentId = rs.getInt("PaymentID");
+                    amount = rs.getBigDecimal("Amount");
+                }
+            }
+            try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                ps.setInt(1, paymentId);
+                ps.executeUpdate();
+            }
+            return amount;
         }
     }
 

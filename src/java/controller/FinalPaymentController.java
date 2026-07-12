@@ -83,44 +83,40 @@ public class FinalPaymentController extends HttpServlet {
                 return;
             }
 
-            boolean success = false;
+            boolean success = true;
             if ("CASH".equals(paymentMethod)) {
-                success = paymentService.recordCashFinal(bookingId, amountToPay);
-                res.put("success", success);
+                // Chỉ ghi nhận Ý ĐỊNH trả tiền mặt (PENDING) — KHÔNG hoàn tất ngay.
+                // Tài xế mới là người xác nhận đã thực nhận tiền (xem confirm-cash),
+                // chống khách tự khai khống để vượt gate hoàn thành chuyến.
+                paymentService.getOrCreatePending(bookingId, "FINAL", "CASH", amountToPay);
+                res.put("success", true);
+                res.put("message", "Đã ghi nhận yêu cầu thanh toán tiền mặt — tài xế sẽ xác nhận khi nhận đủ tiền.");
             } else {
                 // VNPay: FE gọi tiếp /payments/vnpay/create; ở đây chỉ báo số tiền
-                success = true;
                 res.put("success", true);
             }
 
             res.put("finalAmount", amountToPay);
 
-            // Notify customer, driver, dispatcher khi xác nhận thanh toán tiền mặt
+            // Báo cho tài xế + dispatcher biết khách CHỌN trả tiền mặt (chưa phải đã trả)
             if (success && "CASH".equalsIgnoreCase(paymentMethod)) {
                 try {
-                    int customerAccountId = dao.getCustomerAccountIdByBookingId(bookingId);
-                    if (customerAccountId != -1) {
-                        dao.createNotification(customerAccountId, bookingId,
-                                "Thanh toán thành công",
-                                "Bạn đã thanh toán " + amountToPay.toPlainString()
-                                        + "đ tiền mặt cho booking #" + bookingId + ". Cảm ơn!",
-                                "PAYMENT_CASH_CONFIRMED", "IN_APP");
-                    }
                     int driverAccountId = dao.getDriverAccountIdByBookingId(bookingId);
                     if (driverAccountId != -1) {
                         dao.createNotification(driverAccountId, bookingId,
                                 "Nhắc thu tiền mặt",
                                 "Khách chọn thanh toán tiền mặt cho chuyến #" + bookingId
-                                        + " rồi nha. Nhờ bạn thu giúp FleetFlow " + amountToPay.toPlainString() + "đ từ khách nhé!",
-                                "PAYMENT_CASH_CONFIRMED", "IN_APP");
+                                        + " rồi nha. Nhờ bạn thu " + amountToPay.toPlainString()
+                                        + "đ từ khách rồi bấm \"Xác nhận đã nhận tiền mặt\" trong app nhé!",
+                                "PAYMENT_CASH_PENDING", "IN_APP");
                     }
                     java.util.List<Integer> dispatcherIds = new dao.AccountDAO().getActiveDispatcherAccountIds();
                     for (int dispId : dispatcherIds) {
                         dao.createNotification(dispId, bookingId,
-                                "Booking #" + bookingId + " đã thanh toán tiền mặt",
-                                "Khách đã thanh toán " + amountToPay.toPlainString()
-                                        + "đ tiền mặt cho booking #" + bookingId + ".",
-                                "PAYMENT_CASH_CONFIRMED", "IN_APP");
+                                "Booking #" + bookingId + " chọn thanh toán tiền mặt",
+                                "Khách chọn thanh toán " + amountToPay.toPlainString()
+                                        + "đ tiền mặt cho booking #" + bookingId + " — đang chờ tài xế xác nhận.",
+                                "PAYMENT_CASH_PENDING", "IN_APP");
                     }
                 } catch (Exception notifEx) {
                     notifEx.printStackTrace();
