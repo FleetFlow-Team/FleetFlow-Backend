@@ -53,10 +53,6 @@
         <servlet-class>controller.AdminVehicleController</servlet-class>
     </servlet>
     <servlet>
-        <servlet-name>PaymentController</servlet-name>
-        <servlet-class>controller.PaymentController</servlet-class>
-    </servlet>
-    <servlet>
         <servlet-name>CustomerWalletController</servlet-name>
         <servlet-class>controller.CustomerWalletController</servlet-class>
     </servlet>
@@ -99,10 +95,6 @@
     <servlet>
         <servlet-name>AdminAuditLogController</servlet-name>
         <servlet-class>controller.AdminAuditLogController</servlet-class>
-    </servlet>
-    <servlet>
-        <servlet-name>MomoCallbackController</servlet-name>
-        <servlet-class>controller.MomoCallbackController</servlet-class>
     </servlet>
     <servlet>
         <servlet-name>CustomerRatingController</servlet-name>
@@ -221,10 +213,6 @@
         <url-pattern>/AdminVehicleController</url-pattern>
     </servlet-mapping>
     <servlet-mapping>
-        <servlet-name>PaymentController</servlet-name>
-        <url-pattern>/PaymentController</url-pattern>
-    </servlet-mapping>
-    <servlet-mapping>
         <servlet-name>CustomerWalletController</servlet-name>
         <url-pattern>/CustomerWalletController</url-pattern>
     </servlet-mapping>
@@ -267,10 +255,6 @@
     <servlet-mapping>
         <servlet-name>AdminAuditLogController</servlet-name>
         <url-pattern>/AdminAuditLogController</url-pattern>
-    </servlet-mapping>
-    <servlet-mapping>
-        <servlet-name>MomoCallbackController</servlet-name>
-        <url-pattern>/MomoCallbackController</url-pattern>
     </servlet-mapping>
     <servlet-mapping>
         <servlet-name>CustomerRatingController</servlet-name>
