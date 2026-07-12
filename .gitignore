@@ -1,2 +1,11 @@
 /nbproject/private/
 /server-libs/
+
+# Tai lieu Word - khong commit (binary, xem/chia se rieng)
+*.docx
+
+# Tai lieu spec/plan lam viec voi Claude - khong push, chi giu local
+docs/superpowers/
+
+# Migration data-fix rieng cho phien redesign payment - gui tay cho team, khong push
+database/migrations/2026-07-12-payment-normalize.sql
