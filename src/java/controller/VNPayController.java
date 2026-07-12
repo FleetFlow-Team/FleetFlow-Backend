@@ -106,10 +106,15 @@ public class VNPayController extends HttpServlet {
             String paymentType;
             BigDecimal payAmount;
             if (!paymentService.isDepositPaid(bookingId)) {
-                if (!"CONFIRMED".equals(booking.getStatus())) {
+                // Cho phép cọc bất kể tài xế đã nhận hay chưa (PENDING/APPROVED/DISPATCHED/
+                // UNASSIGNED/CONFIRMED đều được) — chỉ chặn khi đơn đã hủy/từ chối hoặc đã
+                // qua giai đoạn cọc (ONGOING/COMPLETED, lúc đó chuyển sang nhánh FINAL).
+                java.util.Set<String> depositableStatuses = new java.util.HashSet<>(java.util.Arrays.asList(
+                        "PENDING", "APPROVED", "DISPATCHED", "UNASSIGNED", "CONFIRMED"));
+                if (!depositableStatuses.contains(booking.getStatus())) {
                     response.setStatus(400);
                     apiResponse.put("success", false);
-                    apiResponse.put("message", "Booking chưa được tài xế xác nhận — chưa thể thanh toán cọc.");
+                    apiResponse.put("message", "Booking hiện không ở trạng thái cho phép thanh toán cọc.");
                     response.getWriter().print(gson.toJson(apiResponse));
                     return;
                 }
