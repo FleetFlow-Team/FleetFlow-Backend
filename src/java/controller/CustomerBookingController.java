@@ -133,6 +133,20 @@ public class CustomerBookingController extends HttpServlet {
                 json.append("\"bookingType\":\"").append(esc(b.bookingType)).append("\",");
                 json.append("\"tripDirection\":\"").append(esc(b.tripDirection)).append("\",");
                 json.append("\"status\":\"").append(esc(b.status)).append("\",");
+                boolean depositPaid = false;
+                try {
+                    depositPaid = new service.PaymentService().isDepositPaid(b.bookingId);
+                } catch (Exception depErr) {
+                    depErr.printStackTrace();
+                }
+                json.append("\"depositPaid\":").append(depositPaid).append(",");
+                java.math.BigDecimal remainingAmount = java.math.BigDecimal.ZERO;
+                try {
+                    remainingAmount = new service.PaymentService().remainingOf(b.bookingId);
+                } catch (Exception remErr) {
+                    remErr.printStackTrace();
+                }
+                json.append("\"remainingAmount\":").append(remainingAmount).append(",");
                 json.append("\"pickupAddress\":\"").append(esc(b.pickupAddress)).append("\",");
                 json.append("\"dropoffAddress\":\"").append(esc(b.dropoffAddress)).append("\",");
                 json.append("\"departureTime\":\"").append(b.departureTime).append("\",");

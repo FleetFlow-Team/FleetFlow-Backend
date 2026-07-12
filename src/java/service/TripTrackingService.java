@@ -76,6 +76,16 @@ public class TripTrackingService {
 
         requireDriverOwnsBooking(bookingId, driverId);
 
+        // Khách phải trả xong phần còn lại (70%) TRƯỚC khi tài xế được bấm hoàn thành —
+        // khách có thể trả ngay trong lúc ONGOING (xem VNPayController/FinalPaymentController,
+        // đã bỏ điều kiện bắt buộc COMPLETED để cho phép trả sớm hơn).
+        java.math.BigDecimal remaining = new PaymentService().remainingOf(bookingId);
+        if (remaining.compareTo(java.math.BigDecimal.ZERO) > 0) {
+            throw new IllegalArgumentException(
+                    "Khách hàng chưa thanh toán " + remaining.toPlainString()
+                            + "đ còn lại. Vui lòng yêu cầu khách thanh toán trước khi hoàn thành chuyến.");
+        }
+
         try (Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
             try {
@@ -98,16 +108,9 @@ public class TripTrackingService {
             dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
             int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
             if (customerAccountId != -1) {
-                // java.math.BigDecimal remaining = extDAO.calculateFinalPayment(bookingId); // code cũ
-                java.math.BigDecimal remaining = new PaymentService().remainingOf(bookingId);
-                String message;
-                if (remaining != null && remaining.compareTo(java.math.BigDecimal.ZERO) > 0) {
-                    message = "Chuyến đi #" + bookingId + " đã hoàn thành. Vui lòng thanh toán "
-                            + remaining.toPlainString() + "đ còn lại (chuyển khoản hoặc tiền mặt cho tài xế). "
-                            + "Cảm ơn bạn đã sử dụng dịch vụ!";
-                } else {
-                    message = "Chuyến đi #" + bookingId + " đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!";
-                }
+                // Số còn nợ đã được đảm bảo <= 0 ở guard đầu hàm (completeTrip chặn nếu còn nợ),
+                // nên tới đây luôn là "đã thanh toán đủ" — không cần tính lại remainingOf.
+                String message = "Chuyến đi #" + bookingId + " đã hoàn thành. Cảm ơn bạn đã sử dụng dịch vụ!";
                 extDAO.createNotification(customerAccountId, bookingId,
                         "Chuyến đi đã hoàn thành - Yêu cầu thanh toán",
                         message,
