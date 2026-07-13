@@ -85,12 +85,11 @@ public class FinalPaymentController extends HttpServlet {
 
             boolean success = true;
             if ("CASH".equals(paymentMethod)) {
-                // Chỉ ghi nhận Ý ĐỊNH trả tiền mặt (PENDING) — KHÔNG hoàn tất ngay.
-                // Tài xế mới là người xác nhận đã thực nhận tiền (xem confirm-cash),
-                // chống khách tự khai khống để vượt gate hoàn thành chuyến.
-                paymentService.getOrCreatePending(bookingId, "FINAL", "CASH", amountToPay);
+                // Khách chọn trả tiền mặt — tất toán NGAY (không cần tài xế xác nhận
+                // lại nữa), chỉ còn báo cho tài xế biết để đi thu tiền từ khách.
+                paymentService.settleCashFinal(bookingId, amountToPay);
                 res.put("success", true);
-                res.put("message", "Đã ghi nhận yêu cầu thanh toán tiền mặt — tài xế sẽ xác nhận khi nhận đủ tiền.");
+                res.put("message", "Đã ghi nhận thanh toán tiền mặt " + amountToPay.toPlainString() + "đ.");
             } else {
                 // VNPay: FE gọi tiếp /payments/vnpay/create; ở đây chỉ báo số tiền
                 res.put("success", true);
@@ -98,25 +97,24 @@ public class FinalPaymentController extends HttpServlet {
 
             res.put("finalAmount", amountToPay);
 
-            // Báo cho tài xế + dispatcher biết khách CHỌN trả tiền mặt (chưa phải đã trả)
+            // Báo cho tài xế + dispatcher biết khách đã CHỌN + tất toán bằng tiền mặt
             if (success && "CASH".equalsIgnoreCase(paymentMethod)) {
                 try {
                     int driverAccountId = dao.getDriverAccountIdByBookingId(bookingId);
                     if (driverAccountId != -1) {
                         dao.createNotification(driverAccountId, bookingId,
-                                "Nhắc thu tiền mặt",
-                                "Khách chọn thanh toán tiền mặt cho chuyến #" + bookingId
-                                        + " rồi nha. Nhờ bạn thu " + amountToPay.toPlainString()
-                                        + "đ từ khách rồi bấm \"Xác nhận đã nhận tiền mặt\" trong app nhé!",
-                                "PAYMENT_CASH_PENDING", "IN_APP");
+                                "Khách yêu cầu trả tiền mặt",
+                                "Chuyến #" + bookingId + ": khách yêu cầu thanh toán " + amountToPay.toPlainString()
+                                        + "đ bằng tiền mặt. Nhớ thu tiền khi gặp khách nhé, có thể hoàn thành chuyến luôn!",
+                                "PAYMENT_CASH_CONFIRMED", "IN_APP");
                     }
                     java.util.List<Integer> dispatcherIds = new dao.AccountDAO().getActiveDispatcherAccountIds();
                     for (int dispId : dispatcherIds) {
                         dao.createNotification(dispId, bookingId,
-                                "Booking #" + bookingId + " chọn thanh toán tiền mặt",
-                                "Khách chọn thanh toán " + amountToPay.toPlainString()
-                                        + "đ tiền mặt cho booking #" + bookingId + " — đang chờ tài xế xác nhận.",
-                                "PAYMENT_CASH_PENDING", "IN_APP");
+                                "Booking #" + bookingId + " thanh toán tiền mặt",
+                                "Khách đã yêu cầu thanh toán " + amountToPay.toPlainString()
+                                        + "đ tiền mặt cho booking #" + bookingId + ".",
+                                "PAYMENT_CASH_CONFIRMED", "IN_APP");
                     }
                 } catch (Exception notifEx) {
                     notifEx.printStackTrace();

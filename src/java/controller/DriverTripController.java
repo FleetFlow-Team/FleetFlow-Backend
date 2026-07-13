@@ -23,7 +23,10 @@ import utils.JwtUtils;
  * POST /api/v1/driver/trips/{bookingId}/start        — bắt đầu chuyến đi
  * POST /api/v1/driver/trips/{bookingId}/gps           — đẩy tọa độ GPS (mỗi 30s)
  * POST /api/v1/driver/trips/{bookingId}/complete      — hoàn thành chuyến đi
- * POST /api/v1/driver/trips/{bookingId}/confirm-cash  — xác nhận đã nhận tiền mặt (FINAL)
+ *
+ * Thanh toán CASH không còn action confirm-cash riêng — khách khai ý định trả
+ * tiền mặt (qua FinalPaymentController) là tất toán ngay, tài xế có thể bấm
+ * complete luôn sau khi nhận thông báo nhắc thu tiền.
  */
 @WebServlet("/api/v1/driver/trips/*")
 public class DriverTripController extends HttpServlet {
@@ -106,15 +109,9 @@ public class DriverTripController extends HttpServlet {
                     out.print("{\"success\": true, \"message\": \"Đã hoàn thành chuyến đi\"}");
                     break;
 
-                case "confirm-cash":
-                    java.math.BigDecimal confirmedAmount = tripService.confirmCashPayment(bookingId, driverId, ip);
-                    response.setStatus(200);
-                    out.print("{\"success\": true, \"message\": \"Đã xác nhận nhận " + confirmedAmount.toPlainString() + "đ tiền mặt\"}");
-                    break;
-
                 default:
                     response.setStatus(404);
-                    out.print("{\"error\": \"Action không hợp lệ. Chỉ hỗ trợ start, gps, complete, confirm-cash\"}");
+                    out.print("{\"error\": \"Action không hợp lệ. Chỉ hỗ trợ start, gps, complete\"}");
             }
 
         } catch (IllegalArgumentException e) {
