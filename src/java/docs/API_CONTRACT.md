@@ -3112,6 +3112,7 @@ path POST http://localhost:8080/FleetFlow/api/v1/ai/chat
     "success": true,
     "source": "FALLBACK",
     "data": [
+        
         {
             "vehicleId": 1,
             "brand": "Toyota",
@@ -3163,6 +3164,28 @@ path POST http://localhost:8080/FleetFlow/api/v1/ai/chat
             "source": "FALLBACK"
         }
     ]
+}
+Khách tìm nội dung k liên quan đến xe
+path POST http://localhost:8080/FleetFlow/api/v1/ai/chat
+input:
+{ "message": "xin chào bạn là ai" }
+output:
+{
+    "success": true,
+    "source": "OFF_TOPIC",
+    "data": [],
+    "message": "Tôi chỉ hỗ trợ tìm xe cho chuyến đi thôi nhé. Bạn mô tả nhu cầu chuyến đi (số chỗ, loại xe, điểm đến...) để tôi gợi ý xe phù hợp nha."
+}
+Khách muốn tìm xe độc lạ bình dương
+path POST http://localhost:8080/FleetFlow/api/v1/ai/chat
+input:
+{ "message": "Tôi muốn tìm xe rồng xe phượng " }
+output:
+{
+    "success": true,
+    "source": "UNREALISTIC",
+    "data": [],
+    "message": "Hệ thống FleetFlow hiện chỉ phục vụ xe ô tô phổ thông (sedan/SUV/xe nhiều chỗ...) cho dịch vụ thuê xe có lái, chưa có loại phương tiện bạn yêu cầu. Bạn thử mô tả lại nhu cầu với các xe hiện có nhé."
 }
 ---------------------------------------------------------------------------
 Dispatcher get notifications

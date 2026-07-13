@@ -116,6 +116,14 @@ public class AIController extends HttpServlet {
             String source = suggestions.isEmpty() ? "NONE"
                     : String.valueOf(suggestions.get(0).get("source"));
 
+            if ("OFF_TOPIC".equals(source) || "UNREALISTIC".equals(source)) {
+                String botMessage = String.valueOf(suggestions.get(0).get("message"));
+                response.setStatus(200);
+                out.print("{\"success\": true, \"source\": \"" + source + "\", \"data\": [], "
+                        + "\"message\": \"" + esc(botMessage) + "\"}");
+                return;
+            }
+
             StringBuilder json = new StringBuilder();
             json.append("{\"success\": true, \"source\": \"").append(source).append("\", \"data\": [");
             for (int i = 0; i < suggestions.size(); i++) {
