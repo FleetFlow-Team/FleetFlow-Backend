@@ -102,20 +102,37 @@ public class CustomerBookingService {
         // Notify customer, driver, dispatcher khi hủy chuyến
         try {
             dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
-            String penaltyMsg;
+
+            // Message gửi cho CHÍNH khách hàng đó — xưng "Bạn" là đúng vì người
+            // nhận notification chính là người bị mất cọc.
+            String penaltyMsgForCustomer;
             if (isForfeitDeposit) {
-                penaltyMsg = " Bạn bị mất cọc " + penaltyAmount.toPlainString() + "đ do hủy trong vòng 12h.";
+                penaltyMsgForCustomer = " Bạn bị mất cọc " + penaltyAmount.toPlainString() + "đ do hủy trong vòng 12h.";
             } else if (refunded.compareTo(BigDecimal.ZERO) > 0) {
-                penaltyMsg = " Không mất phí hủy. Cọc " + refunded.toPlainString() + "đ đã được hoàn lại vào ví của bạn.";
+                penaltyMsgForCustomer = " Không mất phí hủy. Cọc " + refunded.toPlainString() + "đ đã được hoàn lại vào ví của bạn.";
             } else {
-                penaltyMsg = " Không mất phí hủy.";
+                penaltyMsgForCustomer = " Không mất phí hủy.";
+            }
+
+            // Message gửi cho dispatcher/driver — KHÔNG được xưng "Bạn" vì người
+            // nhận không phải là khách hàng, phải nêu rõ tên khách bị mất cọc.
+            String customerName = extDAO.getCustomerNameByBookingId(bookingId);
+            String customerLabel = (customerName != null && !customerName.isEmpty())
+                    ? customerName : ("Khách hàng #" + customerId);
+            String penaltyMsgForStaff;
+            if (isForfeitDeposit) {
+                penaltyMsgForStaff = " " + customerLabel + " bị mất cọc " + penaltyAmount.toPlainString() + "đ do hủy trong vòng 12h.";
+            } else if (refunded.compareTo(BigDecimal.ZERO) > 0) {
+                penaltyMsgForStaff = " Không mất phí hủy. Cọc " + refunded.toPlainString() + "đ đã được hoàn lại vào ví của khách.";
+            } else {
+                penaltyMsgForStaff = " Không mất phí hủy.";
             }
 
             int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
             if (customerAccountId != -1) {
                 extDAO.createNotification(customerAccountId, bookingId,
                         "Booking #" + bookingId + " đã bị hủy",
-                        "Chuyến đi của bạn đã được hủy thành công." + penaltyMsg,
+                        "Chuyến đi của bạn đã được hủy thành công." + penaltyMsgForCustomer,
                         "BOOKING_CANCELLED", "IN_APP");
             }
 
@@ -123,7 +140,7 @@ public class CustomerBookingService {
             if (driverAccountId != -1) {
                 extDAO.createNotification(driverAccountId, bookingId,
                         "Chuyến đi #" + bookingId + " bị hủy",
-                        "Khách hàng đã hủy booking #" + bookingId
+                        customerLabel + " đã hủy booking #" + bookingId
                                 + (reason != null && !reason.isEmpty() ? ". Lý do: " + reason : "."),
                         "BOOKING_CANCELLED", "IN_APP");
             }
@@ -132,7 +149,7 @@ public class CustomerBookingService {
             for (int dispId : dispatcherIds) {
                 extDAO.createNotification(dispId, bookingId,
                         "Booking #" + bookingId + " bị hủy bởi khách",
-                        "Khách hàng đã hủy booking #" + bookingId + "." + penaltyMsg,
+                        customerLabel + " đã hủy booking #" + bookingId + "." + penaltyMsgForStaff,
                         "BOOKING_CANCELLED", "IN_APP");
             }
         } catch (Exception e) {

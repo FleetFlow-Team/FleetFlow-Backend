@@ -502,6 +502,25 @@ public class ExtensionDAO {
         }
     }
 
+    /**
+     * Lấy tên khách hàng (FullName) theo BookingID — dùng để hiển thị trong
+     * notification gửi cho dispatcher/driver, KHÔNG dùng "Bạn" (vì "Bạn" chỉ
+     * đúng khi notification gửi thẳng cho chính khách đó).
+     */
+    public String getCustomerNameByBookingId(int bookingId) throws Exception {
+        String sql = "SELECT a.FullName FROM Booking b "
+                + "JOIN Customer c ON c.CustomerID = b.CustomerID "
+                + "JOIN Account a ON a.AccountID = c.AccountID "
+                + "WHERE b.BookingID = ?";
+        try (java.sql.Connection conn = utils.DbUtils.getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getString("FullName") : null;
+            }
+        }
+    }
+
     public int getDriverAccountIdByBookingId(int bookingId) throws Exception {
         // Lấy driver đã ACCEPTED hoặc đang PENDING — để notify kể cả khi driver chưa phản hồi
         String sql = "SELECT TOP 1 a.AccountID FROM DriverJobBroadcast djb "
