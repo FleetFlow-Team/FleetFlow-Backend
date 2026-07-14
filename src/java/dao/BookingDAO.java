@@ -310,10 +310,20 @@ public class BookingDAO {
     }
 
     /**
-     * Check xe có bị trùng lịch không (BR-27) Xe phải cách chuyến cũ ít nhất 60
-     * phút
+     * Check xe có bị trùng lịch không (BR-27). Xe phải cách chuyến cũ ít nhất
+     * 60 phút.
+     *
+     * newEndTime là giờ kết thúc THỰC TẾ của chuyến mới (đã tính sẵn ở
+     * BookingService: departureTime + durationHours/durationDays, hoặc
+     * returnTime nếu có, hoặc ước tính theo khoảng cách). Trước đây hàm này
+     * chỉ nhận departureTime và so 1 điểm, đồng thời đoán bừa "8 tiếng" cho
+     * mọi chuyến không có ReturnTime -> chuyến 1 tiếng bị khóa lịch cả ngày,
+     * đồng thời không phát hiện được trường hợp chuyến mới kéo dài (VD DAILY
+     * nhiều ngày) đè lên 1 chuyến khác bắt đầu sau đó. Giờ so sánh đúng 2
+     * khoảng thời gian [newStart, newEnd] và [existingStart, existingEnd],
+     * cộng buffer 60 phút mỗi đầu, theo kiểu overlap 2 chiều chuẩn.
      */
-    public boolean isVehicleScheduleConflict(int vehicleId, Timestamp departureTime) throws Exception {
+    public boolean isVehicleScheduleConflict(int vehicleId, Timestamp newDepartureTime, Timestamp newEndTime) throws Exception {
         String sql = "SELECT bd.DepartureTime, bd.ReturnTime "
                 + "FROM Booking b "
                 + "JOIN BookingDetail bd ON b.BookingID = bd.BookingID "
@@ -326,20 +336,27 @@ public class BookingDAO {
             stmt.setInt(1, vehicleId);
             ResultSet rs = stmt.executeQuery();
 
-            long newDeparture = departureTime.getTime();
+            long newStart = newDepartureTime.getTime();
+            // Nếu vì lý do gì đó không tính được newEndTime (dữ liệu cũ/thiếu), coi chuyến
+            // mới như 1 điểm thời gian — vẫn còn đúng hơn so với việc đoán bừa 8h cho chuyến cũ.
+            long newEnd = newEndTime != null ? newEndTime.getTime() : newStart;
             long buffer = 60 * 60 * 1000L; // 60 phút tính bằng ms
 
             while (rs.next()) {
                 Timestamp existingDeparture = rs.getTimestamp("DepartureTime");
                 Timestamp existingReturn = rs.getTimestamp("ReturnTime");
 
+                // Fallback 8h chỉ còn áp dụng cho các booking cũ (tạo trước khi có fix này)
+                // mà lỡ chưa có ReturnTime lưu sẵn trong DB.
+                long existingStart = existingDeparture.getTime();
                 long existingEnd = existingReturn != null
                         ? existingReturn.getTime()
-                        : existingDeparture.getTime() + (8 * 60 * 60 * 1000L); // ước tính 8h nếu không có ReturnTime
+                        : existingStart + (8 * 60 * 60 * 1000L);
 
-                // Conflict nếu chuyến mới bắt đầu trong vòng 60 phút sau chuyến cũ kết thúc
-                if (newDeparture < existingEnd + buffer
-                        && newDeparture > existingDeparture.getTime() - buffer) {
+                // Overlap 2 chiều: chuyến mới bắt đầu trước khi chuyến cũ (+buffer) kết thúc
+                // VÀ chuyến mới kết thúc sau khi chuyến cũ (-buffer) bắt đầu.
+                if (newStart < existingEnd + buffer
+                        && newEnd > existingStart - buffer) {
                     return true; // Có conflict
                 }
             }

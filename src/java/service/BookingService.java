@@ -52,23 +52,32 @@ public class BookingService {
     ) throws Exception {
 
         boolean isDistanceType = "DISTANCE".equalsIgnoreCase(bookingType);
+        boolean isInnerCity = "INNER_CITY".equalsIgnoreCase(bookingType);
+        boolean isInterCity = "INTER_CITY".equalsIgnoreCase(bookingType);
+        // Bug cũ: chỉ check đúng chữ "DISTANCE" nên INNER_CITY/INTER_CITY bị bỏ qua
+        // hoàn toàn bước tính khoảng cách -> distanceKm luôn = 0 -> tiền tính sai.
+        // Cả 3 loại đều cần tính khoảng cách thật, chỉ khác ngưỡng tối thiểu.
+        boolean needsDistance = isDistanceType || isInnerCity || isInterCity;
         boolean isHourly = "HOURLY".equalsIgnoreCase(bookingType);
         boolean isDaily = "DAILY".equalsIgnoreCase(bookingType);
         boolean isRoundTrip = "ROUND_TRIP".equalsIgnoreCase(tripDirection);
 
-        // ---- Vấn đề 2 fix: chỉ gọi Maps API + validate 20km khi là DISTANCE ----
+        // BR-01: DISTANCE giữ nguyên tối thiểu 20km (chuyến khách tự chọn điểm tự do).
+        // INNER_CITY/INTER_CITY là tuyến đến điểm cố định (sân bay, bến xe...) -> ưu ái 10km.
+        double minDistanceKm = isDistanceType ? 20.0 : 10.0;
+
         double distanceKm = 0;
         double returnDistanceKm = 0;
-        if (isDistanceType) {
+        if (needsDistance) {
             if (pickupLat == null || pickupLng == null || dropoffLat == null || dropoffLng == null) {
                 throw new IllegalArgumentException(
                         "Thiếu tọa độ điểm đón/trả — bắt buộc với loại đặt xe theo quãng đường."
                 );
             }
-            // BR-01: Validate khoảng cách tối thiểu 20km (chiều đi)
             distanceKm = mapsService.validateAndGetDistance(
                     pickupLat, pickupLng,
-                    dropoffLat, dropoffLng
+                    dropoffLat, dropoffLng,
+                    minDistanceKm
             );
 
             // ROUND_TRIP: validate + tính khoảng cách chiều về
@@ -79,10 +88,11 @@ public class BookingService {
                             "Đặt xe 2 chiều bắt buộc phải cung cấp tọa độ điểm đón/trả chiều về."
                     );
                 }
-                // Chiều về cũng phải >= 20km (BR-01 áp dụng từng chặng)
+                // Chiều về áp cùng ngưỡng tối thiểu với chiều đi
                 returnDistanceKm = mapsService.validateAndGetDistance(
                         returnPickupLat, returnPickupLng,
-                        returnDropoffLat, returnDropoffLng
+                        returnDropoffLat, returnDropoffLng,
+                        minDistanceKm
                 );
             }
         }
@@ -131,8 +141,27 @@ public class BookingService {
             );
         }
 
-        // ---- BR-27: Validate không trùng lịch ----
-        boolean hasConflict = bookingDAO.isVehicleScheduleConflict(vehicleId, departureTime);
+        // ---- Tự tính giờ kết thúc thực tế của chuyến (effectiveEndTime) ----
+        // Trước đây HOURLY/DAILY không lưu ReturnTime -> DAO phải đoán bừa "8 tiếng"
+        // khi check trùng lịch, khiến xe bị khóa dư ra dù chỉ thuê 1-2 tiếng.
+        // Giờ tính rõ ràng theo từng loại rồi lưu luôn vào ReturnTime để dùng chung
+        // cho mọi lần check lịch sau này (kể cả của booking khác tham chiếu tới).
+        Timestamp effectiveEndTime = returnTime; // đã có sẵn nếu ROUND_TRIP có gửi lên
+        if (effectiveEndTime == null) {
+            if (isHourly) {
+                effectiveEndTime = new Timestamp(departureTime.getTime() + durationHours * 60L * 60 * 1000);
+            } else if (isDaily) {
+                effectiveEndTime = new Timestamp(departureTime.getTime() + durationDays * 24L * 60 * 60 * 1000);
+            } else if (needsDistance) {
+                // ONE_WAY tuyến tự do/cố định không có returnTime -> ước tính thời gian
+                // di chuyển theo khoảng cách thật (tốc độ trung bình 40km/h), tối thiểu 30 phút.
+                long estimatedMinutes = Math.max(30, Math.round((distanceKm / 40.0) * 60));
+                effectiveEndTime = new Timestamp(departureTime.getTime() + estimatedMinutes * 60 * 1000);
+            }
+        }
+
+        // ---- BR-27: Validate không trùng lịch (dùng đúng khoảng [departureTime, effectiveEndTime]) ----
+        boolean hasConflict = bookingDAO.isVehicleScheduleConflict(vehicleId, departureTime, effectiveEndTime);
         if (hasConflict) {
             throw new IllegalArgumentException(
                     "Xe này đã có lịch chạy gần giờ bạn chọn. "
@@ -157,10 +186,12 @@ public class BookingService {
         detail.setPickupAddress(pickupAddress);
         detail.setDropoffAddress(dropoffAddress);
         detail.setDepartureTime(departureTime);
-        detail.setReturnTime(returnTime);
+        // Lưu giờ kết thúc đã tính (effectiveEndTime) thay vì returnTime gốc có thể null,
+        // để các lần check trùng lịch sau này (kể cả của booking khác) luôn có mốc chính xác.
+        detail.setReturnTime(effectiveEndTime);
 
-        if (isDistanceType) {
-            // Quãng đường: lưu tọa độ + km thật từ Maps API
+        if (needsDistance) {
+            // Quãng đường / tuyến cố định: lưu tọa độ + km thật từ Maps API
             detail.setPickupLat(BigDecimal.valueOf(pickupLat));
             detail.setPickupLng(BigDecimal.valueOf(pickupLng));
             detail.setDropoffLat(BigDecimal.valueOf(dropoffLat));

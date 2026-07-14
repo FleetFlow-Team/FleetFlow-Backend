@@ -99,12 +99,20 @@ Customer tạo đơn đặt xe
   "departureTime": "2026-07-20T08:00:00"
 }
 - Output:
+Chỉ được đặt xe sau thời gian chờ. Sau mỗi chuyến xe sẽ có 1 giờ nghỉ
+
+{
+    "success": false,
+    "error": "Xe này đã có lịch chạy gần giờ bạn chọn. Vui lòng chọn thời gian khác hoặc xe khác (cần cách chuyến cũ ít nhất 60 phút)."
+},
+
 {
     "success": true,
     "bookingId": 22,
     "status": "PENDING",
     "message": "Đặt xe thành công, chờ Dispatcher duyệt"
 }
+
 
 ---------------------------------------------------------------------------------
                                 BỔ SUNG LUỒNG BOOKING NGÀY 19/6/2026

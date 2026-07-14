@@ -39,17 +39,30 @@ public class MapsService {
     }
 
     /**
-     * Validate khoảng cách theo BR-01
+     * Validate khoảng cách theo BR-01 (mặc định 20km — dùng cho bookingType = DISTANCE)
      * Ném exception nếu < 20km
      */
     public double validateAndGetDistance(double pickupLat, double pickupLng,
                                          double dropoffLat, double dropoffLng) throws Exception {
+        return validateAndGetDistance(pickupLat, pickupLng, dropoffLat, dropoffLng, MIN_DISTANCE_KM);
+    }
+
+    /**
+     * Validate khoảng cách với ngưỡng tối thiểu tùy chỉnh — dùng cho các tuyến
+     * cố định INNER_CITY/INTER_CITY (ra sân bay, bến xe...), ngưỡng ưu ái hơn
+     * DISTANCE thường: 10km thay vì 20km, vì điểm đón/trả đã được cố định sẵn
+     * chứ không phải khách tự chọn tùy ý.
+     * Ném exception nếu < minDistanceKm.
+     */
+    public double validateAndGetDistance(double pickupLat, double pickupLng,
+                                         double dropoffLat, double dropoffLng,
+                                         double minDistanceKm) throws Exception {
         double distanceKm = calculateDistance(pickupLat, pickupLng, dropoffLat, dropoffLng);
 
-        if (distanceKm < MIN_DISTANCE_KM) {
+        if (distanceKm < minDistanceKm) {
             throw new IllegalArgumentException(
                 "Khoảng cách quá ngắn (" + distanceKm + "km). "
-                + "FleetFlow chỉ phục vụ chuyến đi từ " + (int) MIN_DISTANCE_KM + "km trở lên."
+                + "FleetFlow chỉ phục vụ chuyến đi từ " + (int) minDistanceKm + "km trở lên."
             );
         }
 
