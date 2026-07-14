@@ -177,7 +177,7 @@ public class DriverDispatchController extends HttpServlet {
                 Object val = entry.getValue();
                 if (val == null) {
                     json.append("null");
-                } else if (val instanceof Number) {
+                } else if (val instanceof Number || val instanceof Boolean) {
                     json.append(val);
                 } else {
                     json.append("\"").append(esc(val.toString())).append("\"");

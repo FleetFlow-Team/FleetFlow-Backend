@@ -47,43 +47,72 @@ public class FinalPaymentController extends HttpServlet {
             int bookingId = body.get("bookingId").getAsInt();
             String paymentMethod = body.get("paymentMethod").getAsString();
 
-            BigDecimal amountToPay = dao.calculateFinalPayment(bookingId);
+            // ---- Code cũ của teammate (comment lại để đối chiếu, không xóa) ----
+            // BigDecimal amountToPay = dao.calculateFinalPayment(bookingId);
+            // boolean success = false;
+            // if ("CASH".equals(paymentMethod)) {
+            //     success = dao.processFinalPayment(bookingId, paymentMethod, amountToPay);
+            //     res.put("success", success);
+            // } else {
+            //     success = true;
+            //     res.put("success", true);
+            // }
+            // res.put("finalAmount", amountToPay);
+            // ---------------------------------------------------------------------
 
-            boolean success = false;
+            model.Booking booking = new dao.BookingDAO().findById(bookingId);
+            // Cho phép trả ngay khi ONGOING (không cần đợi COMPLETED) — completeTrip() giờ
+            // chặn tài xế hoàn thành nếu khách chưa trả xong, nên khách phải trả được trước đó.
+            boolean payableStatus = booking != null
+                    && ("ONGOING".equals(booking.getStatus()) || "COMPLETED".equals(booking.getStatus()));
+            if (!payableStatus) {
+                response.setStatus(400);
+                res.put("success", false);
+                res.put("message", "Chuyến chưa bắt đầu — chưa thể thanh toán phần còn lại.");
+                response.getWriter().print(gson.toJson(res));
+                return;
+            }
+
+            service.PaymentService paymentService = new service.PaymentService();
+            BigDecimal amountToPay = paymentService.remainingOf(bookingId);
+            if (amountToPay.compareTo(BigDecimal.ZERO) <= 0) {
+                response.setStatus(400);
+                res.put("success", false);
+                res.put("message", "Booking đã tất toán — không còn khoản nào phải trả.");
+                response.getWriter().print(gson.toJson(res));
+                return;
+            }
+
+            boolean success = true;
             if ("CASH".equals(paymentMethod)) {
-                success = dao.processFinalPayment(bookingId, paymentMethod, amountToPay);
-                res.put("success", success);
+                // Khách chọn trả tiền mặt — tất toán NGAY (không cần tài xế xác nhận
+                // lại nữa), chỉ còn báo cho tài xế biết để đi thu tiền từ khách.
+                paymentService.settleCashFinal(bookingId, amountToPay);
+                res.put("success", true);
+                res.put("message", "Đã ghi nhận thanh toán tiền mặt " + amountToPay.toPlainString() + "đ.");
             } else {
-                success = true;
+                // VNPay: FE gọi tiếp /payments/vnpay/create; ở đây chỉ báo số tiền
                 res.put("success", true);
             }
 
             res.put("finalAmount", amountToPay);
 
-            // Notify customer, driver, dispatcher khi xác nhận thanh toán tiền mặt
+            // Báo cho tài xế + dispatcher biết khách đã CHỌN + tất toán bằng tiền mặt
             if (success && "CASH".equalsIgnoreCase(paymentMethod)) {
                 try {
-                    int customerAccountId = dao.getCustomerAccountIdByBookingId(bookingId);
-                    if (customerAccountId != -1) {
-                        dao.createNotification(customerAccountId, bookingId,
-                                "Thanh toán thành công",
-                                "Bạn đã thanh toán " + amountToPay.toPlainString()
-                                        + "đ tiền mặt cho booking #" + bookingId + ". Cảm ơn!",
-                                "PAYMENT_CASH_CONFIRMED", "IN_APP");
-                    }
                     int driverAccountId = dao.getDriverAccountIdByBookingId(bookingId);
                     if (driverAccountId != -1) {
                         dao.createNotification(driverAccountId, bookingId,
-                                "Nhắc thu tiền mặt",
-                                "Khách chọn thanh toán tiền mặt cho chuyến #" + bookingId
-                                        + " rồi nha. Nhờ bạn thu giúp FleetFlow " + amountToPay.toPlainString() + "đ từ khách nhé!",
+                                "Khách yêu cầu trả tiền mặt",
+                                "Chuyến #" + bookingId + ": khách yêu cầu thanh toán " + amountToPay.toPlainString()
+                                        + "đ bằng tiền mặt. Nhớ thu tiền khi gặp khách nhé, có thể hoàn thành chuyến luôn!",
                                 "PAYMENT_CASH_CONFIRMED", "IN_APP");
                     }
                     java.util.List<Integer> dispatcherIds = new dao.AccountDAO().getActiveDispatcherAccountIds();
                     for (int dispId : dispatcherIds) {
                         dao.createNotification(dispId, bookingId,
-                                "Booking #" + bookingId + " đã thanh toán tiền mặt",
-                                "Khách đã thanh toán " + amountToPay.toPlainString()
+                                "Booking #" + bookingId + " thanh toán tiền mặt",
+                                "Khách đã yêu cầu thanh toán " + amountToPay.toPlainString()
                                         + "đ tiền mặt cho booking #" + bookingId + ".",
                                 "PAYMENT_CASH_CONFIRMED", "IN_APP");
                     }

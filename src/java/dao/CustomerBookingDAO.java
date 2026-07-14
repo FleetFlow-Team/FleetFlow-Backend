@@ -170,7 +170,8 @@ public class CustomerBookingDAO {
 
             // 4. Free-cancel (không phạt) — hoàn cọc nếu khách đã đóng
             if (!forfeitDeposit) {
-                refunded = new ExtensionDAO().refundDeposit(conn, bookingId, customerId, reason);
+                // refunded = new ExtensionDAO().refundDeposit(...); // code cũ, đã chuyển sang PaymentService
+                refunded = new service.PaymentService().refundDeposit(conn, bookingId, customerId, reason);
                 if (refunded.compareTo(BigDecimal.ZERO) > 0) {
                     auditLogDAO.log(conn, accountId, "REFUND_DEPOSIT", "Booking",
                             String.valueOf(bookingId), "DEPOSIT_COMPLETED",

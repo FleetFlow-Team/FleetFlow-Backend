@@ -70,28 +70,80 @@ public class VNPayController extends HttpServlet {
 
             JsonObject body = JsonParser.parseReader(request.getReader()).getAsJsonObject();
             int bookingId = body.get("bookingId").getAsInt();
-            long amount = body.get("amount").getAsLong();
-            String paymentType;
-            if (body.has("paymentType")) {
-                paymentType = body.get("paymentType").getAsString();
-            } else {
-                // FE không gửi paymentType (bug cũ) — tự suy luận thay vì mặc định
-                // "FINAL": nếu booking CHƯA có cọc nào thì đây chắc chắn là bước
-                // trả cọc, còn lại mới coi là FINAL. Tránh lặp lại lỗi ghi nhầm
-                // PaymentType khiến các check sau này (vd notify "khách đã chuyển
-                // khoản xong") bắn nhầm lúc mới trả cọc.
-                paymentType = paymentDAO.hasExistingDeposit(bookingId) ? "FINAL" : "DEPOSIT";
-            }
+            // amount/paymentType FE gửi bị BỎ QUA — server tự quyết để chặn
+            // khách sửa JS trả sai tiền, và để FE cũ không cần thay đổi gì.
+            //
+            // ---- Code cũ của teammate (comment lại để đối chiếu, không xóa) ----
+            // long amount = body.get("amount").getAsLong();
+            // String paymentType;
+            // if (body.has("paymentType")) {
+            //     paymentType = body.get("paymentType").getAsString();
+            // } else {
+            //     // FE không gửi paymentType (bug cũ) — tự suy luận thay vì mặc định
+            //     // "FINAL": nếu booking CHƯA có cọc nào thì đây chắc chắn là bước
+            //     // trả cọc, còn lại mới coi là FINAL.
+            //     paymentType = paymentDAO.hasExistingDeposit(bookingId) ? "FINAL" : "DEPOSIT";
+            // }
+            // int paymentId = paymentDAO.createPayment(bookingId, paymentType, BigDecimal.valueOf(amount), "VNPAY");
+            // if (paymentId == -1) {
+            //     apiResponse.put("success", false);
+            //     apiResponse.put("message", "Lỗi tạo giao dịch trong hệ thống.");
+            //     response.getWriter().print(gson.toJson(apiResponse));
+            //     return;
+            // }
+            // ---------------------------------------------------------------------
 
-            // Tạo giao dịch PENDING trong Database trước, lấy PaymentID để đối soát chính xác ở bước IPN
-            int paymentId = paymentDAO.createPayment(bookingId, paymentType, BigDecimal.valueOf(amount), "VNPAY");
-
-            if (paymentId == -1) {
+            model.Booking booking = new dao.BookingDAO().findById(bookingId);
+            if (booking == null) {
+                response.setStatus(404);
                 apiResponse.put("success", false);
-                apiResponse.put("message", "Lỗi tạo giao dịch trong hệ thống.");
+                apiResponse.put("message", "Không tìm thấy booking " + bookingId);
                 response.getWriter().print(gson.toJson(apiResponse));
-                return; // Dừng luôn, không cho gọi sang VNPay nữa
+                return;
             }
+
+            service.PaymentService paymentService = new service.PaymentService();
+            String paymentType;
+            BigDecimal payAmount;
+            if (!paymentService.isDepositPaid(bookingId)) {
+                // Cho phép cọc bất kể tài xế đã nhận hay chưa (PENDING/APPROVED/DISPATCHED/
+                // UNASSIGNED/CONFIRMED đều được) — chỉ chặn khi đơn đã hủy/từ chối hoặc đã
+                // qua giai đoạn cọc (ONGOING/COMPLETED, lúc đó chuyển sang nhánh FINAL).
+                java.util.Set<String> depositableStatuses = new java.util.HashSet<>(java.util.Arrays.asList(
+                        "PENDING", "APPROVED", "DISPATCHED", "UNASSIGNED", "CONFIRMED"));
+                if (!depositableStatuses.contains(booking.getStatus())) {
+                    response.setStatus(400);
+                    apiResponse.put("success", false);
+                    apiResponse.put("message", "Booking hiện không ở trạng thái cho phép thanh toán cọc.");
+                    response.getWriter().print(gson.toJson(apiResponse));
+                    return;
+                }
+                paymentType = "DEPOSIT";
+                payAmount = paymentService.depositAmountOf(bookingId);
+            } else {
+                // Cho phép trả phần còn lại ngay khi chuyến đang chạy (ONGOING), không bắt
+                // buộc đợi tài xế bấm hoàn thành — vì giờ completeTrip() chặn tài xế hoàn
+                // thành nếu khách chưa trả xong, nên khách phải trả được TRƯỚC COMPLETED.
+                if (!"ONGOING".equals(booking.getStatus()) && !"COMPLETED".equals(booking.getStatus())) {
+                    response.setStatus(400);
+                    apiResponse.put("success", false);
+                    apiResponse.put("message", "Chuyến chưa bắt đầu — chưa thể thanh toán phần còn lại.");
+                    response.getWriter().print(gson.toJson(apiResponse));
+                    return;
+                }
+                paymentType = "FINAL";
+                payAmount = paymentService.remainingOf(bookingId);
+            }
+            if (payAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                response.setStatus(400);
+                apiResponse.put("success", false);
+                apiResponse.put("message", "Booking đã tất toán — không còn khoản nào phải trả.");
+                response.getWriter().print(gson.toJson(apiResponse));
+                return;
+            }
+
+            long amount = payAmount.longValue();
+            int paymentId = paymentService.getOrCreatePending(bookingId, paymentType, "VNPAY", payAmount);
 
             String ipAddress = request.getHeader("X-FORWARDED-FOR");
             if (ipAddress == null) {
@@ -182,10 +234,11 @@ public class VNPayController extends HttpServlet {
             long amount = amountStr != null ? Long.parseLong(amountStr) / 100 : 0;
 
             boolean success = isValid && "00".equals(request.getParameter("vnp_ResponseCode"));
-            Integer bookingId = paymentId != null ? getBookingIdByPaymentId(paymentId) : null;
+            int bIdLookup = paymentId != null ? paymentDAO.getBookingIdByPaymentId(paymentId) : -1;
+            Integer bookingId = bIdLookup != -1 ? bIdLookup : null;
 
             if (success && paymentId != null) {
-                verifyAndSavePayment(paymentId, transactionNo, amount);
+                new service.PaymentService().confirmPaid(paymentId, transactionNo, amount);
             }
 
             StringBuilder html = new StringBuilder();
@@ -235,7 +288,7 @@ public class VNPayController extends HttpServlet {
                     String vnpTransactionNo = request.getParameter("vnp_TransactionNo");
                     long vnpAmountVnd = Long.parseLong(request.getParameter("vnp_Amount")) / 100;
 
-                    String rspCode = verifyAndSavePayment(paymentId, vnpTransactionNo, vnpAmountVnd);
+                    String rspCode = new service.PaymentService().confirmPaid(paymentId, vnpTransactionNo, vnpAmountVnd);
                     if ("00".equals(rspCode)) {
                         // Chỉ notify "khách đã chuyển xong" cho thanh toán phần còn lại (FINAL),
                         // không notify kiểu này cho DEPOSIT (đặt cọc có luồng thông báo riêng)
@@ -287,61 +340,66 @@ public class VNPayController extends HttpServlet {
         response.getWriter().print(result.toString());
     }
 
-    /**
-     * Đối soát đúng theo PaymentID (không phải BookingID) để tránh cập nhật nhầm
-     * khi 1 booking có nhiều lần thử thanh toán PENDING; đồng thời validate số tiền
-     * VNPay trả về khớp với số tiền đã lưu lúc tạo giao dịch, và lưu lại vnp_TransactionNo.
-     * Trả về mã VNPay-style: 00=OK, 01=không tìm thấy, 02=đã xử lý rồi, 04=sai số tiền, 99=lỗi khác.
-     */
-    private String verifyAndSavePayment(int paymentId, String vnpTransactionNo, long vnpAmountVnd) {
-        String selectSql = "SELECT Amount, Status FROM Payment WHERE PaymentID = ?";
-        String updateSql = "UPDATE Payment SET Status = 'COMPLETED', TransactionRef = ?, PaidAt = GETDATE() WHERE PaymentID = ? AND Status = 'PENDING'";
-        try ( Connection conn = DbUtils.getConnection()) {
-            BigDecimal storedAmount = null;
-            String currentStatus = null;
-            try ( PreparedStatement ps = conn.prepareStatement(selectSql)) {
-                ps.setInt(1, paymentId);
-                try ( ResultSet rs = ps.executeQuery()) {
-                    if (!rs.next()) {
-                        return "01";
-                    }
-                    storedAmount = rs.getBigDecimal("Amount");
-                    currentStatus = rs.getString("Status");
-                }
-            }
-            if (!"PENDING".equals(currentStatus)) {
-                return "02";
-            }
-            if (storedAmount == null || storedAmount.longValue() != vnpAmountVnd) {
-                return "04";
-            }
-            try ( PreparedStatement ps = conn.prepareStatement(updateSql)) {
-                ps.setString(1, vnpTransactionNo);
-                ps.setInt(2, paymentId);
-                ps.executeUpdate();
-            }
-            System.out.println(">> VNPay IPN: Đã cập nhật thành công PaymentID " + paymentId);
-            return "00";
-        } catch (Exception e) {
-            System.err.println("Lỗi cập nhật DB: " + e.getMessage());
-            return "99";
-        }
-    }
-
-    private Integer getBookingIdByPaymentId(int paymentId) {
-        String sql = "SELECT BookingID FROM Payment WHERE PaymentID = ?";
-        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, paymentId);
-            try ( ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt("BookingID");
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("Lỗi lấy BookingID: " + e.getMessage());
-        }
-        return null;
-    }
+    // verifyAndSavePayment và getBookingIdByPaymentId (local) đã chuyển thành
+    // service.PaymentService.confirmPaid + dao.ExtensionDAO.getBookingIdByPaymentId
+    // (public, dùng chung được với notifyFinalPaymentSuccess). Comment lại code cũ
+    // để đối chiếu, không xóa.
+    //
+    // /**
+    //  * Đối soát đúng theo PaymentID (không phải BookingID) để tránh cập nhật nhầm
+    //  * khi 1 booking có nhiều lần thử thanh toán PENDING; đồng thời validate số tiền
+    //  * VNPay trả về khớp với số tiền đã lưu lúc tạo giao dịch, và lưu lại vnp_TransactionNo.
+    //  * Trả về mã VNPay-style: 00=OK, 01=không tìm thấy, 02=đã xử lý rồi, 04=sai số tiền, 99=lỗi khác.
+    //  */
+    // private String verifyAndSavePayment(int paymentId, String vnpTransactionNo, long vnpAmountVnd) {
+    //     String selectSql = "SELECT Amount, Status FROM Payment WHERE PaymentID = ?";
+    //     String updateSql = "UPDATE Payment SET Status = 'COMPLETED', TransactionRef = ?, PaidAt = GETDATE() WHERE PaymentID = ? AND Status = 'PENDING'";
+    //     try ( Connection conn = DbUtils.getConnection()) {
+    //         BigDecimal storedAmount = null;
+    //         String currentStatus = null;
+    //         try ( PreparedStatement ps = conn.prepareStatement(selectSql)) {
+    //             ps.setInt(1, paymentId);
+    //             try ( ResultSet rs = ps.executeQuery()) {
+    //                 if (!rs.next()) {
+    //                     return "01";
+    //                 }
+    //                 storedAmount = rs.getBigDecimal("Amount");
+    //                 currentStatus = rs.getString("Status");
+    //             }
+    //         }
+    //         if (!"PENDING".equals(currentStatus)) {
+    //             return "02";
+    //         }
+    //         if (storedAmount == null || storedAmount.longValue() != vnpAmountVnd) {
+    //             return "04";
+    //         }
+    //         try ( PreparedStatement ps = conn.prepareStatement(updateSql)) {
+    //             ps.setString(1, vnpTransactionNo);
+    //             ps.setInt(2, paymentId);
+    //             ps.executeUpdate();
+    //         }
+    //         System.out.println(">> VNPay IPN: Đã cập nhật thành công PaymentID " + paymentId);
+    //         return "00";
+    //     } catch (Exception e) {
+    //         System.err.println("Lỗi cập nhật DB: " + e.getMessage());
+    //         return "99";
+    //     }
+    // }
+    //
+    // private Integer getBookingIdByPaymentId(int paymentId) {
+    //     String sql = "SELECT BookingID FROM Payment WHERE PaymentID = ?";
+    //     try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
+    //         ps.setInt(1, paymentId);
+    //         try ( ResultSet rs = ps.executeQuery()) {
+    //             if (rs.next()) {
+    //                 return rs.getInt("BookingID");
+    //             }
+    //         }
+    //     } catch (Exception e) {
+    //         System.err.println("Lỗi lấy BookingID: " + e.getMessage());
+    //     }
+    //     return null;
+    // }
 
     private Map<String, String> extractVNPayParams(HttpServletRequest request) {
         Map<String, String> fields = new TreeMap<>();

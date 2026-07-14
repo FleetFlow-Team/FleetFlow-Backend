@@ -20,9 +20,13 @@ import utils.JwtUtils;
 /**
  * Driver điều khiển lifecycle chuyến đi sau khi đã ACCEPT
  *
- * POST /api/v1/driver/trips/{bookingId}/start    — bắt đầu chuyến đi
- * POST /api/v1/driver/trips/{bookingId}/gps       — đẩy tọa độ GPS (mỗi 30s)
- * POST /api/v1/driver/trips/{bookingId}/complete  — hoàn thành chuyến đi
+ * POST /api/v1/driver/trips/{bookingId}/start        — bắt đầu chuyến đi
+ * POST /api/v1/driver/trips/{bookingId}/gps           — đẩy tọa độ GPS (mỗi 30s)
+ * POST /api/v1/driver/trips/{bookingId}/complete      — hoàn thành chuyến đi
+ *
+ * Thanh toán CASH không còn action confirm-cash riêng — khách khai ý định trả
+ * tiền mặt (qua FinalPaymentController) là tất toán ngay, tài xế có thể bấm
+ * complete luôn sau khi nhận thông báo nhắc thu tiền.
  */
 @WebServlet("/api/v1/driver/trips/*")
 public class DriverTripController extends HttpServlet {
