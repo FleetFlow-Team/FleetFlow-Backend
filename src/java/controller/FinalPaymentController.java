@@ -97,9 +97,18 @@ public class FinalPaymentController extends HttpServlet {
 
             res.put("finalAmount", amountToPay);
 
-            // Báo cho tài xế + dispatcher biết khách đã CHỌN + tất toán bằng tiền mặt
+            // Báo cho khách + tài xế + dispatcher biết đã tất toán bằng tiền mặt
             if (success && "CASH".equalsIgnoreCase(paymentMethod)) {
                 try {
+                    int customerAccountId = dao.getCustomerAccountIdByBookingId(bookingId);
+                    if (customerAccountId != -1) {
+                        dao.createNotification(customerAccountId, bookingId,
+                                "Đã ghi nhận thanh toán tiền mặt",
+                                "Bạn đã chọn thanh toán " + amountToPay.toPlainString()
+                                        + "đ tiền mặt cho chuyến #" + bookingId
+                                        + ". Vui lòng đưa tiền mặt cho tài xế khi gặp nhé!",
+                                "PAYMENT_CASH_CONFIRMED", "IN_APP");
+                    }
                     int driverAccountId = dao.getDriverAccountIdByBookingId(bookingId);
                     if (driverAccountId != -1) {
                         dao.createNotification(driverAccountId, bookingId,
