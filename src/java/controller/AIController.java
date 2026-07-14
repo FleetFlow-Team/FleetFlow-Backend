@@ -124,8 +124,18 @@ public class AIController extends HttpServlet {
                 return;
             }
 
+            // FALLBACK_DEFAULT: fallback (Gemini lỗi) không xác định được nhu cầu khách qua từ khóa
+            // → vẫn trả kèm data (vài xe phổ thông) nhưng thêm message dẫn dắt ở cấp cao,
+            // để FE hiển thị rõ cho khách biết đây là gợi ý mặc định, không phải kết quả khớp thật sự.
+            String topMessage = "FALLBACK_DEFAULT".equals(source)
+                    ? GeminiService.MSG_FALLBACK_UNCLEAR : null;
+
             StringBuilder json = new StringBuilder();
-            json.append("{\"success\": true, \"source\": \"").append(source).append("\", \"data\": [");
+            json.append("{\"success\": true, \"source\": \"").append(source).append("\"");
+            if (topMessage != null) {
+                json.append(", \"message\": \"").append(esc(topMessage)).append("\"");
+            }
+            json.append(", \"data\": [");
             for (int i = 0; i < suggestions.size(); i++) {
                 if (i > 0) {
                     json.append(",");

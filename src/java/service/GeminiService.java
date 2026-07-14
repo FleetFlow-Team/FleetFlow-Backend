@@ -57,6 +57,16 @@ public class GeminiService {
             + "cho dịch vụ thuê xe có lái, chưa có loại phương tiện bạn yêu cầu. Bạn thử mô tả lại "
             + "nhu cầu với các xe hiện có nhé.";
 
+    /**
+     * Dùng khi Gemini lỗi/hết quota VÀ fallback từ khóa cũng không khớp xe nào
+     * (source=FALLBACK_DEFAULT) — báo rõ cho khách đây chỉ là vài xe gợi ý
+     * mặc định để tham khảo, không phải kết quả đã khớp đúng nhu cầu.
+     */
+    public static final String MSG_FALLBACK_UNCLEAR
+            = "Hệ thống gợi ý AI đang tạm gián đoạn nên tôi chưa thể hiểu chính xác yêu cầu của bạn. "
+            + "Dưới đây là vài xe phổ biến để bạn tham khảo tạm, bạn có thể xem thêm ở danh sách xe "
+            + "đầy đủ hoặc mô tả lại nhu cầu rõ hơn nhé.";
+
     // Từ khóa nhận diện yêu cầu phi thực tế (ngoài phạm vi đội xe hiện có) — dùng cho fallback
     // khi Gemini lỗi/hết quota, không có ngữ cảnh để tự suy luận như prompt gửi Gemini.
     private static final String[] UNREALISTIC_KEYWORDS = {
@@ -334,6 +344,8 @@ public class GeminiService {
         }
 
         // Không có xe khớp từ khóa nào → trả về tối đa 5 xe Available đầu tiên để không bỏ trống kết quả
+        // source="FALLBACK_DEFAULT" (khác "FALLBACK" ở trên) để AIController biết đây là gợi ý
+        // mặc định (không khớp gì cả), cần kèm message giải thích rõ cho khách.
         if (result.isEmpty()) {
             for (int i = 0; i < Math.min(5, vehicles.size()); i++) {
                 VehicleAIData v = vehicles.get(i);
@@ -346,7 +358,7 @@ public class GeminiService {
                 m.put("seatCount", v.getSeatCount());
                 m.put("tags", v.getTags());
                 m.put("reason", "Gợi ý mặc định (AI tạm thời không khả dụng)");
-                m.put("source", "FALLBACK");
+                m.put("source", "FALLBACK_DEFAULT");
                 result.add(m);
             }
         }
@@ -363,9 +375,18 @@ public class GeminiService {
         return false;
     }
 
+    /**
+     * So khớp theo TỪ NGUYÊN VẸN (tokenize cả haystack lẫn keyword), không
+     * dùng String.contains() (substring) — lý do: substring khiến từ ngắn
+     * 2 ký tự trong tiếng Việt (ai, đi, và, có, là...) vô tình khớp bên trong
+     * brand/model xe (vd "ai" khớp ngay bên trong "Hyundai"), trả ra xe hoàn
+     * toàn không liên quan tới câu hỏi khách.
+     */
     private boolean containsAnyWord(String haystack, String keyword) {
-        for (String w : keyword.split("\\s+")) {
-            if (w.length() >= 2 && haystack.contains(w)) {
+        java.util.Set<String> haystackTokens = new java.util.HashSet<>(
+                java.util.Arrays.asList(haystack.split("[^\\p{L}0-9]+")));
+        for (String w : keyword.split("[^\\p{L}0-9]+")) {
+            if (w.length() >= 3 && haystackTokens.contains(w)) {
                 return true;
             }
         }
