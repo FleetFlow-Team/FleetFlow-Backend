@@ -3187,6 +3187,68 @@ output:
     "data": [],
     "message": "Hệ thống FleetFlow hiện chỉ phục vụ xe ô tô phổ thông (sedan/SUV/xe nhiều chỗ...) cho dịch vụ thuê xe có lái, chưa có loại phương tiện bạn yêu cầu. Bạn thử mô tả lại nhu cầu với các xe hiện có nhé."
 }
+Khach hoi khong dung topic khi AI không hat dong
+path POST http://localhost:8080/FleetFlow/api/v1/ai/chat
+input:
+{ "message": "tôi cần tìm xe siêu nhân gao " }
+{
+    "success": true,
+    "source": "FALLBACK_DEFAULT",
+    "message": "Hệ thống gợi ý AI đang tạm gián đoạn nên tôi chưa thể hiểu chính xác yêu cầu của bạn. Dưới đây là vài xe phổ biến để bạn tham khảo tạm, bạn có thể xem thêm ở danh sách xe đầy đủ hoặc mô tả lại nhu cầu rõ hơn nhé.",
+    "data": [
+        
+        {
+            "vehicleId": 1,
+            "brand": "Toyota",
+            "model": "Vios",
+            "vehicleType": "Sedan 4 chỗ",
+            "seatCount": 4,
+            "tags": "êm ái, cốp rộng",
+            "reason": "Gợi ý theo từ khóa (AI tạm thời không khả dụng)",
+            "source": "FALLBACK"
+        },
+        {
+            "vehicleId": 2,
+            "brand": "Honda",
+            "model": "City",
+            "vehicleType": "Sedan 4 chỗ",
+            "seatCount": 4,
+            "tags": "Ghế da, Ghế ngả, Hợp đường dài",
+            "reason": "Gợi ý theo từ khóa (AI tạm thời không khả dụng)",
+            "source": "FALLBACK"
+        },
+        {
+            "vehicleId": 3,
+            "brand": "Hyundai",
+            "model": "Accent",
+            "vehicleType": "Sedan 4 chỗ",
+            "seatCount": 4,
+            "tags": "Màn hình giải trí, Cửa sổ trời, Khoang rộng",
+            "reason": "Gợi ý theo từ khóa (AI tạm thời không khả dụng)",
+            "source": "FALLBACK"
+        },
+        {
+            "vehicleId": 4,
+            "brand": "Mazda",
+            "model": "Mazda3",
+            "vehicleType": "Sedan 4 chỗ",
+            "seatCount": 4,
+            "tags": "Wifi, Cảm biến lùi, Mới bảo dưỡng",
+            "reason": "Gợi ý theo từ khóa (AI tạm thời không khả dụng)",
+            "source": "FALLBACK"
+        },
+        {
+            "vehicleId": 5,
+            "brand": "Kia",
+            "model": "Soluto",
+            "vehicleType": "Sedan 4 chỗ",
+            "seatCount": 4,
+            "tags": "Đời mới, Ghế ngả, Bảo hiểm đầy đủ",
+            "reason": "Gợi ý theo từ khóa (AI tạm thời không khả dụng)",
+            "source": "FALLBACK"
+        }
+    ]
+}
 ---------------------------------------------------------------------------
 Dispatcher get notifications
 Header: Authorization: Bearer DISPATCHER_TOKEN
