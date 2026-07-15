@@ -52,6 +52,14 @@ public class DriverRatingController extends HttpServlet {
             int customerRating = body.get("customerRating").getAsInt();
             String comment = body.has("comment") ? body.get("comment").getAsString() : "";
 
+            if (dao.countDriverRating(bookingId) >= 1) {
+                res.put("success", false);
+                res.put("message", "Bạn đã đánh giá khách hàng của chuyến đi này rồi.");
+                response.setStatus(HttpServletResponse.SC_CONFLICT);
+                out.print(gson.toJson(res));
+                return;
+            }
+
             boolean isSuccess = dao.submitDriverRating(bookingId, customerRating, comment);
             if (isSuccess) {
                 res.put("success", true);
