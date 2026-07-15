@@ -3719,3 +3719,160 @@ Header: Authorization: Bearer <token Admin>
 
 - Toàn bộ Output ở trên là kết quả test thật (curl/Postman) trên Tomcat 9 + DB dev.
 
+--------------------------------------------------------------------------------------
+Danh sách các điểm đến cố định
+path:  http://localhost:8080/FleetFlow/api/v1/landmarks
+{
+    "data": [
+        {
+            "name": "Sân bay quốc tế Nội Bài",
+            "address": "Sân bay Nội Bài, Sóc Sơn, Hà Nội",
+            "lat": 21.221200,
+            "lng": 105.807200,
+            "category": "AIRPORT",
+            "createdBy": 0,
+            "createdAt": "Jul 15, 2026 8:12:20 AM",
+            "id": 4,
+            "isDeleted": false
+        },
+        {
+            "name": "Sân bay Tân Sơn Nhất",
+            "address": "Sân bay Tân Sơn Nhất, Tân Bình, TP.HCM",
+            "lat": 10.818000,
+            "lng": 106.652000,
+            "category": "AIRPORT",
+            "createdBy": 0,
+            "createdAt": "Jul 15, 2026 8:12:20 AM",
+            "id": 3,
+            "isDeleted": false
+        },
+        {
+            "name": "Sân bay Vũng Tàu",
+            "address": "Sân bay Vũng Tàu, Núi Lớn, TP. Vũng Tàu",
+            "lat": 10.376600,
+            "lng": 107.088800,
+            "category": "AIRPORT",
+            "createdBy": 0,
+            "createdAt": "Jul 15, 2026 8:12:20 AM",
+            "id": 5,
+            "isDeleted": false
+        },
+        {
+            "name": "Bến xe Miền Đông",
+            "address": "292 Đinh Bộ Lĩnh, Bình Thạnh, TP.HCM",
+            "lat": 10.814000,
+            "lng": 106.711000,
+            "category": "BUS_STATION",
+            "createdBy": 0,
+            "createdAt": "Jul 15, 2026 8:12:20 AM",
+            "id": 2,
+            "isDeleted": false
+        },
+        {
+            "name": "Bến xe Miền Tây",
+            "address": "395 Kinh Dương Vương, An Lạc, Bình Tân, TP.HCM",
+            "lat": 10.740200,
+            "lng": 106.617200,
+            "category": "BUS_STATION",
+            "createdBy": 0,
+            "createdAt": "Jul 15, 2026 8:12:20 AM",
+            "id": 1,
+            "isDeleted": false
+        }
+    ],
+    "success": true
+}
+Admin Landmark
+Get list
+path:  http://localhost:8080/FleetFlow/api/v1/admin/landmarks
+output:
+{
+    "data": [
+        {
+            "name": "Sân bay quốc tế Nội Bài",
+            "address": "Sân bay Nội Bài, Sóc Sơn, Hà Nội",
+            "lat": 21.221200,
+            "lng": 105.807200,
+            "category": "AIRPORT",
+            "createdBy": 0,
+            "createdAt": "Jul 15, 2026 8:12:20 AM",
+            "id": 4,
+            "isDeleted": false
+        },
+        {
+            "name": "Sân bay Tân Sơn Nhất",
+            "address": "Sân bay Tân Sơn Nhất, Tân Bình, TP.HCM",
+            "lat": 10.818000,
+            "lng": 106.652000,
+            "category": "AIRPORT",
+            "createdBy": 0,
+            "createdAt": "Jul 15, 2026 8:12:20 AM",
+            "id": 3,
+            "isDeleted": false
+        },
+        {
+            "name": "Sân bay Vũng Tàu",
+            "address": "Sân bay Vũng Tàu, Núi Lớn, TP. Vũng Tàu",
+            "lat": 10.376600,
+            "lng": 107.088800,
+            "category": "AIRPORT",
+            "createdBy": 0,
+            "createdAt": "Jul 15, 2026 8:12:20 AM",
+            "id": 5,
+            "isDeleted": false
+        },
+        {
+            "name": "Bến xe Miền Đông",
+            "address": "292 Đinh Bộ Lĩnh, Bình Thạnh, TP.HCM",
+            "lat": 10.814000,
+            "lng": 106.711000,
+            "category": "BUS_STATION",
+            "createdBy": 0,
+            "createdAt": "Jul 15, 2026 8:12:20 AM",
+            "id": 2,
+            "isDeleted": false
+        },
+        {
+            "name": "Bến xe Miền Tây",
+            "address": "395 Kinh Dương Vương, An Lạc, Bình Tân, TP.HCM",
+            "lat": 10.740200,
+            "lng": 106.617200,
+            "category": "BUS_STATION",
+            "createdBy": 0,
+            "createdAt": "Jul 15, 2026 8:12:20 AM",
+            "id": 1,
+            "isDeleted": false
+        }
+    ],
+    "success": true
+}
+Admin create new landmark
+path: http://localhost:8080/FleetFlow/api/v1/admin/landmarks
+input:
+{"name":"Bến xe An Sương","address":"Test","lat":10.85,"lng":106.62,"category":"BUS_STATION"}
+output:
+{
+    "landmarkId": 6,
+    "success": true
+}
+Admin soft delete landmark
+path:  http://localhost:8080/FleetFlow/api/v1/admin/landmarks/landmarkId
+output:
+{
+    "success": true
+}
+Admin restore landmark when softed delete
+path: http://localhost:8080/FleetFlow/api/v1/admin/landmarks/{id}/restore
+output:
+{
+    "success": true
+}
+Update landmark
+path: http://localhost:8080/FleetFlow/api/v1/admin/landmarks/{id}
+input:
+{"name":"Bến xe An Sương (đã sửa)"}
+output:
+{
+    "success": true
+}
+
