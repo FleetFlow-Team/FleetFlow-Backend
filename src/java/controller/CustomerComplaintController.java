@@ -22,6 +22,8 @@ public class CustomerComplaintController extends HttpServlet {
     private final ComplaintDAO dao = new ComplaintDAO();
     private final Gson gson = new Gson();
 
+    private static final int MAX_COMPLAINTS_PER_BOOKING = 2;
+
     private void prepare(HttpServletResponse response) {
         response.setContentType("application/json; charset=UTF-8");
         response.setCharacterEncoding("UTF-8");
@@ -111,6 +113,14 @@ public class CustomerComplaintController extends HttpServlet {
             }
             if ((type.equals("LOST_LUGGAGE") || type.equals("OTHER")) && f.content == null) {
                 fail(response, res, 400, "Cần nhập nội dung mô tả (content).");
+                return;
+            }
+
+            int existingCount = f.bookingId != null
+                    ? dao.countComplaintsByBooking(f.bookingId)
+                    : dao.countComplaintsByContact(f.phone, f.email);
+            if (existingCount >= MAX_COMPLAINTS_PER_BOOKING) {
+                fail(response, res, 429, "Bạn đã gửi khiếu nại đủ số lần cho phép (tối đa " + MAX_COMPLAINTS_PER_BOOKING + " lần).");
                 return;
             }
 

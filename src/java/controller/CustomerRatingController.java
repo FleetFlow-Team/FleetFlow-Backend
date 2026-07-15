@@ -28,6 +28,8 @@ public class CustomerRatingController extends HttpServlet {
 
     private final RatingDAO dao = new RatingDAO();
     private final Gson gson = new Gson();
+
+    private static final int MAX_RATINGS_PER_BOOKING = 2;
     /**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
      * methods.
@@ -57,6 +59,14 @@ public class CustomerRatingController extends HttpServlet {
                 res.put("success", false);
                 res.put("message", "Đã quá 7 ngày kể từ khi kết thúc chuyến đi. Bạn không thể đánh giá nữa.");
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                out.print(gson.toJson(res));
+                return;
+            }
+
+            if (dao.countCustomerRating(bookingId) >= MAX_RATINGS_PER_BOOKING) {
+                res.put("success", false);
+                res.put("message", "Bạn đã đánh giá chuyến đi này đủ số lần cho phép (tối đa " + MAX_RATINGS_PER_BOOKING + " lần).");
+                response.setStatus(HttpServletResponse.SC_CONFLICT);
                 out.print(gson.toJson(res));
                 return;
             }

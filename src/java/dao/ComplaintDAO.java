@@ -32,6 +32,32 @@ public class ComplaintDAO {
         public Integer customerId;
     }
 
+    public int countComplaintsByBooking(int bookingId) throws Exception {
+        String sql = "SELECT COUNT(*) FROM Complaint WHERE IsDeleted = 0 AND BookingID = ?";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
+    public int countComplaintsByContact(String phone, String email) throws Exception {
+        String sql = "SELECT COUNT(*) FROM Complaint WHERE IsDeleted = 0 "
+                + "AND ((? IS NOT NULL AND Phone = ?) OR (? IS NOT NULL AND Email = ?))";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, phone);
+            ps.setString(2, phone);
+            ps.setString(3, email);
+            ps.setString(4, email);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
     public int createComplaint(ComplaintForm f) throws Exception {
         String sql = "INSERT INTO Complaint "
                 + "(ComplaintType, Region, FullName, Email, Phone, Province, IssueType, "
