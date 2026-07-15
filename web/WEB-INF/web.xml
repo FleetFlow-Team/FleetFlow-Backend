@@ -89,6 +89,10 @@
         <servlet-class>controller.AdminDashboardController</servlet-class>
     </servlet>
     <servlet>
+        <servlet-name>AdminRatingController</servlet-name>
+        <servlet-class>controller.AdminRatingController</servlet-class>
+    </servlet>
+    <servlet>
         <servlet-name>AdminCustomerLockController</servlet-name>
         <servlet-class>controller.AdminCustomerLockController</servlet-class>
     </servlet>
@@ -259,6 +263,10 @@
     <servlet-mapping>
         <servlet-name>AdminDashboardController</servlet-name>
         <url-pattern>/AdminDashboardController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>AdminRatingController</servlet-name>
+        <url-pattern>/AdminRatingController</url-pattern>
     </servlet-mapping>
     <servlet-mapping>
         <servlet-name>AdminCustomerLockController</servlet-name>
