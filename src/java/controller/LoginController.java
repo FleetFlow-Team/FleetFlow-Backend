@@ -103,6 +103,18 @@ public class LoginController extends HttpServlet {
                         String refreshToken = JwtUtils.generateRefreshToken(
                                 loginUser.getEmail());
 
+                        // Lưu hash refreshToken xuống DB để có thể revoke sau này
+                        // (logout, đổi mật khẩu, khóa tài khoản...). Không throw ra
+                        // ngoài nếu lỗi DB — user vẫn login được bình thường, chỉ log lại.
+                        try {
+                            java.util.Date expiresAt = new java.util.Date(
+                                    System.currentTimeMillis() + JwtUtils.REFRESH_TOKEN_EXPIRATION);
+                            new dao.RefreshTokenDAO().saveToken(
+                                    (int) loginUser.getId(), refreshToken, expiresAt);
+                        } catch (Exception dbEx) {
+                            log("Warning: could not persist refreshToken: " + dbEx.getMessage());
+                        }
+
                         apiResponse.put("accessToken", accessToken);
                         apiResponse.put("refreshToken", refreshToken);
 
