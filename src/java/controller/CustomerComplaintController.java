@@ -22,6 +22,9 @@ public class CustomerComplaintController extends HttpServlet {
     private final ComplaintDAO dao = new ComplaintDAO();
     private final Gson gson = new Gson();
 
+    private static final int RATE_LIMIT_WINDOW_MINUTES = 5;
+    private static final int RATE_LIMIT_MAX_REQUESTS = 3;
+
     private void prepare(HttpServletResponse response) {
         response.setContentType("application/json; charset=UTF-8");
         response.setCharacterEncoding("UTF-8");
@@ -111,6 +114,12 @@ public class CustomerComplaintController extends HttpServlet {
             }
             if ((type.equals("LOST_LUGGAGE") || type.equals("OTHER")) && f.content == null) {
                 fail(response, res, 400, "Cần nhập nội dung mô tả (content).");
+                return;
+            }
+
+            int recentCount = dao.countRecentComplaints(f.phone, f.email, RATE_LIMIT_WINDOW_MINUTES);
+            if (recentCount >= RATE_LIMIT_MAX_REQUESTS) {
+                fail(response, res, 429, "Bạn đã gửi quá nhiều phản ánh trong thời gian ngắn. Vui lòng thử lại sau ít phút.");
                 return;
             }
 

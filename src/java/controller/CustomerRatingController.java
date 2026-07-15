@@ -61,6 +61,14 @@ public class CustomerRatingController extends HttpServlet {
                 return;
             }
 
+            if (dao.hasCustomerRating(bookingId)) {
+                res.put("success", false);
+                res.put("message", "Bạn đã đánh giá chuyến đi này rồi.");
+                response.setStatus(HttpServletResponse.SC_CONFLICT);
+                out.print(gson.toJson(res));
+                return;
+            }
+
             boolean isSuccess = dao.submitCustomerRating(bookingId, driverRating, carRating, comment);
             if (isSuccess) {
                 res.put("success", true);

@@ -32,6 +32,26 @@ public class RatingDAO {
         return true;
     }
 
+    public boolean hasCustomerRating(int bookingId) throws Exception {
+        String sql = "SELECT 1 FROM CustomerRating WHERE BookingID = ?";
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            try ( ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    public boolean hasDriverRating(int bookingId) throws Exception {
+        String sql = "SELECT 1 FROM DriverRating WHERE BookingID = ?";
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            try ( ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
     public boolean submitCustomerRating(int bookingId, int driverRating, int carRating, String comment) throws Exception {
         String sql = "INSERT INTO CustomerRating (BookingID, DriverRating, CarRating, Comment, CreatedAt) VALUES (?, ?, ?, ?, GETDATE())";
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
