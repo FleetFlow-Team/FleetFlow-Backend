@@ -168,6 +168,10 @@
         <servlet-name>AdminLandmarkController</servlet-name>
         <servlet-class>controller.AdminLandmarkController</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>RefreshTokenController</servlet-name>
+        <servlet-class>controller.RefreshTokenController</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -331,6 +335,10 @@
     <servlet-mapping>
         <servlet-name>AdminLandmarkController</servlet-name>
         <url-pattern>/AdminLandmarkController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>RefreshTokenController</servlet-name>
+        <url-pattern>/RefreshTokenController</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>30</session-timeout>

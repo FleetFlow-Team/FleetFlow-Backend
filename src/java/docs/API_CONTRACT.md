@@ -3876,3 +3876,29 @@ output:
     "success": true
 }
 
+Update flow login
+path: http://localhost:8080/FleetFlow/api/v1/auth/login
+output:
+{
+    "success": true,
+    "message": "Login thành công",
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ5ZW4xOEBleGFtcGxlLmNvbSIsInJvbGUiOiJEaXNwYXRjaGVyIiwiaWF0IjoxNzg0MDgxMDcyLCJleHAiOjE3ODQwODE5NzJ9.iortF7yLwE2333bjQ6ney0DFEgx0oXR0yn50mB8Y_vw",
+    "user": {
+        "accountId": 18,
+        "roleName": "Dispatcher",
+        "fullName": "Yến Trịnh",
+        "email": "yen18@example.com"
+    },
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ5ZW4xOEBleGFtcGxlLmNvbSIsImlhdCI6MTc4NDA4MTA3MiwiZXhwIjoxNzg0Njg1ODcyfQ.NSSsC_uiWgediMIzqez6FUmA_uVRvkZUoeDto82Zj-k"
+}
+refreshToken 
+path: http://localhost:8080/FleetFlow/api/v1/auth/refresh
+input:
+
+{"refreshToken":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ5ZW4xOEBleGFtcGxlLmNvbSIsImlhdCI6MTc4NDA4MTA3MiwiZXhwIjoxNzg0Njg1ODcyfQ.NSSsC_uiWgediMIzqez6FUmA_uVRvkZUoeDto82Zj-k"}
+output:
+{
+    "success": true,
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ5ZW4xOEBleGFtcGxlLmNvbSIsInJvbGUiOiJEaXNwYXRjaGVyIiwiaWF0IjoxNzg0MDgxMDkwLCJleHAiOjE3ODQwODE5OTB9.VxpG1Q1p2MzhUaSOD769azd_uY20dhHeb1No0-M89_s",
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ5ZW4xOEBleGFtcGxlLmNvbSIsImlhdCI6MTc4NDA4MTA5MCwiZXhwIjoxNzg0Njg1ODkwfQ.Ssqoa8QfIRFGjGz-N4ApryRlEgCbcHUla2QZLB7eqBU"
+}
