@@ -374,8 +374,7 @@ public class BookingWorkflowService {
     public void driverAccept(int broadcastId, int driverId, String ipAddress) throws Exception {
         int updated = broadcastDAO.respondToDispatch(broadcastId, driverId, "ACCEPTED");
         if (updated == 0) {
-            throw new IllegalArgumentException(
-                    "Không tìm thấy lệnh dispatch hợp lệ (đã được xử lý trước đó hoặc không thuộc driver này).");
+            throw new IllegalArgumentException(buildDispatchFailureMessage(broadcastId));
         }
 
         int bookingId = getBookingIdFromBroadcast(broadcastId);
@@ -459,8 +458,7 @@ public class BookingWorkflowService {
         // chỉ nằm trong AuditLog chứ không lưu vào DriverJobBroadcast
         int updated = broadcastDAO.respondToDispatch(broadcastId, driverId, "REJECTED", reason);
         if (updated == 0) {
-            throw new IllegalArgumentException(
-                    "Không tìm thấy lệnh dispatch hợp lệ (đã được xử lý trước đó hoặc không thuộc driver này).");
+            throw new IllegalArgumentException(buildDispatchFailureMessage(broadcastId));
         }
 
         int bookingId = getBookingIdFromBroadcast(broadcastId);
@@ -548,6 +546,24 @@ public class BookingWorkflowService {
             }
         }
         return ids;
+    }
+
+    /**
+     * Khi respondToDispatch trả về 0 dòng (broadcast không còn PENDING), xác định
+     * lý do cụ thể để thông báo cho tài xế: nếu khách đã hủy đơn thì hiện thông
+     * báo dễ hiểu thay vì message kỹ thuật chung chung.
+     */
+    private String buildDispatchFailureMessage(int broadcastId) {
+        try {
+            int bookingId = getBookingIdFromBroadcast(broadcastId);
+            Booking booking = bookingDAO.findById(bookingId);
+            if (booking != null && "CANCELLED".equalsIgnoreCase(booking.getStatus())) {
+                return "Khách hàng đã hủy đơn. Tài xế vui lòng nhận chuyến khác.";
+            }
+        } catch (Exception ignore) {
+            // Không xác định được lý do cụ thể — rơi về message mặc định bên dưới.
+        }
+        return "Không tìm thấy lệnh dispatch hợp lệ (đã được xử lý trước đó hoặc không thuộc driver này).";
     }
 
     private int getBookingIdFromBroadcast(int broadcastId) throws Exception {

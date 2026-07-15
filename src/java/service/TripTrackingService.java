@@ -155,6 +155,12 @@ public class TripTrackingService {
             throw new IllegalArgumentException("Không tìm thấy booking #" + bookingId);
         }
         if (!expectedStatus.equalsIgnoreCase(booking.getStatus())) {
+            // Trường hợp riêng: khách đã hủy đơn trong lúc tài xế thao tác — hiện thông
+            // báo dễ hiểu cho tài xế thay vì show trạng thái kỹ thuật (CONFIRMED/CANCELLED...).
+            if ("CANCELLED".equalsIgnoreCase(booking.getStatus())) {
+                throw new IllegalArgumentException(
+                        "Khách hàng đã hủy đơn. Tài xế vui lòng chờ xác nhận chuyến khác.");
+            }
             throw new IllegalArgumentException(errorMessage + ". Trạng thái hiện tại: " + booking.getStatus());
         }
         return booking;
