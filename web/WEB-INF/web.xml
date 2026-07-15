@@ -164,6 +164,18 @@
         <servlet-name>DispatcherDriverController</servlet-name>
         <servlet-class>controller.DispatcherDriverController</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>LandmarkController</servlet-name>
+        <servlet-class>LandmarkController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>AdminLandmarkController</servlet-name>
+        <servlet-class>controller.AdminLandmarkController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>RefreshTokenController</servlet-name>
+        <servlet-class>controller.RefreshTokenController</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -323,6 +335,18 @@
     <servlet-mapping>
         <servlet-name>DispatcherDriverController</servlet-name>
         <url-pattern>/DispatcherDriverController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>LandmarkController</servlet-name>
+        <url-pattern>/LandmarkController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>AdminLandmarkController</servlet-name>
+        <url-pattern>/AdminLandmarkController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>RefreshTokenController</servlet-name>
+        <url-pattern>/RefreshTokenController</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>30</session-timeout>
