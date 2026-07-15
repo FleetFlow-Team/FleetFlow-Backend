@@ -3719,3 +3719,193 @@ Header: Authorization: Bearer <token Admin>
 
 - Toàn bộ Output ở trên là kết quả test thật (curl/Postman) trên Tomcat 9 + DB dev.
 
+---
+
+## CUSTOMER
+
+Khách hàng đánh giá chuyến đi — giới hạn tối đa 2 lần/booking, lần 3 trở đi bị từ chối HTTP 409
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/ratings/customer
+
+- Input:
+
+```json
+{
+  "bookingId": 1,
+  "driverRating": 5,
+  "carRating": 5,
+  "comment": "Tài xế thân thiện, xe sạch sẽ"
+}
+```
+
+- Output (thành công):
+
+```json
+{
+    "success": true,
+    "message": "Cảm ơn bạn đã đánh giá chuyến đi!"
+}
+```
+
+- Output (đã đánh giá đủ 2 lần cho booking này) — HTTP 409:
+
+```json
+{
+    "success": false,
+    "message": "Bạn đã đánh giá chuyến đi này đủ số lần cho phép (tối đa 2 lần)."
+}
+```
+
+---
+
+Khách hàng gửi khiếu nại — giới hạn tối đa 2 lần/booking (nếu không có bookingId thì tính theo phone/email), vượt giới hạn trả HTTP 429
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/complaints
+
+- Input:
+
+```json
+{
+  "bookingId": 1,
+  "customerId": 1,
+  "type": "SERVICE_FEEDBACK",
+  "issueType": "Thái độ tài xế / Chất lượng dịch vụ",
+  "fullName": "Nguyễn Văn A",
+  "phone": "0900000010",
+  "email": "a@example.com"
+}
+```
+
+- Output (thành công):
+
+```json
+{
+    "success": true,
+    "complaintId": 12,
+    "message": "Đã gửi phản ánh thành công. Chúng tôi sẽ liên hệ sớm."
+}
+```
+
+- Output (đã gửi đủ 2 lần cho booking/liên hệ này) — HTTP 429:
+
+```json
+{
+    "success": false,
+    "message": "Bạn đã gửi khiếu nại đủ số lần cho phép (tối đa 2 lần)."
+}
+```
+
+---
+
+## DRIVER
+
+Tài xế đánh giá khách hàng — chỉ được đánh giá 1 lần/booking (không đổi so với trước, chỉ thêm chặn lần 2) — HTTP 409 nếu gọi lại
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/ratings/driver
+
+- Input:
+
+```json
+{
+  "bookingId": 1,
+  "customerRating": 5,
+  "comment": "Khách hàng lịch sự, đúng giờ"
+}
+```
+
+- Output (đã đánh giá booking này rồi):
+
+```json
+{
+    "success": false,
+    "message": "Bạn đã đánh giá khách hàng của chuyến đi này rồi."
+}
+```
+
+---
+
+## ADMIN
+
+Admin xem & quản lý chất lượng qua rating (API MỚI)
+
+- Path: GET http://localhost:8080/FleetFlow/api/v1/admin/ratings
+
+- Query params (tất cả optional): `type` = `customer` (mặc định, khách đánh giá tài xế/xe) hoặc `driver` (tài xế đánh giá khách); `driverId`, `customerId`, `bookingId`; `lowOnly=true` (chỉ lấy rating ≤ 2 sao); `fromDate`, `toDate` (yyyy-MM-dd)
+
+- Input:
+
+```
+Header: Authorization: Bearer <token Admin>
+```
+
+- Output (`type=customer`, mặc định):
+
+```json
+{
+    "success": true,
+    "type": "customer",
+    "driverQuality": [
+        {
+            "driverId": 4,
+            "driverName": "Tài xế Tuấn",
+            "avgDriverRating": 3.20,
+            "avgCarRating": 3.50,
+            "ratingCount": 5,
+            "lowRatingCount": 2
+        }
+    ],
+    "summary": {
+        "totalRatings": 42,
+        "averageDriverRating": 4.35,
+        "averageCarRating": 4.50,
+        "lowRatingCount": 3
+    },
+    "count": 42,
+    "data": [
+        {
+            "ratingId": 1,
+            "bookingId": 1,
+            "driverRating": 5,
+            "carRating": 5,
+            "comment": "Tài xế thân thiện, xe sạch sẽ",
+            "customerId": 1,
+            "customerName": "Nguyễn Văn A",
+            "driverId": 4,
+            "driverName": "Tài xế Tuấn",
+            "vehicleName": "Toyota Vios",
+            "licensePlate": "51B-101.11",
+            "createdAt": "2025-03-25 10:00:00.0"
+        }
+    ]
+}
+```
+
+- Output (`type=driver`): giữ nguyên `driverQuality` (luôn tính theo CustomerRating để xếp hạng tài xế), nhưng `summary`/`data` đổi sang thống kê DriverRating:
+
+```json
+{
+    "success": true,
+    "type": "driver",
+    "driverQuality": [ "...": "như trên" ],
+    "summary": {
+        "totalRatings": 30,
+        "averageCustomerRating": 4.70,
+        "lowRatingCount": 1
+    },
+    "count": 30,
+    "data": [
+        {
+            "ratingId": 1,
+            "bookingId": 1,
+            "customerRating": 5,
+            "comment": "Khách hàng lịch sự, đúng giờ",
+            "customerId": 1,
+            "customerName": "Nguyễn Văn A",
+            "driverId": 4,
+            "driverName": "Tài xế Tuấn",
+            "createdAt": "2025-03-25 10:00:00.0"
+        }
+    ]
+}
+```
+
