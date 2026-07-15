@@ -48,4 +48,15 @@ public class HolidayDAO {
             return ps.executeUpdate() > 0;
         }
     }
+
+    /** Kiểm tra 1 ngày (java.sql.Date) có phải Ngày Lễ do Admin cấu hình hay không — dùng để tính phụ phí. */
+    public boolean isHoliday(java.sql.Date date) throws Exception {
+        String sql = "SELECT 1 FROM Holiday WHERE HolidayDate = ?";
+        try (Connection conn = DbUtils.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDate(1, date);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
 }

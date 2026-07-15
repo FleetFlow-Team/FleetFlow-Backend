@@ -2,6 +2,7 @@ package service;
 
 import model.Booking;
 import dao.CustomerBookingDAO;
+import dao.HolidayDAO;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Timestamp;
@@ -14,6 +15,7 @@ import model.Voucher;
 public class CustomerBookingService {
 
     private final CustomerBookingDAO dao = new CustomerBookingDAO();
+    private final HolidayDAO holidayDao = new HolidayDAO();
 
     // ===================== BE-23: Lịch sử đặt xe =====================
     public List<BookingRow> getBookingHistory(int customerId) throws Exception {
@@ -224,13 +226,16 @@ public class CustomerBookingService {
 
         BigDecimal baseFare = base.add(fare);
 
-        // Check weekend surcharge
+        // Check weekend/holiday surcharge — Ngày Lễ do Admin cấu hình (bảng Holiday) được
+        // tính phụ phí như cuối tuần, dùng chung WeekendMultiplier của PricingRule.
         BigDecimal weekendSurcharge = BigDecimal.ZERO;
         if (departureTime != null && rule.getWeekendMultiplier() != null) {
             Calendar cal = Calendar.getInstance();
             cal.setTime(departureTime);
             int dow = cal.get(Calendar.DAY_OF_WEEK);
-            if (dow == Calendar.SATURDAY || dow == Calendar.SUNDAY) {
+            boolean isWeekend = dow == Calendar.SATURDAY || dow == Calendar.SUNDAY;
+            boolean isHoliday = holidayDao.isHoliday(new java.sql.Date(departureTime.getTime()));
+            if (isWeekend || isHoliday) {
                 weekendSurcharge = baseFare.multiply(
                         rule.getWeekendMultiplier().subtract(BigDecimal.ONE)
                 ).setScale(0, RoundingMode.HALF_UP);
