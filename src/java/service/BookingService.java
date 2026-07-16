@@ -109,12 +109,18 @@ public class BookingService {
             );
         }
 
-        // ---- BR-02: Validate thời gian đặt trước tối thiểu 120 phút ----
+        // ---- BR-02: Validate thời gian đặt trước tối thiểu — tách theo loại booking ----
+        // HOURLY: nhu cầu thường gấp (đi công việc đột xuất) -> giữ ngắn 120 phút.
+        // DAILY/DISTANCE (kể cả INNER_CITY/INTER_CITY, đi xa/dùng lâu, cần chuẩn bị xe +
+        // tài xế nhiều hơn) -> nâng lên 12 tiếng. Số này đồng thời phải ăn khớp với BR-12
+        // (ngưỡng hủy mất cọc ở CustomerBookingService) để khách còn có cửa hủy miễn phí
+        // thật sự sau khi đặt — xem thêm comment ở BR-12.
         long now = System.currentTimeMillis();
         long diffMinutes = (departureTime.getTime() - now) / (1000 * 60);
-        if (diffMinutes < 120) {
+        long minAdvanceMinutes = isHourly ? 120 : 720; // DAILY/DISTANCE/INNER_CITY/INTER_CITY = 12h
+        if (diffMinutes < minAdvanceMinutes) {
             throw new IllegalArgumentException(
-                    "Phải đặt xe trước giờ khởi hành tối thiểu 120 phút. "
+                    "Phải đặt xe trước giờ khởi hành tối thiểu " + minAdvanceMinutes + " phút. "
                     + "Hiện tại chỉ còn " + diffMinutes + " phút."
             );
         }
@@ -133,7 +139,13 @@ public class BookingService {
             }
         }
 
-        // ---- BR-22: Validate xe có AVAILABLE không ----
+        // ---- BR-22: Validate xe có AVAILABLE không (check sớm để báo lỗi nhanh cho UX) ----
+        // LƯU Ý: đây chỉ là check "báo trước", KHÔNG có khóa gì cả nên vẫn có khoảng hở
+        // race condition nếu 2 request đến gần như cùng lúc. Tuyến phòng thủ THẬT SỰ nằm
+        // trong BookingDAO.createBooking — nơi khóa dòng Vehicle (UPDLOCK, HOLDLOCK) rồi
+        // re-check lại trong cùng transaction trước khi insert. Check ở đây chỉ giúp trả
+        // lỗi nhanh, thân thiện hơn cho trường hợp thường (xe rõ ràng đang bận), không phải
+        // chỗ đảm bảo tính đúng đắn.
         boolean isAvailable = bookingDAO.isVehicleAvailable(vehicleId);
         if (!isAvailable) {
             throw new IllegalArgumentException(
@@ -160,7 +172,8 @@ public class BookingService {
             }
         }
 
-        // ---- BR-27: Validate không trùng lịch (dùng đúng khoảng [departureTime, effectiveEndTime]) ----
+        // ---- BR-27: Validate không trùng lịch (check sớm, xem lưu ý ở BR-22 phía trên —
+        // check thật/authoritative nằm trong BookingDAO.createBooking có khóa dòng Vehicle) ----
         boolean hasConflict = bookingDAO.isVehicleScheduleConflict(vehicleId, departureTime, effectiveEndTime);
         if (hasConflict) {
             throw new IllegalArgumentException(

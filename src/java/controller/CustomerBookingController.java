@@ -205,7 +205,7 @@ public class CustomerBookingController extends HttpServlet {
                     + "\"penaltyAmount\":" + result.penaltyAmount + ","
                     + "\"refundedAmount\":" + result.refundedAmount + ","
                     + "\"message\":" + (result.forfeitDeposit
-                            ? "\"Hủy booking thành công. Bạn đã mất tiền cọc do hủy quá muộn (trong vòng 12h trước giờ khởi hành).\""
+                            ? "\"Hủy booking thành công. Bạn đã mất tiền cọc do hủy quá muộn (trong vòng 6h trước giờ khởi hành).\""
                             : (result.refundedAmount.signum() > 0
                                     ? "\"Hủy booking thành công. Cọc đã được hoàn lại vào ví của bạn.\""
                                     : "\"Hủy booking thành công. Không mất phí do hủy đủ sớm.\""))

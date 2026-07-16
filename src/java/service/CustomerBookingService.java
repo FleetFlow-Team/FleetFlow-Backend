@@ -2,7 +2,6 @@ package service;
 
 import model.Booking;
 import dao.CustomerBookingDAO;
-import dao.HolidayDAO;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Timestamp;
@@ -15,7 +14,6 @@ import model.Voucher;
 public class CustomerBookingService {
 
     private final CustomerBookingDAO dao = new CustomerBookingDAO();
-    private final HolidayDAO holidayDao = new HolidayDAO();
 
     // ===================== BE-23: Lịch sử đặt xe =====================
     public List<BookingRow> getBookingHistory(int customerId) throws Exception {
@@ -25,8 +23,8 @@ public class CustomerBookingService {
     // ===================== BE-25: Cancel + tính phạt =====================
     // Logic phạt (đã đổi theo yêu cầu mới — KHÔNG còn ghi nợ vào ví,
     // KHÔNG còn tiered 30%/50% theo % tổng tiền):
-    // Hủy trước >= 12h  → FREE, không mất gì
-    // Hủy trước < 12h   → MẤT CỌC (mất nguyên 30% tiền cọc đã đặt)
+    // Hủy trước >= 6h  → FREE, không mất gì (đã hạ từ 12h xuống 6h, xem lý do ở BR-12 bên dưới)
+    // Hủy trước < 6h   → MẤT CỌC (mất nguyên 30% tiền cọc đã đặt)
     // CustomerWalletLedger từ giờ CHỈ dùng để Admin ghi nhận hoàn tiền (REFUND),
     // không còn dùng để ghi công nợ phạt nữa.
     // Booking đang COMPLETED/CANCELLED → không cho hủy
@@ -62,8 +60,18 @@ public class CustomerBookingService {
 
             if (minutesSinceCreated > 10) {
                 long hoursUntilDeparture = (departureTime.getTime() - now) / (1000 * 60 * 60);
-                // BR-12 (mới): >=12h trước giờ khởi hành → free; <12h → mất cọc
-                isForfeitDeposit = hoursUntilDeparture < 12;
+                // BR-12 (mới, hạ từ 12h xuống 6h): >=6h trước giờ khởi hành -> free; <6h -> mất cọc.
+                // Lý do hạ xuống 6h: BR-02 (đặt trước tối thiểu) vừa tách theo loại —
+                // DAILY/DISTANCE giờ bắt buộc đặt trước >=12h. Nếu BR-12 vẫn giữ 12h thì
+                // NGAY LÚC VỪA ĐẶT XONG khách đã rơi đúng vào ngưỡng mất cọc (12h đặt trước
+                // == 12h ngưỡng hủy free, sai 1 phút là dính), coi như không có cửa hủy free
+                // thật sự. Hạ xuống 6h tạo ra 1 khoảng đệm 6 tiếng (12h - 6h) sau khi đặt để
+                // khách còn có thời gian đổi ý miễn phí, trước khi rơi vào vùng mất cọc.
+                // LƯU Ý: HOURLY vẫn đặt trước tối thiểu chỉ 2h (BR-02), nên với HOURLY, ngưỡng
+                // 6h này vẫn LỚN HƠN thời gian đặt trước tối thiểu -> HOURLY vẫn gần như không
+                // có cửa hủy free thật (ngoài đúng 10 phút grace phía trên) — đây là vấn đề
+                // CÒN TỒN ĐỌNG, chưa xử lý trong lần sửa này, cần bàn riêng sau.
+                isForfeitDeposit = hoursUntilDeparture < 6;
             }
         }
 
@@ -104,37 +112,20 @@ public class CustomerBookingService {
         // Notify customer, driver, dispatcher khi hủy chuyến
         try {
             dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
-
-            // Message gửi cho CHÍNH khách hàng đó — xưng "Bạn" là đúng vì người
-            // nhận notification chính là người bị mất cọc.
-            String penaltyMsgForCustomer;
+            String penaltyMsg;
             if (isForfeitDeposit) {
-                penaltyMsgForCustomer = " Bạn bị mất cọc " + penaltyAmount.toPlainString() + "đ do hủy trong vòng 12h.";
+                penaltyMsg = " Bạn bị mất cọc " + penaltyAmount.toPlainString() + "đ do hủy trong vòng 6h.";
             } else if (refunded.compareTo(BigDecimal.ZERO) > 0) {
-                penaltyMsgForCustomer = " Không mất phí hủy. Cọc " + refunded.toPlainString() + "đ đã được hoàn lại vào ví của bạn.";
+                penaltyMsg = " Không mất phí hủy. Cọc " + refunded.toPlainString() + "đ đã được hoàn lại vào ví của bạn.";
             } else {
-                penaltyMsgForCustomer = " Không mất phí hủy.";
-            }
-
-            // Message gửi cho dispatcher/driver — KHÔNG được xưng "Bạn" vì người
-            // nhận không phải là khách hàng, phải nêu rõ tên khách bị mất cọc.
-            String customerName = extDAO.getCustomerNameByBookingId(bookingId);
-            String customerLabel = (customerName != null && !customerName.isEmpty())
-                    ? customerName : ("Khách hàng #" + customerId);
-            String penaltyMsgForStaff;
-            if (isForfeitDeposit) {
-                penaltyMsgForStaff = " " + customerLabel + " bị mất cọc " + penaltyAmount.toPlainString() + "đ do hủy trong vòng 12h.";
-            } else if (refunded.compareTo(BigDecimal.ZERO) > 0) {
-                penaltyMsgForStaff = " Không mất phí hủy. Cọc " + refunded.toPlainString() + "đ đã được hoàn lại vào ví của khách.";
-            } else {
-                penaltyMsgForStaff = " Không mất phí hủy.";
+                penaltyMsg = " Không mất phí hủy.";
             }
 
             int customerAccountId = extDAO.getCustomerAccountIdByBookingId(bookingId);
             if (customerAccountId != -1) {
                 extDAO.createNotification(customerAccountId, bookingId,
                         "Booking #" + bookingId + " đã bị hủy",
-                        "Chuyến đi của bạn đã được hủy thành công." + penaltyMsgForCustomer,
+                        "Chuyến đi của bạn đã được hủy thành công." + penaltyMsg,
                         "BOOKING_CANCELLED", "IN_APP");
             }
 
@@ -142,7 +133,7 @@ public class CustomerBookingService {
             if (driverAccountId != -1) {
                 extDAO.createNotification(driverAccountId, bookingId,
                         "Chuyến đi #" + bookingId + " bị hủy",
-                        customerLabel + " đã hủy booking #" + bookingId
+                        "Khách hàng đã hủy booking #" + bookingId
                                 + (reason != null && !reason.isEmpty() ? ". Lý do: " + reason : "."),
                         "BOOKING_CANCELLED", "IN_APP");
             }
@@ -151,7 +142,7 @@ public class CustomerBookingService {
             for (int dispId : dispatcherIds) {
                 extDAO.createNotification(dispId, bookingId,
                         "Booking #" + bookingId + " bị hủy bởi khách",
-                        customerLabel + " đã hủy booking #" + bookingId + "." + penaltyMsgForStaff,
+                        "Khách hàng đã hủy booking #" + bookingId + "." + penaltyMsg,
                         "BOOKING_CANCELLED", "IN_APP");
             }
         } catch (Exception e) {
@@ -226,16 +217,13 @@ public class CustomerBookingService {
 
         BigDecimal baseFare = base.add(fare);
 
-        // Check weekend/holiday surcharge — Ngày Lễ do Admin cấu hình (bảng Holiday) được
-        // tính phụ phí như cuối tuần, dùng chung WeekendMultiplier của PricingRule.
+        // Check weekend surcharge
         BigDecimal weekendSurcharge = BigDecimal.ZERO;
         if (departureTime != null && rule.getWeekendMultiplier() != null) {
             Calendar cal = Calendar.getInstance();
             cal.setTime(departureTime);
             int dow = cal.get(Calendar.DAY_OF_WEEK);
-            boolean isWeekend = dow == Calendar.SATURDAY || dow == Calendar.SUNDAY;
-            boolean isHoliday = holidayDao.isHoliday(new java.sql.Date(departureTime.getTime()));
-            if (isWeekend || isHoliday) {
+            if (dow == Calendar.SATURDAY || dow == Calendar.SUNDAY) {
                 weekendSurcharge = baseFare.multiply(
                         rule.getWeekendMultiplier().subtract(BigDecimal.ONE)
                 ).setScale(0, RoundingMode.HALF_UP);
