@@ -182,6 +182,27 @@ public class DriverTripController extends HttpServlet {
         String savedRelativePath = saveFile(photoPart, "trip_complete_", uploadPath);
         System.out.println("[DEBUG][DriverTripController] Đã ghi file thật tại = "
                 + uploadPath + File.separator + new File(savedRelativePath).getName());
+
+        // Copy thêm 1 bản qua thư mục deploy (build/web — nơi Tomcat thật sự
+        // serve HTTP theo docBase) để xem được ảnh ngay lúc dev, không cần
+        // Clean & Build lại. Bản chính thức (git track được) vẫn là bản trong
+        // web/ ở trên; bản copy này chỉ để xem live, không dùng để lưu DB.
+        try {
+            String deployUploadPath = utils.UploadUtils.resolveDeployWebDir(request) + File.separator
+                    + UPLOAD_DIR.replace("/", File.separator);
+            ensureFolderExists(deployUploadPath);
+            String fileName = new File(savedRelativePath).getName();
+            File sourceFile = new File(uploadPath, fileName);
+            File deployFile = new File(deployUploadPath, fileName);
+            java.nio.file.Files.copy(sourceFile.toPath(), deployFile.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            System.out.println("[DEBUG][DriverTripController] Đã copy thêm bản xem live tại = "
+                    + deployFile.getAbsolutePath());
+        } catch (Exception e) {
+            System.out.println("[DriverTripController] Không copy được ảnh sang thư mục deploy "
+                    + "(không ảnh hưởng việc lưu DB, chỉ là chưa xem live được ngay): " + e.getMessage());
+        }
+
         return savedRelativePath;
     }
 

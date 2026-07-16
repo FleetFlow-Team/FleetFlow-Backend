@@ -56,4 +56,26 @@ public class UploadUtils {
         }
         return request.getServletContext().getRealPath("");
     }
+
+    /**
+     * Trả về đường dẫn thư mục deploy thật (build/web — nơi Tomcat đang serve
+     * HTTP theo docBase, xem context.xml của server để confirm). Dùng để
+     * đồng thời copy 1 bản ảnh qua đây, cho phép xem ảnh qua HTTP ngay lập
+     * tức lúc dev mà không cần Clean & Build lại project.
+     */
+    public static String resolveDeployWebDir(HttpServletRequest request) {
+        try {
+            String classesPath = UploadUtils.class.getProtectionDomain()
+                    .getCodeSource().getLocation().getPath();
+            File classesDir = new File(classesPath);
+            File webInfDir = classesDir.getParentFile();   // WEB-INF
+            File buildWebDir = webInfDir.getParentFile();  // build/web — chính là deploy dir
+            if (buildWebDir.isDirectory()) {
+                return buildWebDir.getAbsolutePath();
+            }
+        } catch (Exception e) {
+            System.out.println("[UploadUtils] Không dò được thư mục deploy 'build/web': " + e.getMessage());
+        }
+        return request.getServletContext().getRealPath("");
+    }
 }
