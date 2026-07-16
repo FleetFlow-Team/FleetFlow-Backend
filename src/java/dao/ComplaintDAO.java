@@ -32,6 +32,17 @@ public class ComplaintDAO {
         public Integer customerId;
     }
 
+    public String getBookingStatus(int bookingId) throws Exception {
+        String sql = "SELECT Status FROM Booking WHERE BookingID = ?";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getString("Status") : null;
+            }
+        }
+    }
+
     public int countComplaintsByBooking(int bookingId) throws Exception {
         String sql = "SELECT COUNT(*) FROM Complaint WHERE IsDeleted = 0 AND BookingID = ?";
         try (Connection conn = DbUtils.getConnection();

@@ -22,7 +22,7 @@ public class CustomerComplaintController extends HttpServlet {
     private final ComplaintDAO dao = new ComplaintDAO();
     private final Gson gson = new Gson();
 
-    private static final int MAX_COMPLAINTS_PER_BOOKING = 2;
+    private static final int MAX_COMPLAINTS_PER_BOOKING = 1;
 
     private void prepare(HttpServletResponse response) {
         response.setContentType("application/json; charset=UTF-8");
@@ -107,6 +107,19 @@ public class CustomerComplaintController extends HttpServlet {
                 fail(response, res, 400, "Cần ít nhất số điện thoại hoặc email để liên hệ.");
                 return;
             }
+
+            // Chỉ khách hàng có booking đã hoàn thành (COMPLETED) mới được chọn
+            // LOST_LUGGAGE/SERVICE_FEEDBACK (liên quan trực tiếp đến 1 chuyến đi thật).
+            // Khách vãng lai hoặc booking chưa hoàn thành chỉ được gửi loại OTHER.
+            if (!type.equals("OTHER")) {
+                String bookingStatus = f.bookingId != null ? dao.getBookingStatus(f.bookingId) : null;
+                if (!"COMPLETED".equalsIgnoreCase(bookingStatus)) {
+                    fail(response, res, 400, "Chỉ khách hàng đã hoàn thành chuyến đi mới được gửi khiếu nại loại này. "
+                            + "Vui lòng chọn loại 'Khác' (OTHER) nếu chưa có chuyến đi hoàn thành liên quan.");
+                    return;
+                }
+            }
+
             if (type.equals("SERVICE_FEEDBACK") && f.issueType == null) {
                 fail(response, res, 400, "Góp ý thái độ phục vụ cần chọn vấn đề cần giải quyết (issueType).");
                 return;
