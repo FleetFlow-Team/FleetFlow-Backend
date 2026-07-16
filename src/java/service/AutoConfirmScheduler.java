@@ -31,9 +31,7 @@ public class AutoConfirmScheduler implements ServletContextListener {
 
     // Dispatcher có X giây để reject trước khi hệ thống tự confirm
     private static final int AUTO_CONFIRM_TIMEOUT_SECONDS = 10;
-
-    // Account ID đại diện cho hệ thống khi ghi AuditLog (tạo 1 account "SYSTEM" trong DB)
-    private static final int SYSTEM_ACCOUNT_ID = 1;
+    private static final Integer SYSTEM_ACCOUNT_ID = null;
 
     private static final String SYSTEM_IP = "system";
 

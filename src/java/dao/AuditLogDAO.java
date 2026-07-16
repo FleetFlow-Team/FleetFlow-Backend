@@ -15,8 +15,12 @@ public class AuditLogDAO {
     /**
      * Ghi 1 log hành động — dùng connection được truyền vào để gộp transaction
      * với hành động chính (ví dụ: update Booking.Status + ghi log cùng 1 transaction).
+     *
+     * accountId = null → hành động do HỆ THỐNG tự động thực hiện (scheduler, cron...),
+     * KHÔNG được gán bừa cho 1 AccountID có sẵn (dù là 1) vì ID đó có thể đang
+     * thuộc về 1 user thật, gây audit log ghi sai nhân sự.
      */
-    public void log(Connection conn, int accountId, String action, String entityName,
+    public void log(Connection conn, Integer accountId, String action, String entityName,
             String entityId, String oldValue, String newValue, String ipAddress) throws Exception {
 
         String sql = "INSERT INTO AuditLog "
@@ -24,7 +28,11 @@ public class AuditLogDAO {
                 + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, accountId);
+            if (accountId == null) {
+                ps.setNull(1, java.sql.Types.INTEGER);
+            } else {
+                ps.setInt(1, accountId);
+            }
             ps.setString(2, action);
             ps.setString(3, entityName);
             ps.setString(4, entityId);
@@ -39,7 +47,7 @@ public class AuditLogDAO {
     /**
      * Overload tự mở/đóng connection riêng — dùng khi không cần gộp transaction.
      */
-    public void log(int accountId, String action, String entityName,
+    public void log(Integer accountId, String action, String entityName,
             String entityId, String oldValue, String newValue, String ipAddress) throws Exception {
         try (Connection conn = DbUtils.getConnection()) {
             log(conn, accountId, action, entityName, entityId, oldValue, newValue, ipAddress);
@@ -109,9 +117,12 @@ public class AuditLogDAO {
                 while (rs.next()) {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("auditLogId", rs.getLong("AuditID"));
-                    m.put("accountId", rs.getInt("AccountID"));
+                    // getInt() trả về 0 khi cột NULL — dùng getObject để giữ đúng null,
+                    // tránh FE hiểu nhầm accountId=0 là 1 account có thật.
+                    Object accId = rs.getObject("AccountID");
+                    m.put("accountId", accId); // null khi hành động do hệ thống tự động thực hiện
                     m.put("email", rs.getString("Email"));
-                    m.put("fullName", rs.getString("FullName"));
+                    m.put("fullName", accId == null ? "Hệ thống" : rs.getString("FullName"));
                     m.put("action", rs.getString("Action"));
                     m.put("entityName", rs.getString("EntityName"));
                     m.put("entityId", rs.getString("EntityID"));

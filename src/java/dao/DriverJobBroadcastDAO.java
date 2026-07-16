@@ -18,7 +18,8 @@ public class DriverJobBroadcastDAO {
      * KHÔNG check unique BookingID — 1 booking có thể có nhiều broadcast
      * khi driver trước reject.
      */
-    public long dispatchDriver(Connection conn, int bookingId, int driverId, int dispatchedBy) throws SQLException {
+ 
+    public long dispatchDriver(Connection conn, int bookingId, int driverId, Integer dispatchedBy) throws SQLException {
         String sql = "INSERT INTO DriverJobBroadcast "
                 + "(BookingID, AssignedDriverID, DispatchedBy, Status, DispatchedAt) "
                 + "VALUES (?, ?, ?, 'PENDING', ?)";
@@ -26,7 +27,11 @@ public class DriverJobBroadcastDAO {
         try (PreparedStatement ps = conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, bookingId);
             ps.setInt(2, driverId);
-            ps.setInt(3, dispatchedBy);
+            if (dispatchedBy == null) {
+                ps.setNull(3, java.sql.Types.INTEGER);
+            } else {
+                ps.setInt(3, dispatchedBy);
+            }
             ps.setTimestamp(4, new Timestamp(System.currentTimeMillis()));
             ps.executeUpdate();
 
@@ -42,7 +47,7 @@ public class DriverJobBroadcastDAO {
     /**
      * Overload tự mở/đóng connection riêng — dùng khi gọi độc lập, không cần transaction ngoài.
      */
-    public long dispatchDriver(int bookingId, int driverId, int dispatchedBy) throws Exception {
+    public long dispatchDriver(int bookingId, int driverId, Integer dispatchedBy) throws Exception {
         try (Connection conn = DbUtils.getConnection()) {
             return dispatchDriver(conn, bookingId, driverId, dispatchedBy);
         }

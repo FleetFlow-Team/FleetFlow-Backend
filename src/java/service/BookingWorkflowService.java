@@ -42,7 +42,7 @@ public class BookingWorkflowService {
      * Dispatcher confirm booking — PENDING → APPROVED → tự động dispatch driver.
      * Đây là bước duy nhất dispatcher cần làm trong luồng bình thường.
      */
-    public void approveBooking(int bookingId, int dispatcherAccountId, String ipAddress) throws Exception {
+    public void approveBooking(int bookingId, Integer dispatcherAccountId, String ipAddress) throws Exception {
         Booking booking = requireBookingInStatus(bookingId, "PENDING",
                 "Chỉ confirm được booking đang ở trạng thái PENDING");
 
@@ -159,7 +159,7 @@ public class BookingWorkflowService {
      * Nếu không còn driver → chuyển booking sang UNASSIGNED để alert dispatcher.
      */
     public void autoDispatchNextDriver(int bookingId, List<Integer> excludeDriverIds,
-            int triggeredByAccountId, String ipAddress) throws Exception {
+            Integer triggeredByAccountId, String ipAddress) throws Exception {
 
         Booking booking = bookingDAO.findById(bookingId);
         if (booking == null) {
@@ -495,7 +495,11 @@ public class BookingWorkflowService {
         List<Integer> rejectedDriverIds = getRejectedDriverIds(bookingId);
 
         // Tự động dispatch driver tiếp theo
-        autoDispatchNextDriver(bookingId, rejectedDriverIds, driverId, ipAddress);
+        // Lưu ý: phải dùng driverAccountId (khóa Account) chứ không phải driverId
+        // (khóa Driver) — 2 giá trị này KHÔNG đảm bảo trùng nhau, truyền nhầm sẽ
+        // khiến AuditLog của AUTO_DISPATCH_DRIVER/AUTO_DISPATCH_FAILED bị gán cho
+        // sai tài khoản.
+        autoDispatchNextDriver(bookingId, rejectedDriverIds, driverAccountId, ipAddress);
     }
 
     /**
