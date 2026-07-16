@@ -17,6 +17,7 @@ public class Booking extends BaseEntity implements IAuditableEntity {
     private Timestamp updatedAt;
     private String customerName;
     private String customerPhone;
+    private String completionPhotoUrl; // Ảnh driver chụp xác nhận đã đến điểm trả khách (kèm bấm nút "complete")
 
     public Booking() {
     }
@@ -124,5 +125,13 @@ public class Booking extends BaseEntity implements IAuditableEntity {
 
     public void setNote(String note) {
         this.note = note;
+    }
+
+    public String getCompletionPhotoUrl() {
+        return completionPhotoUrl;
+    }
+
+    public void setCompletionPhotoUrl(String completionPhotoUrl) {
+        this.completionPhotoUrl = completionPhotoUrl;
     }
 }

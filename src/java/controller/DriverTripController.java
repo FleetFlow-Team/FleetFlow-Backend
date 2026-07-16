@@ -5,14 +5,18 @@ import com.google.gson.JsonParser;
 import dao.AccountDAO;
 import dao.DriverDAO;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.math.BigDecimal;
+import java.util.UUID;
 import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.Part;
 import model.Account;
 import service.TripTrackingService;
 import utils.JwtUtils;
@@ -23,13 +27,23 @@ import utils.JwtUtils;
  * POST /api/v1/driver/trips/{bookingId}/start        — bắt đầu chuyến đi
  * POST /api/v1/driver/trips/{bookingId}/gps           — đẩy tọa độ GPS (mỗi 30s)
  * POST /api/v1/driver/trips/{bookingId}/complete      — hoàn thành chuyến đi
+ *      (bắt buộc multipart/form-data, field ảnh "completionPhoto" — ảnh chụp
+ *      xác nhận đã đến điểm trả khách, đồng thời dùng làm bằng chứng thu tiền
+ *      mặt nếu khách trả CASH)
  *
  * Thanh toán CASH không còn action confirm-cash riêng — khách khai ý định trả
  * tiền mặt (qua FinalPaymentController) là tất toán ngay, tài xế có thể bấm
  * complete luôn sau khi nhận thông báo nhắc thu tiền.
  */
 @WebServlet("/api/v1/driver/trips/*")
+@MultipartConfig(
+    fileSizeThreshold = 1024 * 1024 * 2,  // 2MB
+    maxFileSize = 1024 * 1024 * 10,       // 10MB
+    maxRequestSize = 1024 * 1024 * 15     // 15MB
+)
 public class DriverTripController extends HttpServlet {
+
+    private static final String UPLOAD_DIR = "uploads/trip-completion";
 
     private final TripTrackingService tripService = new TripTrackingService();
     private final DriverDAO driverDAO = new DriverDAO();
@@ -103,11 +117,17 @@ public class DriverTripController extends HttpServlet {
                     break;
                 }
 
-                case "complete":
-                    tripService.completeTrip(bookingId, driverId, ip);
+                case "complete": {
+                    String photoUrl = savePhotoOrFail(request, response, out);
+                    if (photoUrl == null) {
+                        return; // lỗi đã ghi ra response bên trong savePhotoOrFail
+                    }
+                    tripService.completeTrip(bookingId, driverId, ip, photoUrl);
                     response.setStatus(200);
-                    out.print("{\"success\": true, \"message\": \"Đã hoàn thành chuyến đi\"}");
+                    out.print("{\"success\": true, \"message\": \"Đã hoàn thành chuyến đi\", \"completionPhotoUrl\": \""
+                            + esc(photoUrl) + "\"}");
                     break;
+                }
 
                 default:
                     response.setStatus(404);
@@ -124,6 +144,67 @@ public class DriverTripController extends HttpServlet {
     }
 
     // ===================== Helpers =====================
+
+    /**
+     * Đọc file ảnh "completionPhoto" từ multipart request, validate, lưu vào
+     * thư mục uploads/trip-completion trong chính source (getRealPath — cùng
+     * cơ chế với DriverController) để máy khác clone code vẫn thấy được ảnh.
+     * Trả về null và tự ghi lỗi ra response nếu request không hợp lệ.
+     */
+    private String savePhotoOrFail(HttpServletRequest request, HttpServletResponse response, PrintWriter out)
+            throws IOException, ServletException {
+        String contentType = request.getContentType();
+        if (contentType == null || !contentType.toLowerCase().startsWith("multipart/")) {
+            response.setStatus(400);
+            out.print("{\"error\": \"Phải gửi kèm ảnh xác nhận điểm đến để hoàn thành chuyến\"}");
+            return null;
+        }
+
+        Part photoPart;
+        try {
+            photoPart = request.getPart("completionPhoto");
+        } catch (Exception e) {
+            response.setStatus(400);
+            out.print("{\"error\": \"Không đọc được file ảnh: " + esc(e.getMessage()) + "\"}");
+            return null;
+        }
+
+        if (photoPart == null || photoPart.getSize() == 0) {
+            response.setStatus(400);
+            out.print("{\"error\": \"Thiếu file ảnh xác nhận điểm đến\"}");
+            return null;
+        }
+
+        String uploadPath = utils.UploadUtils.resolveSourceWebDir(request) + File.separator
+                + UPLOAD_DIR.replace("/", File.separator);
+        System.out.println("[DEBUG][DriverTripController] uploadPath = " + uploadPath);
+        ensureFolderExists(uploadPath);
+        String savedRelativePath = saveFile(photoPart, "trip_complete_", uploadPath);
+        System.out.println("[DEBUG][DriverTripController] Đã ghi file thật tại = "
+                + uploadPath + File.separator + new File(savedRelativePath).getName());
+        return savedRelativePath;
+    }
+
+    private void ensureFolderExists(String path) {
+        File folder = new File(path);
+        if (!folder.exists()) {
+            folder.mkdirs();
+        }
+    }
+
+    private String saveFile(Part part, String prefix, String uploadPath) throws IOException {
+        String contentDisp = part.getHeader("content-disposition");
+        String originalName = "photo.jpg";
+        for (String token : contentDisp.split(";")) {
+            if (token.trim().startsWith("filename")) {
+                originalName = token.substring(token.indexOf("=") + 2, token.length() - 1);
+                break;
+            }
+        }
+        String uniqueName = prefix + UUID.randomUUID().toString() + "_" + originalName;
+        part.write(uploadPath + File.separator + uniqueName);
+        return UPLOAD_DIR + "/" + uniqueName;
+    }
 
     private JsonObject readJsonBody(HttpServletRequest request) throws IOException {
         StringBuilder sb = new StringBuilder();
@@ -183,4 +264,4 @@ public class DriverTripController extends HttpServlet {
         }
         return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
-}   
+}

@@ -73,12 +73,20 @@ public class TripTrackingService {
 
     /**
      * Driver bấm hoàn thành chuyến đi — chỉ cho phép khi Booking đang ONGOING.
+     * Bắt buộc kèm ảnh xác nhận đã đến điểm trả khách (completionPhotoUrl) —
+     * ảnh này đồng thời dùng làm bằng chứng đã thu tiền mặt khách (nếu thanh
+     * toán CASH) nên không cần thêm cơ chế lưu ảnh riêng.
      */
-    public void completeTrip(int bookingId, int driverId, String ipAddress) throws Exception {
+    public void completeTrip(int bookingId, int driverId, String ipAddress, String completionPhotoUrl) throws Exception {
         Booking booking = requireBookingInStatus(bookingId, "ONGOING",
                 "Chỉ hoàn thành chuyến được khi booking đang ONGOING");
 
         requireDriverOwnsBooking(bookingId, driverId);
+
+        if (completionPhotoUrl == null || completionPhotoUrl.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Bắt buộc phải đính kèm ảnh xác nhận đã đến điểm trả khách để hoàn thành chuyến.");
+        }
 
         // Khách phải trả xong phần còn lại (70%) TRƯỚC khi tài xế được bấm hoàn thành —
         // khách có thể trả ngay trong lúc ONGOING (xem VNPayController/FinalPaymentController,
@@ -94,7 +102,9 @@ public class TripTrackingService {
             conn.setAutoCommit(false);
             try {
                 bookingDAO.updateStatus(conn, bookingId, "COMPLETED");
-                trackingDAO.insertEvent(conn, bookingId, "TRIP_COMPLETED", "Driver hoàn thành chuyến đi");
+                bookingDAO.updateCompletionPhoto(conn, bookingId, completionPhotoUrl);
+                trackingDAO.insertEvent(conn, bookingId, "TRIP_COMPLETED",
+                        "Driver hoàn thành chuyến đi, kèm ảnh xác nhận điểm đến: " + completionPhotoUrl);
                 int driverAccId2 = new dao.DriverDAO().getAccountIdByDriverId(driverId);
                 auditLogDAO.log(conn, driverAccId2, "COMPLETE_TRIP", "Booking",
                         String.valueOf(bookingId), booking.getStatus(), "COMPLETED", ipAddress);

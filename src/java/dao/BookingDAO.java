@@ -387,6 +387,20 @@ public class BookingDAO {
         }
     }
 
+    /**
+     * Lưu đường dẫn ảnh driver chụp xác nhận đã đến điểm trả khách khi bấm
+     * "complete trip". Dùng chung connection với updateStatus để cùng 1
+     * transaction (atomic: hoặc cả 2 cùng thành công, hoặc rollback cả 2).
+     */
+    public void updateCompletionPhoto(Connection conn, int bookingId, String photoUrl) throws SQLException {
+        String sql = "UPDATE Booking SET CompletionPhotoUrl = ? WHERE BookingID = ?";
+        try ( PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, photoUrl);
+            stmt.setInt(2, bookingId);
+            stmt.executeUpdate();
+        }
+    }
+
     // ===================== MAPPING =====================
     /**
      * Lấy danh sách Booking theo Status — dùng cho Dispatcher xem hàng chờ
@@ -397,7 +411,7 @@ public class BookingDAO {
     public List<java.util.Map<String, Object>> findByStatusWithDetail(String status) throws Exception {
         List<java.util.Map<String, Object>> list = new ArrayList<>();
         String sql = "SELECT b.BookingID, b.CustomerID, b.VehicleID, b.BookingType, "
-                + "b.TripDirection, b.Status, b.Note, b.CreatedAt, "
+                + "b.TripDirection, b.Status, b.Note, b.CreatedAt, b.CompletionPhotoUrl, "
                 + "bd.PickupAddress, bd.DropoffAddress, bd.DepartureTime, "
                 + "v.Brand, v.Model, v.LicensePlate, "
                 + "a.FullName AS CustomerName, a.PhoneNumber AS CustomerPhone "
@@ -425,6 +439,7 @@ public class BookingDAO {
                     row.put("tripDirection", rs.getString("TripDirection"));
                     row.put("status", rs.getString("Status"));
                     row.put("note", rs.getString("Note"));
+                    row.put("completionPhotoUrl", rs.getString("CompletionPhotoUrl"));
                     row.put("pickupAddress", rs.getString("PickupAddress"));
                     row.put("dropoffAddress", rs.getString("DropoffAddress"));
                     Timestamp dep = rs.getTimestamp("DepartureTime");
@@ -454,6 +469,11 @@ public class BookingDAO {
         b.setTripDirection(rs.getString("TripDirection"));
         b.setStatus(rs.getString("Status"));
         b.setCreatedAt(rs.getTimestamp("CreatedAt"));
+        try {
+            b.setCompletionPhotoUrl(rs.getString("CompletionPhotoUrl"));
+        } catch (SQLException ignore) {
+            // Cột có thể chưa tồn tại nếu DB chưa chạy migration mới nhất
+        }
         return b;
     }
 

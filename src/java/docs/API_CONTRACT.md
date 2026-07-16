@@ -4092,3 +4092,220 @@ output:
     "accessToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ5ZW4xOEBleGFtcGxlLmNvbSIsInJvbGUiOiJEaXNwYXRjaGVyIiwiaWF0IjoxNzg0MDgxMDkwLCJleHAiOjE3ODQwODE5OTB9.VxpG1Q1p2MzhUaSOD769azd_uY20dhHeb1No0-M89_s",
     "refreshToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ5ZW4xOEBleGFtcGxlLmNvbSIsImlhdCI6MTc4NDA4MTA5MCwiZXhwIjoxNzg0Njg1ODkwfQ.Ssqoa8QfIRFGjGz-N4ApryRlEgCbcHUla2QZLB7eqBU"
 }
+Complete chuyen kem image
+path: http://localhost:8080/FleetFlow/api/v1/driver/trips/48/complete
+input:
+input sai dinh dang
+output: error 400
+{
+    "error": "Phải gửi multipart/form-data kèm file ảnh field để hoàn thành chuyến"
+}
+Complete chuyen kem image
+path: http://localhost:8080/FleetFlow/api/v1/driver/trips/48/complete
+input:
+input thieu field image
+output: error 400
+{
+    "error": "Thiếu file ảnh xác nhận điểm đến "
+}
+Complete chuyen kem image
+path: http://localhost:8080/FleetFlow/api/v1/driver/trips/48/complete
+input:
+completionPhoto : urlpath
+output: 
+{
+    "success": true,
+    "message": "Đã hoàn thành chuyến đi",
+    "completionPhotoUrl": "uploads/trip-completion/trip_complete_265c8913-d44f-42e4-816a-c23247df5e48_Untitled3.png"
+}
+Dispatcher coi booking co kem anh endtrip
+path: http://localhost:8080/FleetFlow/api/v1/dispatcher/bookings?status=COMPLETED
+Header: Authorization: Bearer <token Dispatcher>
+
+Img luu truc tiep trong src , dispatcher la actor lay duoc anh
+{
+    "success": true,
+    "count": 10,
+    "data": [
+        {
+            "dropoffAddress": "Sân bay Tân Sơn Nhất, TP.HCM",
+            "departureTime": "2025-03-11 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": "Đơn đặt xe số 1",
+            "vehicleName": "Toyota Vios",
+            "bookingId": 1,
+            "customerName": "An Nguyễn",
+            "createdAt": "2025-03-11 07:30:00.0",
+            "customerPhone": "0900000001",
+            "licensePlate": "51B-101.11",
+            "pickupAddress": "123 Lê Lợi, Q.1, TP.HCM",
+            "bookingType": "DISTANCE",
+            "customerId": 1,
+            "completionPhotoUrl": null,
+            "vehicleId": 1,
+            "status": "COMPLETED"
+        },
+        {
+            "dropoffAddress": "TP. Đà Lạt, Lâm Đồng",
+            "departureTime": "2025-03-15 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": "Đơn đặt xe số 5",
+            "vehicleName": "Kia Soluto",
+            "bookingId": 5,
+            "customerName": "Giang Hoàng",
+            "createdAt": "2025-03-15 07:30:00.0",
+            "customerPhone": "0900000005",
+            "licensePlate": "51F-105.15",
+            "pickupAddress": "Ga Sài Gòn, Q.3, TP.HCM",
+            "bookingType": "HOURLY",
+            "customerId": 5,
+            "completionPhotoUrl": null,
+            "vehicleId": 5,
+            "status": "COMPLETED"
+        },
+        {
+            "dropoffAddress": "Sân bay Tân Sơn Nhất, TP.HCM",
+            "departureTime": "2025-03-16 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": "Đơn đặt xe số 6",
+            "vehicleName": "Toyota Vios",
+            "bookingId": 6,
+            "customerName": "Hà Vũ",
+            "createdAt": "2025-03-16 07:30:00.0",
+            "customerPhone": "0900000006",
+            "licensePlate": "51A-106.16",
+            "pickupAddress": "123 Lê Lợi, Q.1, TP.HCM",
+            "bookingType": "DAILY",
+            "customerId": 6,
+            "completionPhotoUrl": null,
+            "vehicleId": 6,
+            "status": "COMPLETED"
+        },
+        {
+            "dropoffAddress": "TP. Đà Lạt, Lâm Đồng",
+            "departureTime": "2025-03-20 08:00:00.0",
+            "tripDirection": "ROUND_TRIP",
+            "note": "Đơn đặt xe số 10",
+            "vehicleName": "Kia Soluto",
+            "bookingId": 10,
+            "customerName": "Nga Phan",
+            "createdAt": "2025-03-20 07:30:00.0",
+            "customerPhone": "0900000010",
+            "licensePlate": "51E-110.20",
+            "pickupAddress": "Ga Sài Gòn, Q.3, TP.HCM",
+            "bookingType": "DISTANCE",
+            "customerId": 10,
+            "completionPhotoUrl": null,
+            "vehicleId": 10,
+            "status": "COMPLETED"
+        },
+        {
+            "dropoffAddress": "Sân bay Tân Sơn Nhất, TP.HCM",
+            "departureTime": "2025-03-21 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": "Đơn đặt xe số 11",
+            "vehicleName": "Toyota Vios",
+            "bookingId": 11,
+            "customerName": "Phúc Võ",
+            "createdAt": "2025-03-21 07:30:00.0",
+            "customerPhone": "0900000011",
+            "licensePlate": "51B-101.11",
+            "pickupAddress": "123 Lê Lợi, Q.1, TP.HCM",
+            "bookingType": "HOURLY",
+            "customerId": 11,
+            "completionPhotoUrl": null,
+            "vehicleId": 1,
+            "status": "COMPLETED"
+        },
+        {
+            "dropoffAddress": "TP. Đà Lạt, Lâm Đồng",
+            "departureTime": "2025-03-25 08:00:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": "Đơn đặt xe số 15",
+            "vehicleName": "Kia Soluto",
+            "bookingId": 15,
+            "customerName": "Cường Lê",
+            "createdAt": "2025-03-25 07:30:00.0",
+            "customerPhone": "0900000003",
+            "licensePlate": "51F-105.15",
+            "pickupAddress": "Ga Sài Gòn, Q.3, TP.HCM",
+            "bookingType": "DAILY",
+            "customerId": 3,
+            "completionPhotoUrl": null,
+            "vehicleId": 5,
+            "status": "COMPLETED"
+        },
+        {
+            "dropoffAddress": null,
+            "departureTime": "2026-07-11 12:25:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": null,
+            "vehicleName": "Hyundai Accent",
+            "bookingId": 18,
+            "customerName": "Mai Lý",
+            "createdAt": "2026-07-01 12:26:18.558",
+            "customerPhone": "0900000012",
+            "licensePlate": "51D-103.13",
+            "pickupAddress": "bhjnkb hbjnkml",
+            "bookingType": "HOURLY",
+            "customerId": 12,
+            "completionPhotoUrl": null,
+            "vehicleId": 3,
+            "status": "COMPLETED"
+        },
+        {
+            "dropoffAddress": null,
+            "departureTime": "2026-07-26 23:27:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": null,
+            "vehicleName": "Ford Tourneo",
+            "bookingId": 41,
+            "customerName": "An Nguyễn",
+            "createdAt": "2026-07-10 18:22:43.37",
+            "customerPhone": "0900000001",
+            "licensePlate": "51B-131.41",
+            "pickupAddress": "45 Lý Thường Kiệt, Phường 7, Quận 10",
+            "bookingType": "HOURLY",
+            "customerId": 1,
+            "completionPhotoUrl": null,
+            "vehicleId": 31,
+            "status": "COMPLETED"
+        },
+        {
+            "dropoffAddress": null,
+            "departureTime": "2026-07-31 05:04:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": null,
+            "vehicleName": "Mazda Mazda3",
+            "bookingId": 42,
+            "customerName": "An Nguyễn",
+            "createdAt": "2026-07-12 00:00:38.63",
+            "customerPhone": "0900000001",
+            "licensePlate": "51D-109.19",
+            "pickupAddress": "45 Lý Thường Kiệt, Phường 7, Quận 10",
+            "bookingType": "DAILY",
+            "customerId": 1,
+            "completionPhotoUrl": null,
+            "vehicleId": 9,
+            "status": "COMPLETED"
+        },
+        {
+            "dropoffAddress": null,
+            "departureTime": "2026-07-18 17:15:00.0",
+            "tripDirection": "ONE_WAY",
+            "note": null,
+            "vehicleName": "Kia Soluto",
+            "bookingId": 49,
+            "customerName": "An Nguyễn",
+            "createdAt": "2026-07-16 17:15:31.047",
+            "customerPhone": "0900000001",
+            "licensePlate": "51E-110.20",
+            "pickupAddress": "45 Lý Thường Kiệt, Phường 7, Quận 10",
+            "bookingType": "HOURLY",
+            "customerId": 1,
+            "completionPhotoUrl": "uploads/trip-completion/trip_complete_265c8913-d44f-42e4-816a-c23247df5e48_Untitled3.png",
+            "vehicleId": 10,
+            "status": "COMPLETED"
+        }
+    ]
+}
