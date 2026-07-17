@@ -26,6 +26,8 @@ public class CustomerLockDAO {
         public String status;
 
         public BigDecimal debt;
+
+        public BigDecimal totalPaid;
     }
     /**
      * Ngưỡng nợ để tự động cảnh báo (không tự khóa) — đúng theo quyết định: nợ
@@ -130,13 +132,11 @@ public class CustomerLockDAO {
                 + "a.Email, "
                 + "a.PhoneNumber, "
                 + "a.Status, "
-                + "ISNULL(SUM(cwl.Amount),0) AS Debt "
+                + "ISNULL((SELECT SUM(cwl.Amount) FROM CustomerWallet cwl WHERE cwl.CustomerID = c.CustomerID), 0) AS Debt, "
+                + "ISNULL((SELECT SUM(p.Amount) FROM Payment p JOIN Booking bk ON bk.BookingID = p.BookingID "
+                + "        WHERE bk.CustomerID = c.CustomerID AND p.Status = 'COMPLETED' AND p.PaymentType IN ('DEPOSIT','FINAL')), 0) AS TotalPaid "
                 + "FROM Customer c "
-                + "JOIN Account a ON c.AccountID = a.AccountID "
-                + "LEFT JOIN CustomerWallet cwl "
-                + "ON c.CustomerID = cwl.CustomerID "
-                + "GROUP BY "
-                + "c.CustomerID, c.AccountID, a.FullName, a.Email, a.PhoneNumber, a.Status";
+                + "JOIN Account a ON c.AccountID = a.AccountID";
 
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql);  ResultSet rs = ps.executeQuery()) {
 
@@ -153,6 +153,8 @@ public class CustomerLockDAO {
 
                 c.debt = rs.getBigDecimal("Debt")
                         .abs();
+
+                c.totalPaid = rs.getBigDecimal("TotalPaid");
 
                 list.add(c);
             }
