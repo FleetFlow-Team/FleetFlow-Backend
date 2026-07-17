@@ -3815,6 +3815,42 @@ Khách hàng gửi khiếu nại loại LOST_LUGGAGE/SERVICE_FEEDBACK khi chưa 
 }
 ---
 
+Khách hàng xem lịch sử ví (giờ lấy từ Payment thật, không còn đọc bảng CustomerWallet)
+
+- Path: GET http://localhost:8080/FleetFlow/api/v1/customer/wallet
+
+- Input:
+
+```
+Header: Authorization: Bearer <token Customer>
+```
+
+- Output:
+
+```json
+{
+    "success": true,
+    "data": [
+        {
+            "TransactionID": 15,
+            "TransactionType": "PAYMENT",
+            "Amount": 78000.00,
+            "BookingID": 1,
+            "CreatedAt": "2026-07-17 10:00:00.0"
+        },
+        {
+            "TransactionID": 9,
+            "TransactionType": "REFUND",
+            "Amount": 78000.00,
+            "BookingID": 2,
+            "CreatedAt": "2026-07-10 09:00:00.0"
+        }
+    ]
+}
+```
+
+---
+
 ## DRIVER
 
 Tài xế đánh giá khách hàng — chỉ được đánh giá 1 lần/booking (không đổi so với trước, chỉ thêm chặn lần 2) — HTTP 409 nếu gọi lại
@@ -3926,6 +3962,36 @@ Header: Authorization: Bearer <token Admin>
     ]
 }
 ```
+
+---
+
+Admin xem danh sách khách hàng — bổ sung field totalPaid (tổng tiền đã thanh toán qua Payment, tách riêng khỏi debt)
+
+- Path: GET http://localhost:8080/FleetFlow/api/v1/admin/customers
+
+- Input:
+
+```
+Header: Authorization: Bearer <token Admin>
+```
+
+- Output:
+
+```json
+[
+    {
+        "customerId": 1,
+        "fullName": "Nguyễn Văn A",
+        "email": "a@example.com",
+        "phoneNumber": "0900000010",
+        "status": "ACTIVE",
+        "debt": 0,
+        "totalPaid": 338000.00
+    }
+]
+```
+
+---
 
 --------------------------------------------------------------------------------------
 Danh sách các điểm đến cố định

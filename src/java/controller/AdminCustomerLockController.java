@@ -170,6 +170,9 @@ public class AdminCustomerLockController extends HttpServlet {
                         .append("\",")
                         .append("\"debt\":")
                         .append(c.debt)
+                        .append(",")
+                        .append("\"totalPaid\":")
+                        .append(c.totalPaid)
                         .append("}");
 
                 if (i < list.size() - 1) {

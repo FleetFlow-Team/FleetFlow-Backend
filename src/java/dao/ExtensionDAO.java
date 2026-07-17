@@ -205,9 +205,20 @@ public class ExtensionDAO {
         return null;
     }
 
+    /**
+     * Lịch sử giao dịch thật của khách hàng (cọc, thanh toán cuối chuyến, hoàn tiền),
+     * lấy từ bảng Payment — KHÔNG dùng CustomerWallet (bảng đó chỉ dùng để tính nợ,
+     * xem CustomerLockDAO). Alias cột trùng tên với format cũ (TransactionID,
+     * TransactionType, Amount, BookingID, CreatedAt) để không phải sửa FE.
+     */
     public List<Map<String, Object>> getWalletHistory(int customerId) throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
-        String sql = "SELECT * FROM CustomerWallet WHERE CustomerID = ? ORDER BY CreatedAt DESC";
+        String sql = "SELECT p.PaymentID AS TransactionID, "
+                + "CASE WHEN p.PaymentType = 'REFUND' THEN 'REFUND' ELSE 'PAYMENT' END AS TransactionType, "
+                + "p.Amount AS Amount, p.BookingID AS BookingID, p.PaidAt AS CreatedAt "
+                + "FROM Payment p JOIN Booking bk ON bk.BookingID = p.BookingID "
+                + "WHERE bk.CustomerID = ? AND p.Status = 'COMPLETED' "
+                + "ORDER BY p.PaidAt DESC";
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, customerId);
             ResultSet rs = ps.executeQuery();
