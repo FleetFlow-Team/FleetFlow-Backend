@@ -59,6 +59,7 @@ public class AdminDashboardController extends HttpServlet {
             BigDecimal revenue = dashboardDAO.getTotalRevenue(fromDate, toDate);
             int driverRejectCount = dashboardDAO.getDriverRejectCount(fromDate, toDate);
             Map<String, Integer> customerStats = dashboardDAO.getCustomerStats();
+            List<Map<String, Object>> revenueByDay = dashboardDAO.getRevenueByDay(30);
 
             json.append("\"summary\": {");
             json.append("\"byStatus\": {");
@@ -72,7 +73,13 @@ public class AdminDashboardController extends HttpServlet {
             json.append("\"totalRevenue\": ").append(revenue).append(", ");
             json.append("\"driverRejectCount\": ").append(driverRejectCount).append(", ");
             json.append("\"totalCustomers\": ").append(customerStats.get("totalCustomers")).append(", ");
-            json.append("\"newCustomersToday\": ").append(customerStats.get("newCustomersToday"));
+            json.append("\"newCustomersToday\": ").append(customerStats.get("newCustomersToday")).append(", ");
+            json.append("\"revenueByDay\": [");
+            for (int j = 0; j < revenueByDay.size(); j++) {
+                json.append(mapToJson(revenueByDay.get(j)));
+                if (j < revenueByDay.size() - 1) json.append(",");
+            }
+            json.append("]");
             json.append("}");
 
             // Nếu có ?status=, kèm thêm danh sách chi tiết của đúng status đó

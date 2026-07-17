@@ -3993,6 +3993,37 @@ Header: Authorization: Bearer <token Admin>
 
 ---
 
+Admin dashboard — bổ sung field summary.revenueByDay (doanh thu 30 ngày gần nhất, zero-fill ngày không có giao dịch, dùng vẽ biểu đồ)
+
+- Path: GET http://localhost:8080/FleetFlow/api/v1/admin/bookings
+
+- Input:
+
+```
+Header: Authorization: Bearer <token Admin>
+```
+
+- Output:
+
+```json
+{
+    "success": true,
+    "summary": {
+        "byStatus": { "PENDING": 0, "COMPLETED": 3, "CANCELLED": 1 },
+        "totalRevenue": 1720000.00,
+        "driverRejectCount": 0,
+        "totalCustomers": 5,
+        "newCustomersToday": 0,
+        "revenueByDay": [
+            { "date": "2026-06-18", "revenue": 0 },
+            { "date": "2026-06-19", "revenue": 338000.00 }
+        ]
+    }
+}
+```
+
+---
+
 --------------------------------------------------------------------------------------
 Danh sách các điểm đến cố định
 path:  http://localhost:8080/FleetFlow/api/v1/landmarks
