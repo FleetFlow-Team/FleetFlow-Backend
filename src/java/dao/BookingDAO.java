@@ -469,12 +469,16 @@ public class BookingDAO {
                 + "b.TripDirection, b.Status, b.Note, b.CreatedAt, b.CompletionPhotoUrl, "
                 + "bd.PickupAddress, bd.DropoffAddress, bd.DepartureTime, "
                 + "v.Brand, v.Model, v.LicensePlate, "
-                + "a.FullName AS CustomerName, a.PhoneNumber AS CustomerPhone "
+                + "a.FullName AS CustomerName, a.PhoneNumber AS CustomerPhone, "
+                + "drv.DriverID AS DriverID, da.FullName AS DriverName, da.PhoneNumber AS DriverPhone "
                 + "FROM Booking b "
                 + "LEFT JOIN BookingDetail bd ON bd.BookingID = b.BookingID "
                 + "LEFT JOIN Vehicle v ON v.VehicleID = b.VehicleID "
                 + "LEFT JOIN Customer c ON c.CustomerID = b.CustomerID "
                 + "LEFT JOIN Account a ON a.AccountID = c.AccountID "
+                + "LEFT JOIN DriverJobBroadcast djb ON djb.BookingID = b.BookingID AND djb.Status = 'ACCEPTED' "
+                + "LEFT JOIN Driver drv ON drv.DriverID = djb.AssignedDriverID "
+                + "LEFT JOIN Account da ON da.AccountID = drv.AccountID "
                 + "WHERE b.Status = ? "
                 + "ORDER BY b.CreatedAt ASC";
 
@@ -500,6 +504,11 @@ public class BookingDAO {
                     Timestamp dep = rs.getTimestamp("DepartureTime");
                     row.put("departureTime", dep != null ? dep.toString() : null);
                     row.put("createdAt", rs.getTimestamp("CreatedAt").toString());
+                    // Nullable: booking chưa có driver ACCEPTED nào (vd PENDING) -> getObject
+                    // để tránh getInt() trả về 0 gây hiểu nhầm "driverId = 0" ở FE.
+                    row.put("driverId", rs.getObject("DriverID"));
+                    row.put("driverName", rs.getString("DriverName"));
+                    row.put("driverPhone", rs.getString("DriverPhone"));
                     list.add(row);
                 }
             }

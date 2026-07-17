@@ -4420,6 +4420,9 @@ Img luu truc tiep trong src , dispatcher la actor lay duoc anh
             "customerId": 1,
             "completionPhotoUrl": "uploads/trip-completion/trip_complete_265c8913-d44f-42e4-816a-c23247df5e48_Untitled3.png",
             "vehicleId": 10,
+            "driverName": "Vu Th? Phu?ng",
+            "driverPhone": "0900000026",
+            "vehicleId": 1,
             "status": "COMPLETED"
         }
     ]
