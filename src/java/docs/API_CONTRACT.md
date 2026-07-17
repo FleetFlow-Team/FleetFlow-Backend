@@ -4504,3 +4504,40 @@ Check db notification
 189	18	49	Chuyến #49 đang quá giờ	Vehicle #10 đang chạy quá ReturnTime.	OVERTIME_STARTED
 188	29	49	Chuyến đang kéo dài	Chuyến #49 đã quá ReturnTime. Nhắc khách nếu cần gia hạn chính thức.	OVERTIME_STARTED
 187	1	49	Chuyến đang bị tính phí quá giờ	Chuyến #49 đã quá giờ trả xe, đang được tính phí theo giờ.	OVERTIME_STARTED
+---------------------------
+Daily
+path: http://localhost:8080/FleetFlow/api/v1/bookings
+input:
+
+{
+  "customerId": 3, "vehicleId": 17, "bookingType": "DAILY", "tripDirection": "ONE_WAY",
+  "pickupAddress": "123 Nguyễn Huệ", "departureTime": "2026-07-18T14:28:08",
+  "durationDays": 2
+}
+{
+    "success": true,
+    "bookingId": 50,
+    "status": "PENDING",
+    "message": "Đặt xe thành công, chờ Dispatcher duyệt"
+}
+customer gia han
+path: http://localhost:8080/FleetFlow/api/v1/bookings/50/extend
+input:
+
+{ "requestedByRole": "CUSTOMER", "requestedByAccountId": 3, "extraUnits": 4 }
+output:
+{
+    "success": true,
+    "extensionId": 2,
+    "message": "Đã gửi yêu cầu gia hạn, chờ xác nhận trong 10 phút."
+}
+bad case gia han qua 1h
+input:
+
+{ "requestedByRole": "CUSTOMER", "requestedByAccountId": 3, "extraUnits": 4 }
+output:
+{
+    "success": false,
+    "error": "Vượt trần gia hạn cho phép (24/24h = 1 ngày). Đã dùng 1440 phút, xin thêm 5760 phút sẽ vượt trần. Muốn thuê thêm, vui lòng đặt booking mới."
+}
+Driver confirm and Dispatcher confirm y chang hourly
