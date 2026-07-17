@@ -25,6 +25,19 @@ public class BookingDAO {
             conn = DbUtils.getConnection();
             conn.setAutoCommit(false);
 
+            // ---- Chặn race condition: 2 khách đặt cùng xe, cùng giờ, gần như cùng lúc ----
+            // Khóa hẳn dòng Vehicle bằng WITH (UPDLOCK, HOLDLOCK) ngay khi bắt đầu transaction
+            // -> request thứ 2 cho CÙNG xe phải đợi request thứ 1 commit/rollback xong mới
+            // được đọc, nên luôn thấy dữ liệu mới nhất, không thể chen ngang.
+            lockVehicleRow(conn, booking.getVehicleId());
+
+            // Re-check trùng lịch NGAY TRONG transaction đã khóa xe ở trên.
+            if (isVehicleScheduleConflict(conn, booking.getVehicleId(), detail.getDepartureTime(), detail.getReturnTime())) {
+                throw new IllegalArgumentException(
+                        "Xe này đã có lịch chạy gần giờ bạn chọn. "
+                        + "Vui lòng chọn thời gian khác hoặc xe khác (cần cách chuyến cũ ít nhất 60 phút).");
+            }
+
             // 1. Insert Booking
             String sqlBooking = "INSERT INTO Booking "
                     + "(CustomerID, VehicleID, VoucherID, BookingType, TripDirection, Status, CreatedAt) "
@@ -155,8 +168,9 @@ public class BookingDAO {
             String sqlPricing
                     = "INSERT INTO BookingPricing "
                     + "(BookingID, RuleID, BaseFare, "
-                    + "WeekendSurcharge, DiscountAmount, EstimatedTotal) "
-                    + "VALUES (?, ?, ?, ?, ?, ?)";
+                    + "WeekendSurcharge, DiscountAmount, EstimatedTotal, "
+                    + "PricePerHourSnapshot, PricePerDaySnapshot) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
             PreparedStatement stmtPricing
                     = conn.prepareStatement(sqlPricing);
@@ -184,6 +198,17 @@ public class BookingDAO {
                     6,
                     pricing.getEstimatedTotal()
             );
+
+            if (pricing.getPricePerHourSnapshot() != null) {
+                stmtPricing.setBigDecimal(7, pricing.getPricePerHourSnapshot());
+            } else {
+                stmtPricing.setNull(7, Types.DECIMAL);
+            }
+            if (pricing.getPricePerDaySnapshot() != null) {
+                stmtPricing.setBigDecimal(8, pricing.getPricePerDaySnapshot());
+            } else {
+                stmtPricing.setNull(8, Types.DECIMAL);
+            }
 
             stmtPricing.executeUpdate();
 
@@ -280,6 +305,8 @@ public class BookingDAO {
         p.setWeekendSurcharge(rs.getBigDecimal("WeekendSurcharge"));
         p.setDiscountAmount(rs.getBigDecimal("DiscountAmount"));
         p.setEstimatedTotal(rs.getBigDecimal("EstimatedTotal"));
+        p.setPricePerHourSnapshot(rs.getBigDecimal("PricePerHourSnapshot"));
+        p.setPricePerDaySnapshot(rs.getBigDecimal("PricePerDaySnapshot"));
         try {
             p.setApprovedBy(rs.getInt("ApprovedBy"));
         } catch (Exception ignore) {
@@ -324,16 +351,44 @@ public class BookingDAO {
      * cộng buffer 60 phút mỗi đầu, theo kiểu overlap 2 chiều chuẩn.
      */
     public boolean isVehicleScheduleConflict(int vehicleId, Timestamp newDepartureTime, Timestamp newEndTime) throws Exception {
+        try (Connection conn = DbUtils.getConnection()) {
+            return isVehicleScheduleConflict(conn, vehicleId, newDepartureTime, newEndTime);
+        }
+    }
+
+    /**
+     * Bản dùng chung 1 Connection có sẵn — BẮT BUỘC dùng bản này khi gọi bên
+     * trong transaction đã khóa dòng Vehicle (xem createBooking), để đảm bảo
+     * đọc được dữ liệu mới nhất và không bị request khác chen ngang giữa lúc
+     * check và lúc insert.
+     */
+    public boolean isVehicleScheduleConflict(Connection conn, int vehicleId, Timestamp newDepartureTime, Timestamp newEndTime) throws Exception {
+        return isVehicleScheduleConflict(conn, vehicleId, newDepartureTime, newEndTime, null);
+    }
+
+    /**
+     * Bản có loại trừ 1 BookingID — BẮT BUỘC dùng bản này khi kiểm tra "xe
+     * trống phía sau" cho 1 booking ĐANG ONGOING (gia hạn), vì booking đó tự
+     * nó cũng nằm trong bảng Booking (Status NOT IN CANCELLED/COMPLETED
+     * không loại trừ ONGOING) — nếu không loại trừ, nó sẽ luôn tự báo
+     * conflict với chính mình.
+     */
+    public boolean isVehicleScheduleConflict(Connection conn, int vehicleId, Timestamp newDepartureTime,
+            Timestamp newEndTime, Integer excludeBookingId) throws Exception {
         String sql = "SELECT bd.DepartureTime, bd.ReturnTime "
                 + "FROM Booking b "
                 + "JOIN BookingDetail bd ON b.BookingID = bd.BookingID "
                 + "WHERE b.VehicleID = ? "
                 + "AND b.Status NOT IN ('CANCELLED', 'COMPLETED') "
-                + "AND bd.DepartureTime IS NOT NULL";
+                + "AND bd.DepartureTime IS NOT NULL"
+                + (excludeBookingId != null ? " AND b.BookingID <> ?" : "");
 
-        try ( Connection conn = DbUtils.getConnection();  PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, vehicleId);
+            if (excludeBookingId != null) {
+                stmt.setInt(2, excludeBookingId);
+            }
             ResultSet rs = stmt.executeQuery();
 
             long newStart = newDepartureTime.getTime();
@@ -659,5 +714,80 @@ public class BookingDAO {
             }
         }
         return list;
+    }
+
+    // ===================== Hỗ trợ tính năng gia hạn (BookingExtension) =====================
+
+    /**
+     * Khóa dòng Vehicle bằng WITH (UPDLOCK, HOLDLOCK) — dùng chung cho cả lúc tạo
+     * booking mới (createBooking) lẫn lúc APPROVE gia hạn (BookingExtensionService).
+     * Ném exception nếu xe không tồn tại hoặc không AVAILABLE.
+     */
+    public void lockVehicleRow(Connection conn, int vehicleId) throws SQLException {
+        String sqlLock = "SELECT Status FROM Vehicle WITH (UPDLOCK, HOLDLOCK) WHERE VehicleID = ?";
+        try (PreparedStatement lockStmt = conn.prepareStatement(sqlLock)) {
+            lockStmt.setInt(1, vehicleId);
+            try (ResultSet lockRs = lockStmt.executeQuery()) {
+                if (!lockRs.next()) {
+                    throw new IllegalArgumentException("Xe không tồn tại.");
+                }
+                if (!"AVAILABLE".equalsIgnoreCase(lockRs.getString("Status"))) {
+                    throw new IllegalArgumentException(
+                            "Xe này hiện không sẵn sàng (đang bảo dưỡng hoặc không hoạt động).");
+                }
+            }
+        }
+    }
+
+    /**
+     * Giờ khởi hành của chuyến TIẾP THEO (nếu có) của cùng 1 xe, tính từ mốc
+     * "after" trở đi, loại trừ chính booking đang xét. Trả về null nếu xe
+     * không còn chuyến nào sau đó.
+     */
+    public Timestamp getNextBookingDeparture(Connection conn, int vehicleId, Timestamp after, int excludeBookingId) throws SQLException {
+        String sql = "SELECT MIN(bd.DepartureTime) AS NextDeparture "
+                + "FROM Booking b JOIN BookingDetail bd ON b.BookingID = bd.BookingID "
+                + "WHERE b.VehicleID = ? AND b.BookingID <> ? "
+                + "AND b.Status NOT IN ('CANCELLED', 'COMPLETED') "
+                + "AND bd.DepartureTime > ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, vehicleId);
+            ps.setInt(2, excludeBookingId);
+            ps.setTimestamp(3, after);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getTimestamp("NextDeparture");
+                }
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Dời BookingDetail.ReturnTime sang giờ mới — dùng khi 1 gia hạn được
+     * APPROVED hoặc khi chốt sổ quá giờ (RETROACTIVE) lúc kết thúc chuyến.
+     */
+    public void updateReturnTime(Connection conn, int bookingId, Timestamp newReturnTime) throws SQLException {
+        String sql = "UPDATE BookingDetail SET ReturnTime = ? WHERE BookingID = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setTimestamp(1, newReturnTime);
+            ps.setInt(2, bookingId);
+            ps.executeUpdate();
+        }
+    }
+
+    /**
+     * Cộng thêm tiền phát sinh (gia hạn/quá giờ) vào EstimatedTotal — KHÔNG thu
+     * ngay, chỉ dồn vào tổng bill. Cơ chế có sẵn (PaymentService.remainingOf +
+     * TripTrackingService.completeTrip) sẽ tự động chặn tài xế hoàn tất chuyến
+     * nếu khách chưa trả đủ số dư mới này.
+     */
+    public void addToEstimatedTotal(Connection conn, int bookingId, java.math.BigDecimal extraAmount) throws SQLException {
+        String sql = "UPDATE BookingPricing SET EstimatedTotal = EstimatedTotal + ? WHERE BookingID = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setBigDecimal(1, extraAmount);
+            ps.setInt(2, bookingId);
+            ps.executeUpdate();
+        }
     }
 }

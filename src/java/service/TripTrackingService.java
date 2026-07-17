@@ -30,6 +30,7 @@ public class TripTrackingService {
     private final DriverJobBroadcastDAO broadcastDAO = new DriverJobBroadcastDAO();
     private final TripTrackingDAO trackingDAO = new TripTrackingDAO();
     private final AuditLogDAO auditLogDAO = new AuditLogDAO();
+    private final BookingExtensionService extensionService = new BookingExtensionService();
 
     // ===================== Start trip =====================
 
@@ -87,6 +88,13 @@ public class TripTrackingService {
             throw new IllegalArgumentException(
                     "Bắt buộc phải đính kèm ảnh xác nhận đã đến điểm trả khách để hoàn thành chuyến.");
         }
+
+        // ---- Chốt sổ quá giờ (Luồng 2 RETROACTIVE) TRƯỚC khi check còn nợ ----
+        // Nếu khách trả xe trễ mà chưa từng xin gia hạn, phần lố (nếu vượt quá grace
+        // 15 phút) sẽ tự động được cộng vào EstimatedTotal ở đây, TRƯỚC khi guard chặn
+        // nợ bên dưới chạy — nên guard sẽ tính đúng số tiền còn thiếu đã bao gồm cả
+        // phần lố, không bỏ sót. Chỉ áp dụng cho HOURLY/DAILY, loại khác no-op.
+        extensionService.settleOvertimeOnComplete(bookingId);
 
         // Khách phải trả xong phần còn lại (70%) TRƯỚC khi tài xế được bấm hoàn thành —
         // khách có thể trả ngay trong lúc ONGOING (xem VNPayController/FinalPaymentController,
@@ -148,6 +156,14 @@ public class TripTrackingService {
         requireDriverOwnsBooking(bookingId, driverId);
 
         trackingDAO.insertGpsLog(bookingId, lat, lng);
+
+        // ---- Lazy check quá giờ (Luồng 2) — ăn theo nhịp GPS 30s có sẵn, không cần
+        // scheduler riêng. Best-effort: lỗi ở đây không được làm hỏng việc ghi GPS. ----
+        try {
+            extensionService.checkOvertimeTouchpoint(bookingId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**

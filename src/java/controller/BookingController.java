@@ -1,7 +1,9 @@
 package controller;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import dao.BookingExtensionDAO;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -13,6 +15,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import model.Booking;
 import model.BookingDetail;
+import model.BookingExtension;
+import service.BookingExtensionService;
 import service.BookingService;
 import service.CustomerLockService;
 
@@ -20,7 +24,10 @@ import service.CustomerLockService;
 public class BookingController extends HttpServlet {
 
     private final BookingService bookingService = new BookingService();
-private final CustomerLockService customerLockService = new CustomerLockService();
+    private final CustomerLockService customerLockService = new CustomerLockService();
+    private final BookingExtensionService extensionService = new BookingExtensionService();
+    private final BookingExtensionDAO extensionDAO = new BookingExtensionDAO();
+    private final Gson gson = new Gson();
     private void setAccessControlHeaders(HttpServletResponse response) {
         response.setHeader("Access-Control-Allow-Origin", "*");
         response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -33,6 +40,33 @@ private final CustomerLockService customerLockService = new CustomerLockService(
             throws ServletException, IOException {
         setAccessControlHeaders(response);
         response.setStatus(HttpServletResponse.SC_OK);
+    }
+
+    /**
+     * GET /api/v1/bookings/{id}/extend/pending — yêu cầu PENDING hiện tại (nếu có)
+     * GET /api/v1/bookings/{id}/extend/history — toàn bộ lịch sử gia hạn/quá giờ
+     */
+    private void handleGetExtend(String[] parts, HttpServletResponse response, PrintWriter out) throws IOException {
+        try {
+            int bookingId = Integer.parseInt(parts[0]);
+            java.util.Map<String, Object> res = new java.util.HashMap<>();
+            if ("pending".equalsIgnoreCase(parts[2])) {
+                BookingExtension pending = extensionDAO.getPendingByBookingId(bookingId);
+                res.put("success", true);
+                res.put("data", pending);
+            } else if ("history".equalsIgnoreCase(parts[2])) {
+                res.put("success", true);
+                res.put("data", extensionDAO.getHistoryByBookingId(bookingId));
+            } else {
+                response.setStatus(404);
+                res.put("success", false);
+                res.put("message", "Không tìm thấy endpoint.");
+            }
+            out.print(gson.toJson(res));
+        } catch (Exception e) {
+            response.setStatus(500);
+            out.print("{\"success\": false, \"error\": \"" + e.getMessage() + "\"}");
+        }
     }
 
     /**
@@ -53,6 +87,13 @@ private final CustomerLockService customerLockService = new CustomerLockService(
             if (pathInfo == null || pathInfo.equals("/")) {
                 response.setStatus(400);
                 out.print("{\"error\": \"Thiếu BookingID\"}");
+                return;
+            }
+
+            // ---- Sub-route gia hạn: /{id}/extend/pending, /{id}/extend/history ----
+            String[] extendParts = pathInfo.substring(1).split("/");
+            if (extendParts.length == 3 && "extend".equalsIgnoreCase(extendParts[1])) {
+                handleGetExtend(extendParts, response, out);
                 return;
             }
 
@@ -146,6 +187,41 @@ private final CustomerLockService customerLockService = new CustomerLockService(
     }
 
     /**
+     * POST /api/v1/bookings/{id}/extend
+     * Body: {"requestedByRole":"CUSTOMER|DRIVER","requestedByAccountId":123,"extraUnits":1}
+     */
+    private void handleCreateExtension(int bookingId, HttpServletRequest request, PrintWriter out) throws Exception {
+        JsonObject body = JsonParser.parseReader(request.getReader()).getAsJsonObject();
+        String requestedByRole = body.get("requestedByRole").getAsString();
+        int requestedByAccountId = body.get("requestedByAccountId").getAsInt();
+        int extraUnits = body.get("extraUnits").getAsInt();
+
+        int extensionId = extensionService.requestExtension(bookingId, requestedByRole, requestedByAccountId, extraUnits);
+        out.print("{\"success\": true, \"extensionId\": " + extensionId
+                + ", \"message\": \"Đã gửi yêu cầu gia hạn, chờ xác nhận trong 10 phút.\"}");
+    }
+
+    /**
+     * POST /api/v1/bookings/{id}/extend/{extensionId}/respond
+     * Body: {"role":"CUSTOMER|DRIVER|DISPATCHER","accountId":123,"approve":true}
+     */
+    private void handleRespondExtension(int extensionId, HttpServletRequest request, PrintWriter out) throws Exception {
+        JsonObject body = JsonParser.parseReader(request.getReader()).getAsJsonObject();
+        String role = body.get("role").getAsString();
+        int accountId = body.get("accountId").getAsInt();
+        boolean approve = body.get("approve").getAsBoolean();
+
+        if ("DISPATCHER".equalsIgnoreCase(role)) {
+            extensionService.respondAsDispatcher(extensionId, accountId, approve);
+        } else if ("CUSTOMER".equalsIgnoreCase(role) || "DRIVER".equalsIgnoreCase(role)) {
+            extensionService.respondAsCounterparty(extensionId, accountId, approve);
+        } else {
+            throw new IllegalArgumentException("role phải là CUSTOMER, DRIVER hoặc DISPATCHER.");
+        }
+        out.print("{\"success\": true, \"message\": \"" + (approve ? "Đã ghi nhận đồng ý." : "Đã ghi nhận từ chối.") + "\"}");
+    }
+
+    /**
      * POST /api/v1/bookings — tạo booking mới Request body (JSON): {
      * "customerId": 1, "vehicleId": 3, "voucherId": null, "bookingType":
      * "DISTANCE", "tripDirection": "ONE_WAY", "pickupAddress": "123 Nguyễn Huệ,
@@ -162,6 +238,31 @@ private final CustomerLockService customerLockService = new CustomerLockService(
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         PrintWriter out = response.getWriter();
+
+        String pathInfo = request.getPathInfo();
+
+        // ---- Sub-route gia hạn: /{id}/extend , /{id}/extend/{extensionId}/respond ----
+        if (pathInfo != null && !pathInfo.equals("/")) {
+            String[] parts = pathInfo.substring(1).split("/");
+            try {
+                if (parts.length == 2 && "extend".equalsIgnoreCase(parts[1])) {
+                    handleCreateExtension(Integer.parseInt(parts[0]), request, out);
+                    return;
+                } else if (parts.length == 4 && "extend".equalsIgnoreCase(parts[1]) && "respond".equalsIgnoreCase(parts[3])) {
+                    handleRespondExtension(Integer.parseInt(parts[2]), request, out);
+                    return;
+                }
+                // Không khớp sub-route nào -> rơi xuống logic tạo booking cũ bên dưới
+            } catch (IllegalArgumentException e) {
+                response.setStatus(400);
+                out.print("{\"success\": false, \"error\": \"" + e.getMessage() + "\"}");
+                return;
+            } catch (Exception e) {
+                response.setStatus(500);
+                out.print("{\"success\": false, \"error\": \"" + e.getMessage() + "\"}");
+                return;
+            }
+        }
 
         try {
             // Đọc request body

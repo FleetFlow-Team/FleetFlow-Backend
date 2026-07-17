@@ -103,6 +103,35 @@ public class TripTrackingDAO {
     }
 
     /**
+     * Bản insertEvent tự mở connection riêng — dùng cho các chỗ ghi event lẻ,
+     * không cần gộp transaction với thao tác khác (VD notify quá giờ).
+     */
+    public void insertEvent(int bookingId, String eventType, String notes) throws Exception {
+        try (Connection conn = DbUtils.getConnection()) {
+            insertEvent(conn, bookingId, eventType, notes);
+        }
+    }
+
+    /**
+     * Check đã từng ghi 1 event (bookingId, eventType, notes) hay chưa —
+     * dùng làm khóa idempotency cho lazy-check quá giờ (không có scheduler
+     * riêng). "notes" nên nhúng luôn mốc ReturnTime đang xét (VD
+     * "ReturnTime=<millis>") để mỗi lần ReturnTime bị dời (do gia hạn) là
+     * 1 vòng đếm mới, không bị coi là "đã notify rồi" từ vòng cũ.
+     */
+    public boolean hasEvent(int bookingId, String eventType, String notes) throws Exception {
+        String sql = "SELECT COUNT(*) AS Cnt FROM TripEventLog WHERE BookingID = ? AND EventType = ? AND Notes = ?";
+        try (Connection conn = DbUtils.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            ps.setString(2, eventType);
+            ps.setString(3, notes);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt("Cnt") > 0;
+            }
+        }
+    }
+
+    /**
      * Lấy toàn bộ lịch sử event của 1 booking, sắp xếp theo thời gian.
      */
     public List<TripEventLog> getEventsByBookingId(int bookingId) throws Exception {

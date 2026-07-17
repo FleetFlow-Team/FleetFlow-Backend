@@ -15,6 +15,11 @@ public class BookingPricing extends BaseEntity {
     private BigDecimal estimatedTotal;
     private int approvedBy;
     private Timestamp approvedAt;
+    // Snapshot PricePerHour/PricePerDay của vehicleType này TẠI THỜI ĐIỂM đặt xe —
+    // dùng cho gia hạn/quá giờ sau này, KHÔNG tra lại PricingRule sống vì bảng đó
+    // có thể bị Admin sửa giá sau khi khách đã đặt (update in-place, không versioning).
+    private BigDecimal pricePerHourSnapshot;
+    private BigDecimal pricePerDaySnapshot;
 
     public BookingPricing() {}
 
@@ -55,4 +60,10 @@ public class BookingPricing extends BaseEntity {
 
     public Timestamp getApprovedAt() { return approvedAt; }
     public void setApprovedAt(Timestamp approvedAt) { this.approvedAt = approvedAt; }
+
+    public BigDecimal getPricePerHourSnapshot() { return pricePerHourSnapshot; }
+    public void setPricePerHourSnapshot(BigDecimal pricePerHourSnapshot) { this.pricePerHourSnapshot = pricePerHourSnapshot; }
+
+    public BigDecimal getPricePerDaySnapshot() { return pricePerDaySnapshot; }
+    public void setPricePerDaySnapshot(BigDecimal pricePerDaySnapshot) { this.pricePerDaySnapshot = pricePerDaySnapshot; }
 }

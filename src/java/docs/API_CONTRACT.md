@@ -4327,3 +4327,50 @@ Img luu truc tiep trong src , dispatcher la actor lay duoc anh
         }
     ]
 }
+-------------------------------------------------------------------------------------
+Tình huống Customer muốn gia hạn them h hoặc đi lố h
+Trường hợp 1: Khách gia hạn h khi còn ongoing
+- Notification cho khách và tài khi còn 30p nữa hết h thuê xe.
+Cho phép khách gia hạn them h tối đa 2h nếu đằng sau xe trống lịch
+path: http://localhost:8080/FleetFlow/api/v1/bookings/49/extend
+input:
+{
+  "requestedByRole": "CUSTOMER",
+  "requestedByAccountId": 1,
+  "extraUnits": 1
+}
+output:
+{
+    "success": true,
+    "extensionId": 1,
+    "message": "Đã gửi yêu cầu gia hạn, chờ xác nhận trong 10 phút."
+}
+Chờ sự xác nhận của 2 bên dispatcher và driver trong 10p. Sau 10p thiếu 1 trong 2 xác nhận tự động hiểu là không cho phép gia hạn
+
+Driver confirm gia hạn
+path: http://localhost:8080/FleetFlow/api/v1/bookings/bookingId/extend/extensionId/respond
+input:
+{ "role": "DRIVER", "accountId": 29, "approve": true }
+output:
+{
+    "success": true,
+    "message": "Đã ghi nhận đồng ý."
+}
+Dispatcher confirm gia hạn
+path: http://localhost:8080/FleetFlow/api/v1/bookings/49/extend/1/respond
+input:
+{ "role": "DISPATCHER", "accountId": 19, "approve": true }
+output:
+{
+    "success": true,
+    "message": "Đã ghi nhận đồng ý."
+}
+Sau khi gia hạn thành công. Cập nhật lại returntime trong bookingDetail và cộng them tiền vào cuối bill
+
+Trường hợp 2: Lố h cho phép
+Check gps tài xế mỗi 30s rồi notification cho 3 bên dispatcher + driver + customer khi đã quá h thuê.
+
+Check db notification
+189	18	49	Chuyến #49 đang quá giờ	Vehicle #10 đang chạy quá ReturnTime.	OVERTIME_STARTED
+188	29	49	Chuyến đang kéo dài	Chuyến #49 đã quá ReturnTime. Nhắc khách nếu cần gia hạn chính thức.	OVERTIME_STARTED
+187	1	49	Chuyến đang bị tính phí quá giờ	Chuyến #49 đã quá giờ trả xe, đang được tính phí theo giờ.	OVERTIME_STARTED

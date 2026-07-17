@@ -286,6 +286,17 @@ public class BookingService {
         pricing.setEstimatedTotal(
                 finalTotal
         );
+
+        // ---- Snapshot đơn giá lúc đặt (cho tính năng gia hạn/quá giờ) ----
+        // Lấy CẢ 2 rate (HOURLY và DAILY) của cùng vehicleType này, không chỉ rate của
+        // đúng bookingType hiện tại — vì booking DAILY cũng cần biết PricePerHour để
+        // tính tiền quá giờ (luôn tính theo giờ, kể cả với DAILY). getPricingRule trả
+        // về null (không throw) nếu vehicleType này không có rule cho loại đó.
+        model.PricingRule hourlyRuleSnap = customerBookingDAO.getPricingRule(vehicleId, "HOURLY", tripDirection);
+        model.PricingRule dailyRuleSnap = customerBookingDAO.getPricingRule(vehicleId, "DAILY", tripDirection);
+        pricing.setPricePerHourSnapshot(hourlyRuleSnap != null ? hourlyRuleSnap.getPricePerHour() : null);
+        pricing.setPricePerDaySnapshot(dailyRuleSnap != null ? dailyRuleSnap.getPricePerDay() : null);
+
         return bookingDAO.createBooking(booking, detail, pricing);
     }
 
