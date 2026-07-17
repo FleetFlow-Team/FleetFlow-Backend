@@ -92,6 +92,41 @@ public class AdminDashboardDAO {
 }
 
     /**
+     * Doanh thu theo từng ngày trong {@code days} ngày gần nhất (tính theo Payment.PaidAt,
+     * khớp công thức getTotalRevenue) — dùng vẽ biểu đồ xu hướng doanh thu cho Admin.
+     * Zero-fill các ngày không có giao dịch để FE không phải tự xử lý thiếu ngày.
+     */
+    public List<Map<String, Object>> getRevenueByDay(int days) throws Exception {
+        String sql = "SELECT CAST(p.PaidAt AS DATE) AS RevenueDate, SUM(p.Amount) AS Total "
+                + "FROM Payment p JOIN Booking b ON b.BookingID = p.BookingID "
+                + "WHERE p.Status = 'COMPLETED' AND p.PaymentType IN ('DEPOSIT', 'FINAL') "
+                + "AND p.PaidAt >= DATEADD(DAY, -?, CAST(GETDATE() AS DATE)) "
+                + "GROUP BY CAST(p.PaidAt AS DATE)";
+
+        Map<String, java.math.BigDecimal> byDate = new HashMap<>();
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, days - 1);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    byDate.put(rs.getDate("RevenueDate").toString(), rs.getBigDecimal("Total"));
+                }
+            }
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        java.time.LocalDate start = java.time.LocalDate.now().minusDays(days - 1);
+        for (int i = 0; i < days; i++) {
+            String date = start.plusDays(i).toString();
+            Map<String, Object> row = new HashMap<>();
+            row.put("date", date);
+            row.put("revenue", byDate.getOrDefault(date, java.math.BigDecimal.ZERO));
+            result.add(row);
+        }
+        return result;
+    }
+
+    /**
      * Đếm số lệnh dispatch bị driver reject trong khoảng thời gian — KPI vận hành
      * (tỷ lệ driver reject cao cảnh báo vấn đề điều phối).
      */
