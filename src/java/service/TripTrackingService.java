@@ -14,14 +14,13 @@ import utils.DbUtils;
  * Service xử lý phần tiếp theo của lifecycle Booking sau khi Driver đã ACCEPT
  * (Booking.Status = CONFIRMED):
  *
- *   CONFIRMED → Driver bấm "start trip" → ONGOING
- *   ONGOING   → Driver đẩy GPS mỗi 30s (không đổi status)
- *   ONGOING   → Driver bấm "complete trip" → COMPLETED
+ * CONFIRMED → Driver bấm "start trip" → ONGOING ONGOING → Driver đẩy GPS mỗi
+ * 30s (không đổi status) ONGOING → Driver bấm "complete trip" → COMPLETED
  *
  * Mọi chuyển trạng thái đều ghi TripEventLog + AuditLog.
  *
- * Thanh toán tiền mặt (FINAL) không còn cần tài xế xác nhận lại — khách khai
- * ý định trả CASH qua FinalPaymentController là tất toán ngay (xem
+ * Thanh toán tiền mặt (FINAL) không còn cần tài xế xác nhận lại — khách khai ý
+ * định trả CASH qua FinalPaymentController là tất toán ngay (xem
  * PaymentService.settleCashFinal), tài xế chỉ nhận thông báo nhắc thu tiền.
  */
 public class TripTrackingService {
@@ -33,10 +32,10 @@ public class TripTrackingService {
     private final BookingExtensionService extensionService = new BookingExtensionService();
 
     // ===================== Start trip =====================
-
     /**
-     * Driver bấm bắt đầu chuyến đi — chỉ cho phép khi Booking đang CONFIRMED
-     * và đúng driver đã được ACCEPT cho booking này (chống driver khác bấm start hộ).
+     * Driver bấm bắt đầu chuyến đi — chỉ cho phép khi Booking đang CONFIRMED và
+     * đúng driver đã được ACCEPT cho booking này (chống driver khác bấm start
+     * hộ).
      */
     public void startTrip(int bookingId, int driverId, String ipAddress) throws Exception {
         Booking booking = requireBookingInStatus(bookingId, "CONFIRMED",
@@ -52,7 +51,7 @@ public class TripTrackingService {
                     "Khách hàng chưa đóng cọc 30%. Vui lòng yêu cầu khách thanh toán trước khi bắt đầu chuyến.");
         }
 
-        try (Connection conn = DbUtils.getConnection()) {
+        try ( Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
             try {
                 bookingDAO.updateStatus(conn, bookingId, "ONGOING");
@@ -71,7 +70,6 @@ public class TripTrackingService {
     }
 
     // ===================== Complete trip =====================
-
     /**
      * Driver bấm hoàn thành chuyến đi — chỉ cho phép khi Booking đang ONGOING.
      * Bắt buộc kèm ảnh xác nhận đã đến điểm trả khách (completionPhotoUrl) —
@@ -103,14 +101,15 @@ public class TripTrackingService {
         if (remaining.compareTo(java.math.BigDecimal.ZERO) > 0) {
             throw new IllegalArgumentException(
                     "Khách hàng chưa thanh toán " + remaining.toPlainString()
-                            + "đ còn lại. Vui lòng yêu cầu khách thanh toán trước khi hoàn thành chuyến.");
+                    + "đ còn lại. Vui lòng yêu cầu khách thanh toán trước khi hoàn thành chuyến.");
         }
 
-        try (Connection conn = DbUtils.getConnection()) {
+        try ( Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
             try {
                 bookingDAO.updateStatus(conn, bookingId, "COMPLETED");
                 bookingDAO.updateCompletionPhoto(conn, bookingId, completionPhotoUrl);
+                new dao.DriverDAO().updateAvailabilityStatus(conn, driverId, "AVAILABLE");
                 trackingDAO.insertEvent(conn, bookingId, "TRIP_COMPLETED",
                         "Driver hoàn thành chuyến đi, kèm ảnh xác nhận điểm đến: " + completionPhotoUrl);
                 int driverAccId2 = new dao.DriverDAO().getAccountIdByDriverId(driverId);
@@ -144,10 +143,9 @@ public class TripTrackingService {
     }
 
     // ===================== GPS tracking =====================
-
     /**
-     * Driver đẩy 1 điểm GPS mới — chỉ cho phép khi booking đang ONGOING.
-     * Không update Booking.Status, chỉ ghi log vị trí.
+     * Driver đẩy 1 điểm GPS mới — chỉ cho phép khi booking đang ONGOING. Không
+     * update Booking.Status, chỉ ghi log vị trí.
      */
     public void pushGpsLocation(int bookingId, int driverId, BigDecimal lat, BigDecimal lng) throws Exception {
         requireBookingInStatus(bookingId, "ONGOING",
@@ -167,14 +165,14 @@ public class TripTrackingService {
     }
 
     /**
-     * Dispatcher xem vị trí hiện tại của TẤT CẢ booking đang ONGOING trên bản đồ tổng quan.
+     * Dispatcher xem vị trí hiện tại của TẤT CẢ booking đang ONGOING trên bản
+     * đồ tổng quan.
      */
     public java.util.List<TripGpsLog> getOngoingTripsMap() throws Exception {
         return trackingDAO.getLatestGpsForOngoingBookings();
     }
 
     // ===================== Helpers =====================
-
     private Booking requireBookingInStatus(int bookingId, String expectedStatus, String errorMessage) throws Exception {
         Booking booking = bookingDAO.findById(bookingId);
         if (booking == null) {
@@ -193,8 +191,8 @@ public class TripTrackingService {
     }
 
     /**
-     * Chống driver khác bấm start/complete/gps hộ — kiểm tra đúng driver
-     * đã được ACCEPT cho booking này (source of truth: DriverJobBroadcast).
+     * Chống driver khác bấm start/complete/gps hộ — kiểm tra đúng driver đã
+     * được ACCEPT cho booking này (source of truth: DriverJobBroadcast).
      */
     private void requireDriverOwnsBooking(int bookingId, int driverId) throws Exception {
         int acceptedDriverId = broadcastDAO.getAcceptedDriverId(bookingId);

@@ -15,17 +15,14 @@ import utils.DbUtils;
 /**
  * Service điều phối toàn bộ luồng sau khi Customer tạo Booking:
  *
- * PENDING (Customer tạo xong)
- * → Dispatcher CONFIRM (hoặc auto sau timeout) → APPROVED
- * → Hệ thống tự AUTO-DISPATCH driver rảnh lâu nhất → DISPATCHED
- * → Dispatcher REJECT → REJECTED
+ * PENDING (Customer tạo xong) → Dispatcher CONFIRM (hoặc auto sau timeout) →
+ * APPROVED → Hệ thống tự AUTO-DISPATCH driver rảnh lâu nhất → DISPATCHED →
+ * Dispatcher REJECT → REJECTED
  *
- * DISPATCHED
- * → Driver ACCEPT → DriverJobBroadcast.Status=ACCEPTED → Booking.Status =
- * CONFIRMED
- * → Driver REJECT → DriverJobBroadcast.Status=REJECTED → tự động dispatch
- * driver tiếp theo
- * → Nếu hết driver → Booking.Status = UNASSIGNED (alert dispatcher)
+ * DISPATCHED → Driver ACCEPT → DriverJobBroadcast.Status=ACCEPTED →
+ * Booking.Status = CONFIRMED → Driver REJECT →
+ * DriverJobBroadcast.Status=REJECTED → tự động dispatch driver tiếp theo → Nếu
+ * hết driver → Booking.Status = UNASSIGNED (alert dispatcher)
  *
  * Mọi hành động đều ghi vào AuditLog.
  */
@@ -37,16 +34,15 @@ public class BookingWorkflowService {
 
     // ===================== BƯỚC 1: Dispatcher confirm booking
     // =====================
-
     /**
-     * Dispatcher confirm booking — PENDING → APPROVED → tự động dispatch driver.
-     * Đây là bước duy nhất dispatcher cần làm trong luồng bình thường.
+     * Dispatcher confirm booking — PENDING → APPROVED → tự động dispatch
+     * driver. Đây là bước duy nhất dispatcher cần làm trong luồng bình thường.
      */
     public void approveBooking(int bookingId, Integer dispatcherAccountId, String ipAddress) throws Exception {
         Booking booking = requireBookingInStatus(bookingId, "PENDING",
                 "Chỉ confirm được booking đang ở trạng thái PENDING");
 
-        try (Connection conn = DbUtils.getConnection()) {
+        try ( Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
             try {
                 bookingDAO.updateStatus(conn, bookingId, "APPROVED");
@@ -68,7 +64,7 @@ public class BookingWorkflowService {
                 new dao.ExtensionDAO().createNotification(custAccountId, bookingId,
                         "Đơn đặt xe đã được duyệt",
                         "Cuốc xe #" + bookingId
-                                + " của bạn đã được quản trị viên duyệt và đang trong quá trình tìm tài xế.",
+                        + " của bạn đã được quản trị viên duyệt và đang trong quá trình tìm tài xế.",
                         "BOOKING_APPROVED", "IN_APP");
             }
         } catch (Exception e) {
@@ -92,15 +88,15 @@ public class BookingWorkflowService {
         if (!"PENDING".equalsIgnoreCase(booking.getStatus())
                 && !"UNASSIGNED".equalsIgnoreCase(booking.getStatus())) {
             throw new IllegalArgumentException(
-                "Chỉ từ chối được booking ở trạng thái PENDING hoặc UNASSIGNED. "
-                + "Trạng thái hiện tại: " + booking.getStatus());
+                    "Chỉ từ chối được booking ở trạng thái PENDING hoặc UNASSIGNED. "
+                    + "Trạng thái hiện tại: " + booking.getStatus());
         }
 
         boolean wasUnassigned = "UNASSIGNED".equalsIgnoreCase(booking.getStatus());
         java.math.BigDecimal refunded = java.math.BigDecimal.ZERO;
         dao.ExtensionDAO extDAO = new dao.ExtensionDAO();
 
-        try (Connection conn = DbUtils.getConnection()) {
+        try ( Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
             try {
                 bookingDAO.updateStatus(conn, bookingId, "REJECTED");
@@ -139,9 +135,9 @@ public class BookingWorkflowService {
                     extDAO.createNotification(customerAccountId, bookingId,
                             "Booking #" + bookingId + " đã bị hủy",
                             "Rất tiếc, chúng tôi không thể tìm được tài xế cho chuyến của bạn"
-                                    + (reason != null && !reason.isEmpty() ? ". Lý do: " + reason : ".")
-                                    + refundMsg
-                                    + " Vui lòng đặt lại hoặc liên hệ hỗ trợ.",
+                            + (reason != null && !reason.isEmpty() ? ". Lý do: " + reason : ".")
+                            + refundMsg
+                            + " Vui lòng đặt lại hoặc liên hệ hỗ trợ.",
                             "BOOKING_CANCELLED", "IN_APP");
                 }
             } catch (Exception e) {
@@ -151,12 +147,12 @@ public class BookingWorkflowService {
     }
 
     // ===================== BƯỚC 2: Auto-dispatch driver =====================
-
     /**
-     * Tự động tìm driver rảnh lâu nhất và dispatch.
-     * excludeDriverIds: danh sách driver đã từ chối trước đó — bỏ qua họ.
+     * Tự động tìm driver rảnh lâu nhất và dispatch. excludeDriverIds: danh sách
+     * driver đã từ chối trước đó — bỏ qua họ.
      *
-     * Nếu không còn driver → chuyển booking sang UNASSIGNED để alert dispatcher.
+     * Nếu không còn driver → chuyển booking sang UNASSIGNED để alert
+     * dispatcher.
      */
     public void autoDispatchNextDriver(int bookingId, List<Integer> excludeDriverIds,
             Integer triggeredByAccountId, String ipAddress) throws Exception {
@@ -170,7 +166,7 @@ public class BookingWorkflowService {
 
         if (nextDriverId == -1) {
             // Hết driver — chuyển sang UNASSIGNED để dispatcher xử lý
-            try (Connection conn = DbUtils.getConnection()) {
+            try ( Connection conn = DbUtils.getConnection()) {
                 conn.setAutoCommit(false);
                 try {
                     bookingDAO.updateStatus(conn, bookingId, "UNASSIGNED");
@@ -193,7 +189,7 @@ public class BookingWorkflowService {
                     extDAO.createNotification(customerAccountId, bookingId,
                             "Đang tìm tài xế cho bạn",
                             "Booking #" + bookingId + " hiện chưa có tài xế phù hợp. "
-                                    + "Chúng tôi đang tiếp tục tìm kiếm, vui lòng chờ.",
+                            + "Chúng tôi đang tiếp tục tìm kiếm, vui lòng chờ.",
                             "BOOKING_UNASSIGNED", "IN_APP");
                 }
             } catch (Exception e) {
@@ -203,7 +199,7 @@ public class BookingWorkflowService {
         }
 
         // Dispatch driver tìm được
-        try (Connection conn = DbUtils.getConnection()) {
+        try ( Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
             try {
                 broadcastDAO.dispatchDriver(conn, bookingId, nextDriverId, triggeredByAccountId);
@@ -263,14 +259,15 @@ public class BookingWorkflowService {
     }
 
     /**
-     * Thông báo cho toàn bộ Dispatcher đang active khi 1 booking vừa được
-     * tự động gán cho driver nào — vì auto-dispatch chạy ngầm, dispatcher
-     * không biết booking #X đang được giao cho ai nếu không có cái này.
+     * Thông báo cho toàn bộ Dispatcher đang active khi 1 booking vừa được tự
+     * động gán cho driver nào — vì auto-dispatch chạy ngầm, dispatcher không
+     * biết booking #X đang được giao cho ai nếu không có cái này.
      */
     private void notifyDispatchersDriverAssigned(int bookingId, int driverId) throws Exception {
         java.util.List<Integer> dispatcherAccountIds = new dao.AccountDAO().getActiveDispatcherAccountIds();
-        if (dispatcherAccountIds.isEmpty())
+        if (dispatcherAccountIds.isEmpty()) {
             return;
+        }
 
         java.util.Map<String, String> driverInfo = new dao.DriverDAO().getDriverNameAndPhone(driverId);
         String driverName = driverInfo != null ? driverInfo.get("fullName") : ("Driver #" + driverId);
@@ -300,7 +297,7 @@ public class BookingWorkflowService {
                 && !"UNASSIGNED".equalsIgnoreCase(booking.getStatus())) {
             throw new IllegalArgumentException(
                     "Chỉ dispatch thủ công được khi booking ở trạng thái APPROVED hoặc UNASSIGNED. "
-                            + "Trạng thái hiện tại: " + booking.getStatus());
+                    + "Trạng thái hiện tại: " + booking.getStatus());
         }
 
         if (broadcastDAO.hasPendingBroadcast(bookingId)) {
@@ -318,7 +315,7 @@ public class BookingWorkflowService {
                     "Driver #" + driverId + " đang bị khóa tài khoản, không thể gán chuyến.");
         }
 
-        try (Connection conn = DbUtils.getConnection()) {
+        try ( Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
             try {
                 long broadcastId = broadcastDAO.dispatchDriver(conn, bookingId, driverId, dispatcherAccountId);
@@ -340,7 +337,7 @@ public class BookingWorkflowService {
                         extDAO.createNotification(customerAccountId, bookingId,
                                 "Đã tìm được tài xế cho bạn",
                                 "Booking #" + bookingId + " đã được gán cho tài xế "
-                                        + driverName + ". Vui lòng chờ tài xế xác nhận.",
+                                + driverName + ". Vui lòng chờ tài xế xác nhận.",
                                 "BOOKING_DRIVER_ASSIGNED", "IN_APP");
                     }
 
@@ -348,7 +345,7 @@ public class BookingWorkflowService {
                         extDAO.createNotification(driverAccountId, bookingId,
                                 "Bạn được gán chuyến mới",
                                 "Dispatcher đã gán booking #" + bookingId + " cho bạn. "
-                                        + "Vui lòng xác nhận nhận chuyến.",
+                                + "Vui lòng xác nhận nhận chuyến.",
                                 "DISPATCH_ASSIGNED", "IN_APP");
                     }
                 } catch (Exception e) {
@@ -367,7 +364,6 @@ public class BookingWorkflowService {
 
     // ===================== BƯỚC 3: Driver phản hồi lệnh dispatch
     // =====================
-
     /**
      * Driver accept lệnh dispatch → Booking chuyển CONFIRMED.
      */
@@ -379,10 +375,11 @@ public class BookingWorkflowService {
 
         int bookingId = getBookingIdFromBroadcast(broadcastId);
         int driverAccountId = new dao.DriverDAO().getAccountIdByDriverId(driverId);
-        try (Connection conn = DbUtils.getConnection()) {
+        try ( Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
             try {
                 bookingDAO.updateStatus(conn, bookingId, "CONFIRMED");
+                new dao.DriverDAO().updateAvailabilityStatus(conn, driverId, "BUSY");
                 auditLogDAO.log(conn, driverAccountId, "DRIVER_ACCEPT", "Booking",
                         String.valueOf(bookingId), "DISPATCHED", "CONFIRMED", ipAddress);
                 conn.commit();
@@ -438,8 +435,8 @@ public class BookingWorkflowService {
                         extDAO.createNotification(customerAccountId, bookingId,
                                 "Vui lòng thanh toán cọc 30%",
                                 "Chuyến đi #" + bookingId + " đã có tài xế. "
-                                        + "Vui lòng thanh toán cọc " + deposit.toPlainString()
-                                        + "đ để xác nhận chuyến.",
+                                + "Vui lòng thanh toán cọc " + deposit.toPlainString()
+                                + "đ để xác nhận chuyến.",
                                 "PAYMENT_DEPOSIT_REQUIRED", "IN_APP");
                     }
                 }
@@ -450,8 +447,8 @@ public class BookingWorkflowService {
     }
 
     /**
-     * Driver reject lệnh dispatch → Hệ thống tự tìm driver tiếp theo.
-     * Nếu hết driver → UNASSIGNED để alert dispatcher.
+     * Driver reject lệnh dispatch → Hệ thống tự tìm driver tiếp theo. Nếu hết
+     * driver → UNASSIGNED để alert dispatcher.
      */
     public void driverReject(int broadcastId, int driverId, String reason, String ipAddress) throws Exception {
         // Truyền reason để lưu vào cột RejectReason — trước đây bị thiếu nên reason
@@ -465,7 +462,7 @@ public class BookingWorkflowService {
         int driverAccountId = new dao.DriverDAO().getAccountIdByDriverId(driverId);
 
         // Ghi audit trước
-        try (Connection conn = DbUtils.getConnection()) {
+        try ( Connection conn = DbUtils.getConnection()) {
             conn.setAutoCommit(false);
             try {
                 bookingDAO.updateStatus(conn, bookingId, "APPROVED"); // reset để dispatch tiếp
@@ -503,14 +500,16 @@ public class BookingWorkflowService {
     }
 
     /**
-     * Thông báo cho Dispatcher khi driver phản hồi lệnh dispatch (accept/reject).
-     * accepted=true → "đã nhận chuyến", accepted=false → "đã từ chối" kèm lý do.
+     * Thông báo cho Dispatcher khi driver phản hồi lệnh dispatch
+     * (accept/reject). accepted=true → "đã nhận chuyến", accepted=false → "đã
+     * từ chối" kèm lý do.
      */
     private void notifyDispatchersDriverResponded(int bookingId, int driverId,
             boolean accepted, String reason) throws Exception {
         java.util.List<Integer> dispatcherAccountIds = new dao.AccountDAO().getActiveDispatcherAccountIds();
-        if (dispatcherAccountIds.isEmpty())
+        if (dispatcherAccountIds.isEmpty()) {
             return;
+        }
 
         java.util.Map<String, String> driverInfo = new dao.DriverDAO().getDriverNameAndPhone(driverId);
         String driverName = driverInfo != null ? driverInfo.get("fullName") : ("Driver #" + driverId);
@@ -537,7 +536,6 @@ public class BookingWorkflowService {
     }
 
     // ===================== Helpers =====================
-
     /**
      * Lấy tất cả DriverID đã REJECT broadcast của 1 booking — để tránh gán lại.
      */
@@ -553,9 +551,9 @@ public class BookingWorkflowService {
     }
 
     /**
-     * Khi respondToDispatch trả về 0 dòng (broadcast không còn PENDING), xác định
-     * lý do cụ thể để thông báo cho tài xế: nếu khách đã hủy đơn thì hiện thông
-     * báo dễ hiểu thay vì message kỹ thuật chung chung.
+     * Khi respondToDispatch trả về 0 dòng (broadcast không còn PENDING), xác
+     * định lý do cụ thể để thông báo cho tài xế: nếu khách đã hủy đơn thì hiện
+     * thông báo dễ hiểu thay vì message kỹ thuật chung chung.
      */
     private String buildDispatchFailureMessage(int broadcastId) {
         try {

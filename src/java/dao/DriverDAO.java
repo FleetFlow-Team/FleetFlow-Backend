@@ -21,7 +21,7 @@ public class DriverDAO {
     private static final String ACCEPT_DRIVER_TERMS = "UPDATE Driver SET TermsAccepted = 1, TermsAcceptedAt = ?, UpdatedAt = ? WHERE AccountID = ? AND IsDeleted = 0";
     private static final String UPDATE_ACCOUNT_INFO = "UPDATE Account SET FullName = ?, PhoneNumber = ?, UpdatedAt = ? WHERE AccountID = ? AND IsDeleted = 0";
     private static final String UPDATE_DRIVER_STATUS = "UPDATE Driver SET AvailabilityStatus = ?, UpdatedAt = ? WHERE AccountID = ? AND IsDeleted = 0";
-
+    private static final String UPDATE_DRIVER_AVAILABILITY_BY_DRIVER_ID = "UPDATE Driver SET AvailabilityStatus = ?, UpdatedAt = ? WHERE DriverID = ? AND IsDeleted = 0";
     // 🎯 ĐÃ ĐỒNG BỘ: Thiết lập trạng thái mặc định IsDeleted = 0 khi chèn mới giấy tờ
     private static final String INSERT_IDENTITY_DOC
             = "INSERT INTO IdentityDocument (OwnerAccountID, OwnerType, DocType, NationalID, SecureFileUrl, Status, UploadedAt, IsDeleted) VALUES (?, 'Driver', ?, NULL, ?, 'Pending', ?, 0)";
@@ -61,33 +61,31 @@ public class DriverDAO {
     private static final String GET_DRIVER_WALLET_HISTORY
             = "SELECT EarningID, BookingID, EarningType, FareShare, SurchargeShare, CancellationCompensation, CompanyCommission, NetAmount, CreatedAt "
             + "FROM DriverEarning WHERE DriverID = ? AND IsDeleted = 0 ORDER BY CreatedAt DESC";
-    
+
     // SQL THỐNG KÊ THU NHẬP TÀI XẾ
+    private static final String GET_INCOME_SUMMARY_OVERVIEW
+            = "SELECT "
+            + "    SUM(CASE WHEN EarningType = 'Trip' THEN NetAmount ELSE 0 END) AS TotalTripEarnings, "
+            + "    SUM(CASE WHEN EarningType = 'CancellationCompensation' THEN NetAmount ELSE 0 END) AS TotalCancellationCompensation, "
+            + "    SUM(CompanyCommission) AS TotalCommissionPaid, "
+            + "    SUM(NetAmount) AS TotalNetIncome "
+            + "FROM DriverEarning "
+            + "WHERE DriverID = (SELECT DriverID FROM Driver WHERE AccountID = ? AND IsDeleted = 0) AND IsDeleted = 0";
 
-    private static final String GET_INCOME_SUMMARY_OVERVIEW = 
-        "SELECT " +
-        "    SUM(CASE WHEN EarningType = 'Trip' THEN NetAmount ELSE 0 END) AS TotalTripEarnings, " +
-        "    SUM(CASE WHEN EarningType = 'CancellationCompensation' THEN NetAmount ELSE 0 END) AS TotalCancellationCompensation, " +
-        "    SUM(CompanyCommission) AS TotalCommissionPaid, " +
-        "    SUM(NetAmount) AS TotalNetIncome " +
-        "FROM DriverEarning " +
-        "WHERE DriverID = (SELECT DriverID FROM Driver WHERE AccountID = ? AND IsDeleted = 0) AND IsDeleted = 0";
-
-    private static final String GET_INCOME_BY_MONTH = 
-        "SELECT " +
-        "    MONTH(CreatedAt) AS EarningMonth, " +
-        "    YEAR(CreatedAt) AS EarningYear, " +
-        "    SUM(NetAmount) AS MonthlyNetIncome, " +
-        "    COUNT(EarningID) AS TotalTransactions " +
-        "FROM DriverEarning " +
-        "WHERE DriverID = (SELECT DriverID FROM Driver WHERE AccountID = ? AND IsDeleted = 0) AND IsDeleted = 0 " +
-        "GROUP BY YEAR(CreatedAt), MONTH(CreatedAt) " +
-        "ORDER BY EarningYear DESC, EarningMonth DESC";
+    private static final String GET_INCOME_BY_MONTH
+            = "SELECT "
+            + "    MONTH(CreatedAt) AS EarningMonth, "
+            + "    YEAR(CreatedAt) AS EarningYear, "
+            + "    SUM(NetAmount) AS MonthlyNetIncome, "
+            + "    COUNT(EarningID) AS TotalTransactions "
+            + "FROM DriverEarning "
+            + "WHERE DriverID = (SELECT DriverID FROM Driver WHERE AccountID = ? AND IsDeleted = 0) AND IsDeleted = 0 "
+            + "GROUP BY YEAR(CreatedAt), MONTH(CreatedAt) "
+            + "ORDER BY EarningYear DESC, EarningMonth DESC";
 
     // =========================================================================
     // ============================ HÀM NGHIỆP VỤ DRIVER ========================
     // =========================================================================
-
     /**
      * 🚀 ĐÃ CẬP NHẬT: Buộc tài xế nộp đồng thời cả 2 file ảnh. Thiếu 1 trong 2
      * hoặc rỗng hệ thống hủy ngay lập tức, không lưu dữ liệu rác.
@@ -208,10 +206,10 @@ public class DriverDAO {
                     driver.setTermsAcceptedAt(rs.getTimestamp("TermsAcceptedAt"));
                     driver.setAverageRating(rs.getBigDecimal("AverageRating"));
                     driver.setWalletBalance(rs.getBigDecimal("WalletBalance"));
-                    
+
                     // 🎯 ĐÃ CẬP NHẬT: Đọc chuẩn từ tên cột viết hoa mới dưới DB
                     driver.setTermsAccepted(rs.getBoolean("TermsAccepted"));
-                    
+
                     driver.setCreatedAt(rs.getTimestamp("CreatedAt"));
                     driver.setUpdatedAt(rs.getTimestamp("UpdatedAt"));
                 }
@@ -620,7 +618,8 @@ public class DriverDAO {
                     summary.put("totalCommissionPaid", rs.getObject("TotalCommissionPaid") != null ? rs.getDouble("TotalCommissionPaid") : 0.0);
                     summary.put("totalNetIncome", rs.getObject("TotalNetIncome") != null ? rs.getDouble("TotalNetIncome") : 0.0);
                 }
-                rs.close(); ptm.close();
+                rs.close();
+                ptm.close();
 
                 // 2. Chạy câu lệnh 2: Nhóm doanh thu theo từng tháng/năm
                 ptm = conn.prepareStatement(GET_INCOME_BY_MONTH);
@@ -640,24 +639,29 @@ public class DriverDAO {
             e.printStackTrace();
             throw new SQLException("Error at getDriverIncomeSummary: " + e.getMessage());
         } finally {
-            if (rs != null) rs.close();
-            if (ptm != null) ptm.close();
-            if (conn != null) conn.close();
+            if (rs != null) {
+                rs.close();
+            }
+            if (ptm != null) {
+                ptm.close();
+            }
+            if (conn != null) {
+                conn.close();
+            }
         }
         return summary;
     }
 
     /**
-     * Lấy DriverID đơn giản từ AccountID — dùng cho các API mới
-     * liên quan tới DriverJobBroadcast (driver xem/phản hồi lệnh dispatch).
-     * Trả về -1 nếu không tìm thấy.
+     * Lấy DriverID đơn giản từ AccountID — dùng cho các API mới liên quan tới
+     * DriverJobBroadcast (driver xem/phản hồi lệnh dispatch). Trả về -1 nếu
+     * không tìm thấy.
      */
     public int getDriverIdByAccountId(int accountId) throws SQLException, ClassNotFoundException {
         String sql = "SELECT DriverID FROM Driver WHERE AccountID = ? AND IsDeleted = 0";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, accountId);
-            try (ResultSet rs = ps.executeQuery()) {
+            try ( ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return rs.getInt("DriverID");
                 }
@@ -668,17 +672,16 @@ public class DriverDAO {
 
     /**
      * Lấy tên + SĐT driver từ DriverID — dùng để build nội dung notification
-     * báo cho Dispatcher biết booking đã được driver nào nhận/từ chối.
-     * Trả về null nếu không tìm thấy.
+     * báo cho Dispatcher biết booking đã được driver nào nhận/từ chối. Trả về
+     * null nếu không tìm thấy.
      */
     public Map<String, String> getDriverNameAndPhone(int driverId) throws SQLException, ClassNotFoundException {
         String sql = "SELECT a.FullName, a.PhoneNumber "
                 + "FROM Driver d JOIN Account a ON d.AccountID = a.AccountID "
                 + "WHERE d.DriverID = ?";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, driverId);
-            try (ResultSet rs = ps.executeQuery()) {
+            try ( ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     Map<String, String> info = new HashMap<>();
                     info.put("fullName", rs.getString("FullName"));
@@ -689,24 +692,24 @@ public class DriverDAO {
             }
         }
     }
+
     /**
-     * Lấy AccountID từ DriverID — dùng để ghi AuditLog đúng account.
-     * DriverID != AccountID nên phải convert trước khi log.
+     * Lấy AccountID từ DriverID — dùng để ghi AuditLog đúng account. DriverID
+     * != AccountID nên phải convert trước khi log.
      */
     public int getAccountIdByDriverId(int driverId) throws Exception {
         String sql = "SELECT AccountID FROM Driver WHERE DriverID = ?";
-        try (java.sql.Connection conn = utils.DbUtils.getConnection();
-             java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+        try ( java.sql.Connection conn = utils.DbUtils.getConnection();  java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, driverId);
-            try (java.sql.ResultSet rs = ps.executeQuery()) {
+            try ( java.sql.ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getInt("AccountID") : driverId; // fallback driverId nếu không tìm thấy
             }
         }
     }
 
     /**
-     * Danh sách toàn bộ Driver kèm Account.Status — cho Admin xem để chọn
-     * tài khoản khóa/mở khóa.
+     * Danh sách toàn bộ Driver kèm Account.Status — cho Admin xem để chọn tài
+     * khoản khóa/mở khóa.
      */
     public List<Map<String, Object>> getAllDriversForAdmin() throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
@@ -714,9 +717,7 @@ public class DriverDAO {
                 + "d.DriverID, d.AvailabilityStatus "
                 + "FROM Driver d JOIN Account a ON a.AccountID = d.AccountID "
                 + "WHERE d.IsDeleted = 0 ORDER BY d.DriverID";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql);  ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 Map<String, Object> row = new HashMap<>();
                 row.put("accountId", rs.getInt("AccountID"));
@@ -744,9 +745,7 @@ public class DriverDAO {
                 + " WHERE djb.AssignedDriverID = d.DriverID AND djb.Status = 'ACCEPTED') AS AcceptedTripCount "
                 + "FROM Driver d JOIN Account a ON a.AccountID = d.AccountID "
                 + "WHERE d.IsDeleted = 0 ORDER BY d.DriverID";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql);  ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 Map<String, Object> row = new HashMap<>();
                 row.put("accountId", rs.getInt("AccountID"));
@@ -763,4 +762,12 @@ public class DriverDAO {
         return list;
     }
 
+    public void updateAvailabilityStatus(Connection conn, int driverId, String status) throws SQLException {
+        try ( PreparedStatement ptm = conn.prepareStatement(UPDATE_DRIVER_AVAILABILITY_BY_DRIVER_ID)) {
+            ptm.setString(1, status);
+            ptm.setTimestamp(2, new Timestamp(System.currentTimeMillis()));
+            ptm.setInt(3, driverId);
+            ptm.executeUpdate();
+        }
+    }
 }
