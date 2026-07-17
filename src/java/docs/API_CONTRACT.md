@@ -3723,7 +3723,7 @@ Header: Authorization: Bearer <token Admin>
 
 ## CUSTOMER
 
-Khách hàng đánh giá chuyến đi — giới hạn tối đa 2 lần/booking, lần 3 trở đi bị từ chối HTTP 409
+Khách hàng đánh giá chuyến đi — giới hạn đúng 1 lần/booking, lần 2 trở đi bị từ chối HTTP 409
 
 - Path: POST http://localhost:8080/FleetFlow/api/v1/ratings/customer
 
@@ -3747,18 +3747,18 @@ Khách hàng đánh giá chuyến đi — giới hạn tối đa 2 lần/booking
 }
 ```
 
-- Output (đã đánh giá đủ 2 lần cho booking này) — HTTP 409:
+- Output (đã đánh giá booking này rồi) — HTTP 409:
 
 ```json
 {
     "success": false,
-    "message": "Bạn đã đánh giá chuyến đi này đủ số lần cho phép (tối đa 2 lần)."
+    "message": "Bạn đã đánh giá chuyến đi này đủ số lần cho phép (tối đa 1 lần)."
 }
 ```
 
 ---
 
-Khách hàng gửi khiếu nại — giới hạn tối đa 2 lần/booking (nếu không có bookingId thì tính theo phone/email), vượt giới hạn trả HTTP 429
+Khách hàng gửi khiếu nại — giới hạn đúng 1 lần/booking (nếu không có bookingId thì tính theo phone/email), vượt giới hạn trả HTTP 429
 
 - Path: POST http://localhost:8080/FleetFlow/api/v1/complaints
 
@@ -3786,15 +3786,33 @@ Khách hàng gửi khiếu nại — giới hạn tối đa 2 lần/booking (n�
 }
 ```
 
-- Output (đã gửi đủ 2 lần cho booking/liên hệ này) — HTTP 429:
+- Output (đã gửi đủ 1 lần cho booking/liên hệ này) — HTTP 429:
 
 ```json
 {
     "success": false,
-    "message": "Bạn đã gửi khiếu nại đủ số lần cho phép (tối đa 2 lần)."
+    "message": "Bạn đã gửi khiếu nại đủ số lần cho phép (tối đa 1 lần)."
 }
 ```
 
+---
+
+Khách hàng gửi khiếu nại loại LOST_LUGGAGE/SERVICE_FEEDBACK khi chưa có booking hoàn thành — HTTP 400
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/complaints
+
+- Input:
+{
+  "type": "LOST_LUGGAGE",
+  "content": "Bỏ quên vali trên xe",
+  "fullName": "Nguyễn Văn A",
+  "phone": "0900000010"
+}
+- Output:
+{
+    "success": false,
+    "message": "Chỉ khách hàng đã hoàn thành chuyến đi mới được gửi khiếu nại loại này. Vui lòng chọn loại 'Khác' (OTHER) nếu chưa có chuyến đi hoàn thành liên quan."
+}
 ---
 
 ## DRIVER

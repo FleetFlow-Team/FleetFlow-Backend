@@ -29,7 +29,7 @@ public class CustomerRatingController extends HttpServlet {
     private final RatingDAO dao = new RatingDAO();
     private final Gson gson = new Gson();
 
-    private static final int MAX_RATINGS_PER_BOOKING = 2;
+    private static final int MAX_RATINGS_PER_BOOKING = 1;
     /**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
      * methods.
