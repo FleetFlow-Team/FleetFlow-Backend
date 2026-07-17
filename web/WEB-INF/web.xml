@@ -153,6 +153,10 @@
         <servlet-class>controller.CustomerRatingHistoryController</servlet-class>
     </servlet>
     <servlet>
+        <servlet-name>DriverRatingHistoryController</servlet-name>
+        <servlet-class>controller.DriverRatingHistoryController</servlet-class>
+    </servlet>
+    <servlet>
         <servlet-name>CustomerComplaintHistoryController</servlet-name>
         <servlet-class>controller.CustomerComplaintHistoryController</servlet-class>
     </servlet>
@@ -323,6 +327,10 @@
     <servlet-mapping>
         <servlet-name>CustomerRatingHistoryController</servlet-name>
         <url-pattern>/CustomerRatingHistoryController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>DriverRatingHistoryController</servlet-name>
+        <url-pattern>/DriverRatingHistoryController</url-pattern>
     </servlet-mapping>
     <servlet-mapping>
         <servlet-name>CustomerComplaintHistoryController</servlet-name>

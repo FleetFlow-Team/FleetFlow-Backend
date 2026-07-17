@@ -201,6 +201,56 @@ public class RatingDAO {
         return list;
     }
 
+    /** Điểm trung bình + số lượt đánh giá của 1 tài xế — dùng cho trang "Đánh giá của tôi" của driver. */
+    public Map<String, Object> getDriverRatingSummary(int driverId) throws Exception {
+        String sql = "SELECT AVG(CAST(cr.DriverRating AS DECIMAL(5,2))) AS AvgDriverRating, "
+                + "COUNT(*) AS RatingCount "
+                + "FROM CustomerRating cr "
+                + "JOIN Booking b ON b.BookingID = cr.BookingID "
+                + "JOIN DriverJobBroadcast djb ON djb.BookingID = b.BookingID AND djb.Status = 'ACCEPTED' "
+                + "WHERE djb.AssignedDriverID = ?";
+        Map<String, Object> m = new LinkedHashMap<>();
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, driverId);
+            try ( ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    m.put("averageRating", rs.getBigDecimal("AvgDriverRating"));
+                    m.put("ratingCount", rs.getInt("RatingCount"));
+                }
+            }
+        }
+        return m;
+    }
+
+    /**
+     * Danh sách đánh giá khách hàng dành cho 1 tài xế — để tài xế xem lại và rút kinh
+     * nghiệm. Chỉ lấy đúng cột cần thiết: bookingId, comment, driverRating, createdAt.
+     */
+    public List<Map<String, Object>> getRatingsForDriver(int driverId) throws Exception {
+        List<Map<String, Object>> list = new ArrayList<>();
+        String sql = "SELECT cr.BookingID, cr.Comment, cr.DriverRating, cr.CreatedAt "
+                + "FROM CustomerRating cr "
+                + "JOIN Booking b ON b.BookingID = cr.BookingID "
+                + "JOIN DriverJobBroadcast djb ON djb.BookingID = b.BookingID AND djb.Status = 'ACCEPTED' "
+                + "WHERE djb.AssignedDriverID = ? "
+                + "ORDER BY cr.CreatedAt DESC";
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, driverId);
+            try ( ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("bookingId", rs.getInt("BookingID"));
+                    m.put("comment", rs.getString("Comment"));
+                    m.put("driverRating", rs.getInt("DriverRating"));
+                    java.sql.Timestamp createdAt = rs.getTimestamp("CreatedAt");
+                    m.put("createdAt", createdAt != null ? createdAt.toString() : null);
+                    list.add(m);
+                }
+            }
+        }
+        return list;
+    }
+
     /** Danh sách CustomerRating (khách đánh giá tài xế/xe) cho Admin, có filter tùy chọn. */
     public List<Map<String, Object>> getCustomerRatingsForAdmin(Integer driverId, Integer customerId, Integer bookingId,
             boolean lowOnly, String fromDate, String toDate) throws Exception {
