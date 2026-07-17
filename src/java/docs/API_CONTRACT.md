@@ -3878,6 +3878,36 @@ Tài xế đánh giá khách hàng — chỉ được đánh giá 1 lần/bookin
 
 ---
 
+Tài xế xem điểm trung bình + danh sách đánh giá của khách hàng về mình (API MỚI)
+
+- Path: GET http://localhost:8080/FleetFlow/api/v1/driver/ratings
+
+- Input:
+
+```
+Header: Authorization: Bearer <token Driver>
+```
+
+- Output:
+
+```json
+{
+    "success": true,
+    "averageRating": 4.50,
+    "ratingCount": 10,
+    "data": [
+        {
+            "bookingId": 1,
+            "comment": "Tài xế thân thiện, xe sạch sẽ",
+            "driverRating": 5,
+            "createdAt": "2025-03-25 10:00:00.0"
+        }
+    ]
+}
+```
+
+---
+
 ## ADMIN
 
 Admin xem & quản lý chất lượng qua rating (API MỚI)
