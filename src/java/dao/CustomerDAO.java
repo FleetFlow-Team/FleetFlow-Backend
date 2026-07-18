@@ -15,7 +15,7 @@ public class CustomerDAO {
 
     private static final String GET_PROFILE_BY_EMAIL
             = "SELECT a.AccountID, a.Email, a.FullName, a.PhoneNumber, a.RoleName, a.Status, "
-            + "c.CustomerID, c.Address, c.DebtBalance, c.BookingStatus, c.CreatedAt "
+            + "c.CustomerID, c.Address, c.CreatedAt "
             + "FROM Account a "
             + "JOIN Customer c ON c.AccountID = a.AccountID "
             + "WHERE a.Email = ?";
@@ -59,8 +59,6 @@ public class CustomerDAO {
                     m.put("roleName", rs.getString("RoleName"));
                     m.put("status", rs.getString("Status"));
                     m.put("address", rs.getString("Address"));
-                    m.put("debtBalance", rs.getBigDecimal("DebtBalance"));
-                    m.put("bookingStatus", rs.getString("BookingStatus"));
                     m.put("createdAt", rs.getTimestamp("CreatedAt"));
                     return m;
                 }

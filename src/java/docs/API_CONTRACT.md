@@ -4620,3 +4620,56 @@ Khách hàng áp voucher đã hết lượt sử dụng (đủ totalQuantity) �
     "error": "Voucher đã hết lượt sử dụng"
 }
 ```
+
+---
+
+Khách hàng cập nhật hồ sơ — đã fix lỗi "Invalid column name 'DebtBalance'" (query cũ tham chiếu 2 cột không tồn tại trong bảng Customer), thêm validate ký tự họ tên/số điện thoại
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/customers/profile/update
+
+- Input:
+
+```
+Header: Authorization: Bearer <token Customer>
+fullName=Nguyễn Văn A
+phoneNumber=0900000010
+address=123 Hàm Nghi
+```
+
+- Output (thành công):
+
+```json
+{
+    "success": true,
+    "message": "Cập nhật hồ sơ thành công.",
+    "data": {
+        "accountId": 1,
+        "customerId": 1,
+        "email": "an1@example.com",
+        "fullName": "Nguyễn Văn A",
+        "phoneNumber": "0900000010",
+        "roleName": "Customer",
+        "status": "ACTIVE",
+        "address": "123 Hàm Nghi",
+        "createdAt": "2026-01-01 10:00:00"
+    }
+}
+```
+
+- Output (họ tên chứa ký tự không hợp lệ) — HTTP 400:
+
+```json
+{
+    "success": false,
+    "message": "Họ và tên chỉ được chứa chữ cái và khoảng trắng."
+}
+```
+
+- Output (số điện thoại sai định dạng, ví dụ "abc654321") — HTTP 400:
+
+```json
+{
+    "success": false,
+    "message": "Số điện thoại không hợp lệ. Định dạng đúng: bắt đầu bằng 0, đủ 10 chữ số."
+}
+```
