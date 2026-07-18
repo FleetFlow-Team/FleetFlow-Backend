@@ -18,18 +18,18 @@ import service.ComplaintWorkflowService;
 import utils.JwtUtils;
 
 /**
- * Endpoint dispatcher xử lý khiếu nại — nâng cấp theo spec Report_Flow_Complaint.md:
+ * Endpoint dispatcher xử lý khiếu nại (2 loại: LOST_LUGGAGE, OTHER — bản rút
+ * gọn theo quyết định của PO so với Report_Flow_Complaint.md gốc):
  *
  *   GET    /api/v1/dispatcher/complaints                          — danh sách đơn
  *   POST   /api/v1/dispatcher/complaints/{id}/assign              — nhận xử lý (PENDING -> IN_PROGRESS)
  *   POST   /api/v1/dispatcher/complaints/{id}/actions/contact-driver
- *          body { "result": "HAS_ITEM" | "NO_ITEM" | "NO_RESPONSE" }   (LOST_LUGGAGE)
+ *          body { "result": "HAS_ITEM" | "NO_ITEM" | "NO_RESPONSE" }   (chỉ LOST_LUGGAGE)
+ *   POST   /api/v1/dispatcher/complaints/{id}/actions/handle
+ *          body { "action": "VERIFIED_HANDLED" | "CANNOT_VERIFY" | "ESCALATED" | "REJECTED" }   (chỉ OTHER)
  *   PUT    /api/v1/dispatcher/complaints/{id}/resolve
  *          body { "outcome": "RESOLVED" | "CLOSED_UNRESOLVED", "reason_code"?: "..." }
  *   DELETE /api/v1/dispatcher/complaints/{id}                     — ẩn đơn (soft delete = cờ hidden)
- *
- * LƯU Ý: đơn loại khác LOST_LUGGAGE tạm dùng resolve legacy (body { "resolution": "..." })
- * cho tới khi luồng OTHER được triển khai — tránh vỡ chức năng đang chạy.
  */
 @WebServlet("/api/v1/dispatcher/complaints/*")
 public class DispatcherConplaintController extends HttpServlet {
@@ -117,7 +117,7 @@ public class DispatcherConplaintController extends HttpServlet {
             }
             String pathInfo = request.getPathInfo();
             if (pathInfo == null) {
-                badRequest(response, res, "Path không hợp lệ. Dùng /{id}/assign hoặc /{id}/actions/contact-driver");
+                badRequest(response, res, "Path không hợp lệ. Dùng /{id}/assign, /{id}/actions/contact-driver hoặc /{id}/actions/handle");
             } else if (pathInfo.endsWith("/assign")) {
                 int complaintId = Integer.parseInt(pathInfo.split("/")[1]);
                 workflow.assign(complaintId, currentAccountId(request), request.getRemoteAddr());
@@ -131,8 +131,16 @@ public class DispatcherConplaintController extends HttpServlet {
                         currentAccountId(request), request.getRemoteAddr());
                 res.put("success", true);
                 res.put("customerMessage", msg);
+            } else if (pathInfo.endsWith("/actions/handle")) {
+                int complaintId = Integer.parseInt(pathInfo.split("/")[1]);
+                JsonObject body = readBody(request);
+                String action = body.has("action") ? body.get("action").getAsString() : null;
+                String msg = workflow.handle(complaintId, action,
+                        currentAccountId(request), request.getRemoteAddr());
+                res.put("success", true);
+                res.put("customerMessage", msg);
             } else {
-                badRequest(response, res, "Path không hợp lệ. Dùng /{id}/assign hoặc /{id}/actions/contact-driver");
+                badRequest(response, res, "Path không hợp lệ. Dùng /{id}/assign, /{id}/actions/contact-driver hoặc /{id}/actions/handle");
             }
         } catch (IllegalArgumentException e) {
             response.setStatus(400);
@@ -165,40 +173,12 @@ public class DispatcherConplaintController extends HttpServlet {
             if (pathInfo != null && pathInfo.endsWith("/resolve")) {
                 int complaintId = Integer.parseInt(pathInfo.split("/")[1]);
                 JsonObject body = readBody(request);
-
-                if (body.has("outcome")) {
-                    // Luồng mới theo spec (LOST_LUGGAGE): outcome + reason_code, message tự sinh
-                    String outcome = body.get("outcome").getAsString();
-                    String reasonCode = body.has("reason_code") ? body.get("reason_code").getAsString() : null;
-                    String msg = workflow.resolve(complaintId, outcome, reasonCode,
-                            currentAccountId(request), request.getRemoteAddr());
-                    res.put("success", true);
-                    res.put("customerMessage", msg);
-                } else {
-                    // Legacy (đơn loại khác LOST_LUGGAGE, chưa có luồng riêng):
-                    // giữ nguyên hành vi cũ để không vỡ FE hiện tại
-                    String resolution = body.has("resolution") ? body.get("resolution").getAsString() : "";
-                    boolean resolved = dao.resolveComplaint(complaintId, resolution);
-                    res.put("success", resolved);
-                    if (resolved) {
-                        try {
-                            int[] info = dao.getComplaintCustomerInfo(complaintId);
-                            int customerAccountId = info[0];
-                            Integer bookingId = info[1] == -1 ? null : info[1];
-                            if (customerAccountId != -1) {
-                                new dao.ExtensionDAO().createNotification(
-                                        customerAccountId, bookingId,
-                                        "Khiếu nại của bạn đã được xử lý",
-                                        "Khiếu nại #" + complaintId + " đã được giải quyết."
-                                                + (resolution != null && !resolution.isEmpty()
-                                                        ? " Phản hồi: " + resolution : ""),
-                                        "COMPLAINT_RESOLVED", "IN_APP");
-                            }
-                        } catch (Exception notifEx) {
-                            notifEx.printStackTrace();
-                        }
-                    }
-                }
+                String outcome = body.has("outcome") ? body.get("outcome").getAsString() : null;
+                String reasonCode = body.has("reason_code") ? body.get("reason_code").getAsString() : null;
+                String msg = workflow.resolve(complaintId, outcome, reasonCode,
+                        currentAccountId(request), request.getRemoteAddr());
+                res.put("success", true);
+                res.put("customerMessage", msg);
             } else {
                 badRequest(response, res, "Path không hợp lệ. Dùng /{complaintId}/resolve");
             }

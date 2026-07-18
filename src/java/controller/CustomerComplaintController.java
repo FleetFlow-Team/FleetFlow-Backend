@@ -1,3 +1,7 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/JSP_Servlet/Servlet.java to edit this template
+ */
 package controller;
 
 import com.google.gson.Gson;
@@ -5,9 +9,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dao.ComplaintDAO;
 import dao.ComplaintDAO.ComplaintForm;
+import dao.ExtensionDAO;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
 import javax.servlet.ServletException;
@@ -15,11 +19,26 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import service.ComplaintWorkflowService;
+import utils.JwtUtils;
 
+/**
+ * Khách gửi khiếu nại — luồng rút gọn theo quyết định của PO so với
+ * Report_Flow_Complaint.md gốc:
+ *
+ *   - Chỉ 2 loại: LOST_LUGGAGE, OTHER (OTHER = khách tự mô tả tự do, không
+ *     còn lớp phân loại issueType).
+ *   - Bắt buộc đăng nhập, khiếu nại luôn gắn với 1 booking ĐÃ HOÀN THÀNH của
+ *     chính khách đó (không còn khách vãng lai) — khách thao tác từ màn hình
+ *     lịch sử chuyến đi đã hoàn thành.
+ *   - Gửi thành công -> báo ngay cho Admin + Dispatcher để tiếp nhận.
+ */
 @WebServlet("/api/v1/complaints")
 public class CustomerComplaintController extends HttpServlet {
 
     private final ComplaintDAO dao = new ComplaintDAO();
+    private final ExtensionDAO extensionDAO = new ExtensionDAO();
+    private final ComplaintWorkflowService workflow = new ComplaintWorkflowService();
     private final Gson gson = new Gson();
 
     private static final int MAX_COMPLAINTS_PER_BOOKING = 1;
@@ -39,6 +58,33 @@ public class CustomerComplaintController extends HttpServlet {
         response.setStatus(HttpServletResponse.SC_OK);
     }
 
+    private Integer requireCustomerId(HttpServletRequest request, HttpServletResponse response,
+            Map<String, Object> res) throws Exception {
+        String header = request.getHeader("Authorization");
+        String token = (header != null && header.startsWith("Bearer ")) ? header.substring(7).trim() : null;
+        if (token == null || !JwtUtils.validateToken(token)) {
+            response.setStatus(401);
+            res.put("success", false);
+            res.put("message", "Chưa đăng nhập hoặc token không hợp lệ/đã hết hạn");
+            return null;
+        }
+        String role = JwtUtils.getRoleFromToken(token);
+        if (role == null || !"Customer".equalsIgnoreCase(role)) {
+            response.setStatus(403);
+            res.put("success", false);
+            res.put("message", "Chỉ tài khoản Customer được gửi khiếu nại");
+            return null;
+        }
+        int customerId = extensionDAO.getCustomerIdByEmail(JwtUtils.getEmailFromToken(token));
+        if (customerId == -1) {
+            response.setStatus(404);
+            res.put("success", false);
+            res.put("message", "Không tìm thấy hồ sơ khách hàng");
+            return null;
+        }
+        return customerId;
+    }
+
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -46,101 +92,71 @@ public class CustomerComplaintController extends HttpServlet {
         prepare(response);
         Map<String, Object> res = new HashMap<>();
         try {
+            Integer customerId = requireCustomerId(request, response, res);
+            if (customerId == null) {
+                response.getWriter().print(gson.toJson(res));
+                return;
+            }
+
             JsonObject body = readBody(request);
 
             String type = getStr(body, "type");
             if (type == null) {
-                fail(response, res, 400, "Thiếu 'type'. Chấp nhận: LOST_LUGGAGE, SERVICE_FEEDBACK, OTHER.");
+                fail(response, res, 400, "Thiếu 'type'. Chấp nhận: LOST_LUGGAGE, OTHER.");
                 return;
             }
             type = type.toUpperCase();
-            if (!type.equals("LOST_LUGGAGE") && !type.equals("SERVICE_FEEDBACK") && !type.equals("OTHER")) {
-                fail(response, res, 400, "type không hợp lệ. Chấp nhận: LOST_LUGGAGE, SERVICE_FEEDBACK, OTHER.");
+            if (!type.equals("LOST_LUGGAGE") && !type.equals("OTHER")) {
+                fail(response, res, 400, "type không hợp lệ. Chấp nhận: LOST_LUGGAGE, OTHER.");
+                return;
+            }
+
+            if (!body.has("bookingId") || body.get("bookingId").isJsonNull()) {
+                fail(response, res, 400, "Thiếu 'bookingId'. Khiếu nại phải gắn với 1 chuyến đi đã hoàn thành.");
+                return;
+            }
+            int bookingId;
+            try {
+                bookingId = body.get("bookingId").getAsInt();
+            } catch (Exception e) {
+                fail(response, res, 400, "bookingId không hợp lệ.");
+                return;
+            }
+
+            if (!dao.isBookingOwnedByAndCompleted(bookingId, customerId)) {
+                fail(response, res, 400, "Chuyến đi không tồn tại, chưa hoàn thành, hoặc không thuộc tài khoản của bạn.");
+                return;
+            }
+
+            if (dao.countComplaintsByBooking(bookingId) >= MAX_COMPLAINTS_PER_BOOKING) {
+                fail(response, res, 429, "Bạn đã gửi khiếu nại đủ số lần cho phép cho chuyến đi này (tối đa "
+                        + MAX_COMPLAINTS_PER_BOOKING + " lần).");
+                return;
+            }
+
+            String content = getStr(body, "content");
+            if (content == null) {
+                fail(response, res, 400, "Cần nhập nội dung mô tả (content).");
                 return;
             }
 
             ComplaintForm f = new ComplaintForm();
             f.type = type;
-            f.region = normalizeRegion(getStr(body, "region"));
-            f.fullName = getStr(body, "fullName");
-            f.email = getStr(body, "email");
-            f.phone = getStr(body, "phone");
-            f.province = getStr(body, "province");
-            f.issueType = getStr(body, "issueType");
-            f.fromLocation = getStr(body, "fromLocation");
-            f.toLocation = getStr(body, "toLocation");
-            f.content = getStr(body, "content");
-
-            if (body.has("fare") && !body.get("fare").isJsonNull()) {
-                try {
-                    f.fare = body.get("fare").getAsBigDecimal();
-                } catch (Exception ignore) {
-                }
-            }
-            if (body.has("boardingTime") && !body.get("boardingTime").isJsonNull()) {
-                String bt = body.get("boardingTime").getAsString().trim();
-                if (!bt.isEmpty()) {
-                    try {
-                        f.boardingTime = Timestamp.valueOf(bt.replace("T", " "));
-                    } catch (Exception ignore) {
-                    }
-                }
-            }
-            if (body.has("bookingId") && !body.get("bookingId").isJsonNull()) {
-                try {
-                    f.bookingId = body.get("bookingId").getAsInt();
-                } catch (Exception ignore) {
-                }
-            }
-            if (body.has("customerId") && !body.get("customerId").isJsonNull()) {
-                try {
-                    f.customerId = body.get("customerId").getAsInt();
-                } catch (Exception ignore) {
-                }
-            }
-
-            if (f.fullName == null) {
-                fail(response, res, 400, "Thiếu họ tên.");
-                return;
-            }
-            if (f.phone == null && f.email == null) {
-                fail(response, res, 400, "Cần ít nhất số điện thoại hoặc email để liên hệ.");
-                return;
-            }
-
-            // Chỉ khách hàng có booking đã hoàn thành (COMPLETED) mới được chọn
-            // LOST_LUGGAGE/SERVICE_FEEDBACK (liên quan trực tiếp đến 1 chuyến đi thật).
-            // Khách vãng lai hoặc booking chưa hoàn thành chỉ được gửi loại OTHER.
-            if (!type.equals("OTHER")) {
-                String bookingStatus = f.bookingId != null ? dao.getBookingStatus(f.bookingId) : null;
-                if (!"COMPLETED".equalsIgnoreCase(bookingStatus)) {
-                    fail(response, res, 400, "Chỉ khách hàng đã hoàn thành chuyến đi mới được gửi khiếu nại loại này. "
-                            + "Vui lòng chọn loại 'Khác' (OTHER) nếu chưa có chuyến đi hoàn thành liên quan.");
-                    return;
-                }
-            }
-
-            if (type.equals("SERVICE_FEEDBACK") && f.issueType == null) {
-                fail(response, res, 400, "Góp ý thái độ phục vụ cần chọn vấn đề cần giải quyết (issueType).");
-                return;
-            }
-            if ((type.equals("LOST_LUGGAGE") || type.equals("OTHER")) && f.content == null) {
-                fail(response, res, 400, "Cần nhập nội dung mô tả (content).");
-                return;
-            }
-
-            int existingCount = f.bookingId != null
-                    ? dao.countComplaintsByBooking(f.bookingId)
-                    : dao.countComplaintsByContact(f.phone, f.email);
-            if (existingCount >= MAX_COMPLAINTS_PER_BOOKING) {
-                fail(response, res, 429, "Bạn đã gửi khiếu nại đủ số lần cho phép (tối đa " + MAX_COMPLAINTS_PER_BOOKING + " lần).");
-                return;
-            }
+            f.content = content;
+            f.bookingId = bookingId;
+            f.customerId = customerId;
 
             int complaintId = dao.createComplaint(f);
-            res.put("success", complaintId > 0);
+            if (complaintId <= 0) {
+                fail(response, res, 500, "Không thể lưu khiếu nại. Vui lòng thử lại.");
+                return;
+            }
+
+            workflow.notifyStaffNewComplaint(complaintId, type);
+
+            res.put("success", true);
             res.put("complaintId", complaintId);
-            res.put("message", "Đã gửi phản ánh thành công. Chúng tôi sẽ liên hệ sớm.");
+            res.put("message", "Đã gửi khiếu nại thành công. Chúng tôi sẽ xử lý sớm.");
         } catch (Exception e) {
             response.setStatus(500);
             res.put("success", false);
@@ -155,13 +171,6 @@ public class CustomerComplaintController extends HttpServlet {
         res.put("success", false);
         res.put("message", message);
         response.getWriter().print(gson.toJson(res));
-    }
-
-    private String normalizeRegion(String region) {
-        if (region == null) {
-            return null;
-        }
-        return region.toUpperCase();
     }
 
     private JsonObject readBody(HttpServletRequest request) throws IOException {

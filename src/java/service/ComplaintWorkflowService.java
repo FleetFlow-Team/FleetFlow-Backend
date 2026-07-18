@@ -1,5 +1,6 @@
 package service;
 
+import dao.AccountDAO;
 import dao.AuditLogDAO;
 import dao.ComplaintActionDAO;
 import dao.ComplaintDAO;
@@ -9,18 +10,17 @@ import dao.ExtensionDAO;
 import java.util.Map;
 
 /**
- * Workflow xử lý khiếu nại LOST_LUGGAGE theo spec Report_Flow_Complaint.md.
+ * Workflow xử lý khiếu nại — rút gọn theo quyết định của PO so với
+ * Report_Flow_Complaint.md: chỉ 2 loại LOST_LUGGAGE/OTHER, OTHER không còn
+ * lớp phân loại issueType (khách tự mô tả tự do), cả 2 loại đều bắt buộc gắn
+ * booking đã hoàn thành (không còn khách vãng lai).
  *
- * Nguyên tắc xuyên suốt: dispatcher KHÔNG gõ text tự do — mọi thao tác là chọn
- * hành động cố định, nội dung khách nhìn thấy do hệ thống tự sinh (spec mục 6).
- *
- * State machine: PENDING -(assign)-> IN_PROGRESS -(resolve)-> RESOLVED / CLOSED_UNRESOLVED
+ * Giữ nguyên từ spec gốc: bộ hành động cố định cho từng loại, nguyên tắc
+ * dispatcher KHÔNG gõ text tự do (nội dung khách nhận đều tự sinh), và state
+ * machine PENDING -(assign)-> IN_PROGRESS -(resolve)-> RESOLVED / CLOSED_UNRESOLVED.
  *
  * Lỗi nghiệp vụ ném IllegalStateException / IllegalArgumentException với message
  * tiếng Việt — controller map thẳng ra body JSON.
- *
- * PHẠM VI: LOST_LUGGAGE. Loại OTHER (mô hình 2 lớp issueType + 4 action chung)
- * chưa triển khai — resolve cho OTHER tạm đi đường legacy để không vỡ chức năng cũ.
  */
 public class ComplaintWorkflowService {
 
@@ -102,9 +102,68 @@ public class ComplaintWorkflowService {
     }
 
     // =====================================================================
-    // Bước 5 — Chốt đơn: outcome = RESOLVED | CLOSED_UNRESOLVED (+ reasonCode)
+    // Bước xử lý OTHER: bộ 4 hành động cố định dùng chung, không phân loại
+    // issueType (đã bỏ theo quyết định rút gọn) — ESCALATED dùng 1 nội dung
+    // chung "bộ phận liên quan" thay vì tra theo issueType.
+    // =====================================================================
+    public String handle(int complaintId, String action, int dispatcherAccountId, String ip) throws Exception {
+        Map<String, Object> core = requireComplaint(complaintId);
+        if (!"OTHER".equals(core.get("type"))) {
+            throw new IllegalStateException("Hành động xử lý này chỉ áp dụng cho đơn OTHER");
+        }
+        if (!"IN_PROGRESS".equals(core.get("status"))) {
+            throw new IllegalStateException("Phải bấm \"Nhận xử lý\" trước khi thao tác (đơn chưa ở IN_PROGRESS)");
+        }
+        if (action == null) {
+            throw new IllegalArgumentException(
+                    "Thiếu 'action'. Chấp nhận: VERIFIED_HANDLED, CANNOT_VERIFY, ESCALATED, REJECTED");
+        }
+        action = action.toUpperCase();
+
+        String msg;
+        switch (action) {
+            case "VERIFIED_HANDLED":
+                msg = "Chúng tôi đã xác minh và xử lý vấn đề bạn phản ánh.";
+                break;
+            case "CANNOT_VERIFY":
+                msg = "Chúng tôi không đủ căn cứ để xác minh vấn đề bạn phản ánh.";
+                break;
+            case "ESCALATED":
+                msg = "Vấn đề của bạn đã được chuyển đến bộ phận liên quan để xử lý.";
+                break;
+            case "REJECTED":
+                msg = "Khiếu nại không thuộc phạm vi xử lý hoặc không đủ thông tin hợp lệ.";
+                break;
+            default:
+                throw new IllegalArgumentException(
+                        "action không hợp lệ. Chấp nhận: VERIFIED_HANDLED, CANNOT_VERIFY, ESCALATED, REJECTED");
+        }
+
+        actionDAO.insertAction(complaintId, dispatcherAccountId, action, null, msg);
+        notifyOwner(complaintId, "Cập nhật khiếu nại #" + complaintId, msg);
+        audit(dispatcherAccountId, "COMPLAINT_" + action, complaintId, null, action, ip);
+        return msg;
+    }
+
+    // =====================================================================
+    // Bước 5 — Chốt đơn: route theo loại. Mỗi loại có hàm riêng, KHÔNG chia
+    // sẻ thân hàm, để nhánh LOST_LUGGAGE giữ nguyên tuyệt đối như bản gốc
+    // (tránh đụng vào code đã chạy ổn định).
     // =====================================================================
     public String resolve(int complaintId, String outcome, String reasonCode,
+            int dispatcherAccountId, String ip) throws Exception {
+        Map<String, Object> core = requireComplaint(complaintId);
+        if ("LOST_LUGGAGE".equals(core.get("type"))) {
+            return resolveLostLuggage(complaintId, outcome, reasonCode, dispatcherAccountId, ip);
+        }
+        return resolveOther(complaintId, outcome, reasonCode, dispatcherAccountId, ip);
+    }
+
+    // =====================================================================
+    // Bước 5 (LOST_LUGGAGE) — outcome = RESOLVED | CLOSED_UNRESOLVED (+ reasonCode).
+    // Y nguyên logic gốc, không đổi.
+    // =====================================================================
+    private String resolveLostLuggage(int complaintId, String outcome, String reasonCode,
             int dispatcherAccountId, String ip) throws Exception {
         Map<String, Object> core = requireComplaint(complaintId);
         if (!"IN_PROGRESS".equals(core.get("status"))) {
@@ -169,6 +228,64 @@ public class ComplaintWorkflowService {
     }
 
     // =====================================================================
+    // Bước chốt đơn (OTHER) — outcome = RESOLVED | CLOSED_UNRESOLVED (+ reasonCode).
+    // Hàm riêng, không dùng chung thân hàm với LOST_LUGGAGE.
+    // =====================================================================
+    private String resolveOther(int complaintId, String outcome, String reasonCode,
+            int dispatcherAccountId, String ip) throws Exception {
+        Map<String, Object> core = requireComplaint(complaintId);
+        if (!"IN_PROGRESS".equals(core.get("status"))) {
+            throw new IllegalStateException("Chỉ chốt được đơn đang IN_PROGRESS");
+        }
+        if (outcome == null) {
+            throw new IllegalArgumentException("Thiếu 'outcome'. Chấp nhận: RESOLVED, CLOSED_UNRESOLVED");
+        }
+        outcome = outcome.toUpperCase();
+
+        // Rule 5 (tương đương): không được đóng đơn khi chưa ghi nhận hành động xử lý nào
+        if (actionDAO.countHandleActions(complaintId) == 0) {
+            throw new IllegalStateException(
+                    "Chưa ghi nhận hành động xử lý nào — không thể chốt đơn");
+        }
+
+        String msg;
+        if ("RESOLVED".equals(outcome)) {
+            msg = "Đơn khiếu nại đã được xử lý xong. Cảm ơn bạn đã phản hồi.";
+            reasonCode = null;
+        } else if ("CLOSED_UNRESOLVED".equals(outcome)) {
+            // Rule 8: CLOSED_UNRESOLVED bắt buộc có reason_code
+            if (reasonCode == null) {
+                throw new IllegalArgumentException(
+                        "Đóng đơn không thành công thì bắt buộc phải chọn lý do");
+            }
+            reasonCode = reasonCode.toUpperCase();
+            switch (reasonCode) {
+                case "CUSTOMER_UNREACHABLE":
+                    msg = "Chúng tôi không thể liên hệ được với bạn sau nhiều lần thử.";
+                    break;
+                case "VIOLATION_NOT_CONFIRMED":
+                    msg = "Không đủ căn cứ xác nhận vi phạm.";
+                    break;
+                default:
+                    throw new IllegalArgumentException("reason_code không hợp lệ cho OTHER. "
+                            + "Chấp nhận: CUSTOMER_UNREACHABLE, VIOLATION_NOT_CONFIRMED");
+            }
+        } else {
+            throw new IllegalArgumentException("outcome không hợp lệ. Chấp nhận: RESOLVED, CLOSED_UNRESOLVED");
+        }
+
+        boolean ok = actionDAO.closeComplaint(complaintId, outcome, reasonCode, msg);
+        if (!ok) {
+            throw new IllegalStateException("Đơn vừa bị thao tác bởi người khác, tải lại và thử lại");
+        }
+        actionDAO.insertAction(complaintId, dispatcherAccountId,
+                "RESOLVED".equals(outcome) ? "RESOLVE" : "CLOSE_UNRESOLVED", reasonCode, msg);
+        notifyOwner(complaintId, "Khiếu nại #" + complaintId + " đã đóng", msg);
+        audit(dispatcherAccountId, "COMPLAINT_CLOSE", complaintId, "IN_PROGRESS", outcome, ip);
+        return msg;
+    }
+
+    // =====================================================================
     // Helpers
     // =====================================================================
 
@@ -195,6 +312,29 @@ public class ComplaintWorkflowService {
             throw new IllegalStateException("Không tìm thấy SĐT của tài xế #" + driverId);
         }
         return info.get("phoneNumber");
+    }
+
+    /**
+     * Báo cho toàn bộ Admin + Dispatcher đang ACTIVE khi có đơn khiếu nại mới
+     * (bổ sung theo quyết định của PO, không có trong Report_Flow_Complaint.md
+     * gốc — spec gốc chỉ để Dispatcher tự vào danh sách xem, không cảnh báo).
+     */
+    public void notifyStaffNewComplaint(int complaintId, String type) {
+        try {
+            String title = "Khiếu nại mới #" + complaintId;
+            String message = "Có khiếu nại mới loại "
+                    + ("LOST_LUGGAGE".equals(type) ? "Thất lạc hành lý" : "Khác")
+                    + " cần tiếp nhận xử lý.";
+            AccountDAO accountDAO = new AccountDAO();
+            for (int accId : accountDAO.getActiveDispatcherAccountIds()) {
+                extensionDAO.createNotification(accId, null, title, message, "COMPLAINT_NEW", "IN_APP");
+            }
+            for (int accId : accountDAO.getActiveAdminAccountIds()) {
+                extensionDAO.createNotification(accId, null, title, message, "COMPLAINT_NEW", "IN_APP");
+            }
+        } catch (Exception e) {
+            e.printStackTrace(); // notify lỗi không được chặn nghiệp vụ chính
+        }
     }
 
     /** Notify chủ đơn qua in-app. Đơn của guest (không CustomerID) thì bỏ qua —

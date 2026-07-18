@@ -454,6 +454,23 @@ public class AccountDAO {
     }
 
     /**
+     * Lấy danh sách AccountID của tất cả Admin đang ACTIVE — dùng để gửi
+     * notification khi có khiếu nại mới cần Admin/Dispatcher tiếp nhận.
+     */
+    public java.util.List<Integer> getActiveAdminAccountIds() throws SQLException, ClassNotFoundException {
+        java.util.List<Integer> ids = new java.util.ArrayList<>();
+        String sql = "SELECT AccountID FROM Account WHERE RoleName = 'Admin' AND Status = 'ACTIVE'";
+        try (Connection conn = utils.DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                ids.add(rs.getInt("AccountID"));
+            }
+        }
+        return ids;
+    }
+
+    /**
      * Khóa 1 account bất kỳ theo AccountID — dùng chung cho Admin khóa
      * Driver/Dispatcher (không ràng buộc công nợ như Customer).
      */

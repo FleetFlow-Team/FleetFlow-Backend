@@ -81,6 +81,22 @@ public class ComplaintActionDAO {
         }
     }
 
+    /** Đếm số action thuộc bộ 4 hành động xử lý OTHER (VERIFIED_HANDLED/
+     *  CANNOT_VERIFY/ESCALATED/REJECTED) — dùng để check rule "không được
+     *  chốt đơn khi chưa có hành động xử lý nào" (tương đương rule 5 của
+     *  LOST_LUGGAGE nhưng áp dụng cho OTHER). */
+    public int countHandleActions(int complaintId) throws Exception {
+        String sql = "SELECT COUNT(*) FROM ComplaintAction WHERE ComplaintID = ? "
+                + "AND ActionCode IN ('VERIFIED_HANDLED', 'CANNOT_VERIFY', 'ESCALATED', 'REJECTED')";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, complaintId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
     /** Đếm chính xác 1 action code — vd CONTACT_DRIVER_NO_RESPONSE để check
      *  rule "gọi hụt tối thiểu 3 lần mới được chốt DRIVER_UNREACHABLE". */
     public int countActionsByCode(int complaintId, String actionCode) throws Exception {
