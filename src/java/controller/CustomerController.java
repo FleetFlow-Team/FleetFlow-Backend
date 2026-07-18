@@ -125,6 +125,14 @@ public class CustomerController extends HttpServlet {
                     response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                     apiResponse.put("success", false);
                     apiResponse.put("message", "Không có thông tin nào để cập nhật.");
+                } else if (fullName != null && !fullName.matches("^[\\p{L} ]+$")) {
+                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    apiResponse.put("success", false);
+                    apiResponse.put("message", "Họ và tên chỉ được chứa chữ cái và khoảng trắng.");
+                } else if (phoneNumber != null && !phoneNumber.matches("^0\\d{9}$")) {
+                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    apiResponse.put("success", false);
+                    apiResponse.put("message", "Số điện thoại không hợp lệ. Định dạng đúng: bắt đầu bằng 0, đủ 10 chữ số.");
                 } else {
                     boolean ok = customerDAO.updateProfileByEmail(email, fullName, phoneNumber, address);
                     if (!ok) {
