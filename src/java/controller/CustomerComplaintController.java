@@ -26,8 +26,9 @@ import utils.JwtUtils;
  * Khách gửi khiếu nại — luồng rút gọn theo quyết định của PO so với
  * Report_Flow_Complaint.md gốc:
  *
- *   - Chỉ 2 loại: LOST_LUGGAGE, OTHER (OTHER = khách tự mô tả tự do, không
- *     còn lớp phân loại issueType).
+ *   - Chỉ 2 loại: LOST_LUGGAGE, OTHER. Khách chỉ nhập mô tả tự do (content) —
+ *     issueType KHÔNG nhận từ client, Dispatcher gắn nhãn sau khi tiếp nhận
+ *     (xem ComplaintWorkflowService.tag).
  *   - Bắt buộc đăng nhập, khiếu nại luôn gắn với 1 booking ĐÃ HOÀN THÀNH của
  *     chính khách đó (không còn khách vãng lai) — khách thao tác từ màn hình
  *     lịch sử chuyến đi đã hoàn thành.
