@@ -217,24 +217,31 @@ public class CustomerBookingService {
 
         BigDecimal baseFare = base.add(fare);
 
-        // Check weekend surcharge
+        // Check weekend/holiday surcharge — dùng chung WeekendMultiplier của PricingRule.
+        // Một ngày vừa là cuối tuần vừa là ngày lễ chỉ tính phụ phí 1 lần (không cộng dồn).
         BigDecimal weekendSurcharge = BigDecimal.ZERO;
+        BigDecimal holidaySurcharge = BigDecimal.ZERO;
         if (departureTime != null && rule.getWeekendMultiplier() != null) {
             Calendar cal = Calendar.getInstance();
             cal.setTime(departureTime);
             int dow = cal.get(Calendar.DAY_OF_WEEK);
-            if (dow == Calendar.SATURDAY || dow == Calendar.SUNDAY) {
-                weekendSurcharge = baseFare.multiply(
-                        rule.getWeekendMultiplier().subtract(BigDecimal.ONE)
-                ).setScale(0, RoundingMode.HALF_UP);
+            boolean isWeekend = dow == Calendar.SATURDAY || dow == Calendar.SUNDAY;
+            BigDecimal surcharge = baseFare.multiply(
+                    rule.getWeekendMultiplier().subtract(BigDecimal.ONE)
+            ).setScale(0, RoundingMode.HALF_UP);
+            if (isWeekend) {
+                weekendSurcharge = surcharge;
+            } else if (new dao.HolidayDAO().isHoliday(new java.sql.Date(departureTime.getTime()))) {
+                holidaySurcharge = surcharge;
             }
         }
 
-        BigDecimal estimatedTotal = baseFare.add(weekendSurcharge);
+        BigDecimal estimatedTotal = baseFare.add(weekendSurcharge).add(holidaySurcharge);
+
         // BigDecimal deposit = estimatedTotal.multiply(new BigDecimal("0.30")).setScale(0, RoundingMode.HALF_UP); // code cũ
         BigDecimal deposit = PaymentService.depositAmountOf(estimatedTotal);
 
-        return new PriceResult(rule.getId(), baseFare, weekendSurcharge, estimatedTotal, deposit,
+        return new PriceResult(rule.getId(), baseFare, weekendSurcharge, holidaySurcharge, estimatedTotal, deposit,
                 distanceKm, returnDistanceKm);
     }
 
@@ -243,6 +250,7 @@ public class CustomerBookingService {
         public final int ruleId;
         public final BigDecimal baseFare;
         public final BigDecimal weekendSurcharge;
+        public final BigDecimal holidaySurcharge;
         public final BigDecimal estimatedTotal;
         public final BigDecimal deposit30Percent;
         // --- breakdown khoảng cách để frontend hiển thị ---
@@ -250,11 +258,12 @@ public class CustomerBookingService {
         public final double returnDistanceKm;   // chiều về (0 nếu ONE_WAY)
 
         public PriceResult(int ruleId, BigDecimal baseFare, BigDecimal weekendSurcharge,
-                BigDecimal estimatedTotal, BigDecimal deposit30Percent,
+                BigDecimal holidaySurcharge, BigDecimal estimatedTotal, BigDecimal deposit30Percent,
                 double legDistanceKm, double returnDistanceKm) {
             this.ruleId = ruleId;
             this.baseFare = baseFare;
             this.weekendSurcharge = weekendSurcharge;
+            this.holidaySurcharge = holidaySurcharge;
             this.estimatedTotal = estimatedTotal;
             this.deposit30Percent = deposit30Percent;
             this.legDistanceKm = legDistanceKm;

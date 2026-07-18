@@ -255,6 +255,7 @@ public class CustomerBookingController extends HttpServlet {
                     + "\"ruleId\":" + result.ruleId + ","
                     + "\"baseFare\":" + result.baseFare + ","
                     + "\"weekendSurcharge\":" + result.weekendSurcharge + ","
+                    + "\"holidaySurcharge\":" + result.holidaySurcharge + ","
                     + "\"estimatedTotal\":" + result.estimatedTotal + ","
                     + "\"deposit30Percent\":" + result.deposit30Percent + ","
                     + "\"legDistanceKm\":" + result.legDistanceKm + ","
