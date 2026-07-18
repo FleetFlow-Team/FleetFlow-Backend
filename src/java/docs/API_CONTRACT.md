@@ -4673,3 +4673,125 @@ address=123 Hàm Nghi
     "message": "Số điện thoại không hợp lệ. Định dạng đúng: bắt đầu bằng 0, đủ 10 chữ số."
 }
 ```
+--------------------------------------------------------------------
+Dispatcher get list mat do
+path: http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints
+output:
+{
+    "data": [
+        {
+            "complaintId": 5,
+            "type": "LOST_LUGGAGE",
+            "fullName": "Cường Lê",
+            "email": "cuong3@example.com",
+            "phone": "0900000003",
+            "content": "Tôi để quên một túi xách màu đen trên xe sau chuyến đi.",
+            "bookingId": 50,
+            "customerId": 3,
+            "status": "PENDING",
+            "createdAt": "2026-07-18 21:19:51.8"
+        },
+        {
+            "complaintId": 4,
+            "type": "LOST_LUGGAGE",
+            "fullName": "Cường Lê",
+            "email": "cuong3@example.com",
+            "phone": "0900000003",
+            "content": "Tôi để quên một túi xách màu đen trên xe sau chuyến đi.",
+            "bookingId": 50,
+            "customerId": 3,
+            "status": "RESOLVED",
+            "resolution": "",
+            "resolvedAt": "2026-07-18 21:15:56.0133333",
+            "createdAt": "2026-07-18 21:10:08.0666667"
+        },
+        {
+            "complaintId": 3,
+            "type": "LOST_LUGGAGE",
+            "content": "Tính phí phụ thu chưa rõ ràng",
+            "bookingId": 10,
+            "customerId": 10,
+            "status": "PENDING",
+            "createdAt": "2025-03-27 08:30:00.0"
+        },
+        {
+            "complaintId": 2,
+            "type": "LOST_LUGGAGE",
+            "content": "Xe có mùi thuốc lá",
+            "bookingId": 6,
+            "customerId": 6,
+            "status": "RESOLVED",
+            "resolution": "Đã nhắc nhở tài xế và vệ sinh lại xe",
+            "resolvedAt": "2025-03-28 10:00:00.0",
+            "createdAt": "2025-03-26 21:00:00.0"
+        },
+        {
+            "complaintId": 1,
+            "type": "LOST_LUGGAGE",
+            "content": "Tài xế đến trễ 20 phút so với giờ hẹn",
+            "bookingId": 15,
+            "customerId": 3,
+            "status": "RESOLVED",
+            "resolution": "Đã xin lỗi và giảm 10% cho chuyến sau",
+            "resolvedAt": "2025-03-27 09:00:00.0",
+            "createdAt": "2025-03-26 20:00:00.0"
+        }
+    ],
+    "success": true
+}
+Dispatcher xu ly don Mat do
+path: http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/4/assign
+output:
+{
+    "success": true,
+    "message": "Đã nhận xử lý đơn #4"
+}
+Case k lien he dc driver
+path: http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/5/actions/contact-driver
+input:
+{ "result": "NO_RESPONSE" }
+output:
+{
+    "customerMessage": "Chưa liên hệ được tài xế, hệ thống sẽ tiếp tục thử lại.",
+    "success": true
+}
+Case  lien he dc driver và có xác nh?n tìm thay do
+path: http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/5/actions/contact-driver
+input:
+{ "result": "HAS_ITEM" }
+{
+    "customerMessage": "Tài xế xác nhận đang giữ đồ của bạn. Vui lòng liên hệ SĐT 0900000029 để sắp xếp nhận lại.",
+    "success": true
+}
+Case  lien he dc driver và k tìm thay do 
+path: http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/5/actions/contact-driver
+input:
+{ "result": "NO_ITEM" }
+{
+    "customerMessage": "Tài xế xác nhận không có đồ thất lạc của bạn.",
+    "success": true
+}
+Hoan thanh va dong don
+path:  http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/4/resolve
+output:
+{
+    "success": true
+}
+Tu choi don ma k ghi ro lý do (bad case)
+path:  http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/4/resolve
+input:
+{ "outcome": "CLOSED_UNRESOLVED"}
+output:
+{
+    "success": false,
+    "message": "CLOSED_UNRESOLVED bắt buộc kèm 'reason_code' (rule 8)"
+}
+Tu choi don ma k ghi ro lý do (bad case)
+path:  http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/4/resolve
+input:
+{ "outcome": "CLOSED_UNRESOLVED", "reason_code": "NO_ITEM_FOUND" }
+output:
+{
+    "customerMessage": "Rất tiếc, tài xế xác nhận không có đồ thất lạc của bạn.",
+    "success": true
+}

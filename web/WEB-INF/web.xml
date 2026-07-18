@@ -180,6 +180,10 @@
         <servlet-name>RefreshTokenController</servlet-name>
         <servlet-class>controller.RefreshTokenController</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>CustomerComplaintTimelineController</servlet-name>
+        <servlet-class>controller.CustomerComplaintTimelineController</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>LoginController</servlet-name>
         <url-pattern>/LoginController</url-pattern>
@@ -355,6 +359,10 @@
     <servlet-mapping>
         <servlet-name>RefreshTokenController</servlet-name>
         <url-pattern>/RefreshTokenController</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>CustomerComplaintTimelineController</servlet-name>
+        <url-pattern>/CustomerComplaintTimelineController</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>30</session-timeout>
