@@ -50,11 +50,16 @@ public class ExtensionDAO {
     }
 
     public void createVoucher(String code, String discountType, BigDecimal discountValue, BigDecimal maxDiscountAmount, BigDecimal minBookingValue, Integer applicableVehicleTypeId, Integer maxUsagePerUser, Timestamp validFrom, Timestamp validTo, int createdBy) throws Exception {
-        createVoucher(code, discountType, discountValue, maxDiscountAmount, minBookingValue, applicableVehicleTypeId, maxUsagePerUser, validFrom, validTo, createdBy, null);
+        createVoucher(code, discountType, discountValue, maxDiscountAmount, minBookingValue, applicableVehicleTypeId, maxUsagePerUser, validFrom, validTo, createdBy, null, null);
     }
 
     public void createVoucher(String code, String discountType, BigDecimal discountValue, BigDecimal maxDiscountAmount, BigDecimal minBookingValue, Integer applicableVehicleTypeId, Integer maxUsagePerUser, Timestamp validFrom, Timestamp validTo, int createdBy, Integer campaignId) throws Exception {
-        String sql = "INSERT INTO Voucher (Code, DiscountType, DiscountValue, MaxDiscountAmount, MinBookingValue, ApplicableVehicleTypeID, MaxUsagePerUser, ValidFrom, ValidTo, Status, CreatedBy, CampaignID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)";
+        createVoucher(code, discountType, discountValue, maxDiscountAmount, minBookingValue, applicableVehicleTypeId, maxUsagePerUser, validFrom, validTo, createdBy, campaignId, null);
+    }
+
+    /** totalQuantity = tổng số suất voucher available (null = không giới hạn số lượng). */
+    public void createVoucher(String code, String discountType, BigDecimal discountValue, BigDecimal maxDiscountAmount, BigDecimal minBookingValue, Integer applicableVehicleTypeId, Integer maxUsagePerUser, Timestamp validFrom, Timestamp validTo, int createdBy, Integer campaignId, Integer totalQuantity) throws Exception {
+        String sql = "INSERT INTO Voucher (Code, DiscountType, DiscountValue, MaxDiscountAmount, MinBookingValue, ApplicableVehicleTypeID, MaxUsagePerUser, ValidFrom, ValidTo, Status, CreatedBy, CampaignID, TotalQuantity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?)";
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, code);
             ps.setString(2, discountType);
@@ -78,6 +83,11 @@ public class ExtensionDAO {
                 ps.setInt(11, campaignId);
             } else {
                 ps.setNull(11, Types.INTEGER);
+            }
+            if (totalQuantity != null) {
+                ps.setInt(12, totalQuantity);
+            } else {
+                ps.setNull(12, Types.INTEGER);
             }
             ps.executeUpdate();
         }
@@ -176,11 +186,23 @@ public class ExtensionDAO {
     }
 
     public void updateVoucher(int id, Timestamp validTo, String status) throws Exception {
-        String sql = "UPDATE Voucher SET ValidTo = COALESCE(?, ValidTo), Status = COALESCE(?, Status) WHERE VoucherID = ?";
+        updateVoucher(id, validTo, status, null);
+    }
+
+    // Lưu ý: do dùng COALESCE, truyền totalQuantity=null nghĩa là "giữ nguyên giá trị cũ",
+    // không phải "xóa về không giới hạn" — không có cách set về unlimited qua hàm này.
+    public void updateVoucher(int id, Timestamp validTo, String status, Integer totalQuantity) throws Exception {
+        String sql = "UPDATE Voucher SET ValidTo = COALESCE(?, ValidTo), Status = COALESCE(?, Status), "
+                + "TotalQuantity = COALESCE(?, TotalQuantity) WHERE VoucherID = ?";
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setTimestamp(1, validTo);
             ps.setString(2, status);
-            ps.setInt(3, id);
+            if (totalQuantity != null) {
+                ps.setInt(3, totalQuantity);
+            } else {
+                ps.setNull(3, Types.INTEGER);
+            }
+            ps.setInt(4, id);
             ps.executeUpdate();
         }
     }

@@ -238,6 +238,7 @@ public class CustomerBookingDAO {
                 v.setMinBookingValue(rs.getBigDecimal("MinBookingValue"));
                 v.setApplicableVehicleTypeId(rs.getInt("ApplicableVehicleTypeID"));
                 v.setMaxUsagePerUser((Integer) rs.getObject("MaxUsagePerUser"));
+                v.setTotalQuantity((Integer) rs.getObject("TotalQuantity"));
                 v.setValidFrom(rs.getTimestamp("ValidFrom"));
                 v.setValidTo(rs.getTimestamp("ValidTo"));
                 v.setStatus(rs.getString("Status"));
@@ -253,6 +254,19 @@ public class CustomerBookingDAO {
         try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, voucherId);
             ps.setInt(2, customerId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+            return 0;
+        }
+    }
+
+    /** Tổng số lần voucher đã được dùng (mọi khách hàng) — so với Voucher.TotalQuantity để biết còn bao nhiêu suất. */
+    public int countVoucherUsageTotal(int voucherId) throws Exception {
+        String sql = "SELECT COUNT(*) FROM Booking WHERE VoucherID = ? AND Status != 'CANCELLED'";
+        try ( Connection conn = DbUtils.getConnection();  PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, voucherId);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
                 return rs.getInt(1);
@@ -289,6 +303,9 @@ public class CustomerBookingDAO {
 
                 v.setMaxUsagePerUser(
                         (Integer) rs.getObject("MaxUsagePerUser")
+                );
+                v.setTotalQuantity(
+                        (Integer) rs.getObject("TotalQuantity")
                 );
 
                 return v;
