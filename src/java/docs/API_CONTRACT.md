@@ -4541,3 +4541,82 @@ output:
     "error": "Vượt trần gia hạn cho phép (24/24h = 1 ngày). Đã dùng 1440 phút, xin thêm 5760 phút sẽ vượt trần. Muốn thuê thêm, vui lòng đặt booking mới."
 }
 Driver confirm and Dispatcher confirm y chang hourly
+
+---
+
+Admin tạo xe với biển số đã tồn tại — HTTP 409
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/admin/vehicles/
+
+- Input:
+
+```json
+{
+  "licensePlate": "51B-101.11",
+  "brand": "Toyota",
+  "model": "Vios",
+  "seatCount": 4
+}
+```
+
+- Output:
+
+```json
+{
+    "error": "Biển số xe 51B-101.11 đã tồn tại trong hệ thống."
+}
+```
+
+---
+
+Admin tạo voucher — bổ sung field totalQuantity (tổng số suất voucher available, null = không giới hạn)
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/admin/vouchers
+
+- Input:
+
+```json
+{
+  "code": "SALE50",
+  "discountType": "PERCENT",
+  "discountValue": 10,
+  "minBookingValue": 100000,
+  "maxUsagePerUser": 1,
+  "totalQuantity": 100,
+  "validFrom": "2026-07-01T00:00:00",
+  "validTo": "2026-08-01T00:00:00"
+}
+```
+
+- Output:
+
+```json
+{
+    "success": true
+}
+```
+
+---
+
+Khách hàng áp voucher đã hết lượt sử dụng (đủ totalQuantity) — HTTP 400
+
+- Path: POST http://localhost:8080/FleetFlow/api/v1/customer/vouchers/apply
+
+- Input:
+
+```json
+{
+  "code": "SALE50",
+  "customerId": 1,
+  "estimatedTotal": 200000,
+  "vehicleTypeId": 1
+}
+```
+
+- Output:
+
+```json
+{
+    "error": "Voucher đã hết lượt sử dụng"
+}
+```

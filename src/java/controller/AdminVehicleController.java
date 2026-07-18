@@ -169,6 +169,12 @@ public class AdminVehicleController extends HttpServlet {
                 return;
             }
 
+            if (vehicleDAO.existsByLicensePlate(licensePlate)) {
+                response.setStatus(409);
+                out.print("{\"error\": \"Biển số xe " + esc(licensePlate) + " đã tồn tại trong hệ thống.\"}");
+                return;
+            }
+
             if (vehicleTypeId == null) {
                 vehicleTypeId = vehicleDAO.findVehicleTypeIdBySeatCount(seatCount);
                 if (vehicleTypeId == null) {
@@ -325,7 +331,13 @@ public class AdminVehicleController extends HttpServlet {
             String description = getStr(body, "description");
             String fuelType = getStr(body, "fuelType");
             String imageUrl = getStr(body, "imageUrl");
- 
+
+            if (licensePlate != null && vehicleDAO.existsByLicensePlateExcluding(licensePlate, id)) {
+                response.setStatus(409);
+                out.print("{\"error\": \"Biển số xe " + esc(licensePlate) + " đã tồn tại trong hệ thống.\"}");
+                return;
+            }
+
             vehicleDAO.update(id, vehicleTypeId, licensePlate, chassisNumber, engineNumber,
                     brand, model, seatCount, status, accumulatedKm, description, fuelType, imageUrl);
  

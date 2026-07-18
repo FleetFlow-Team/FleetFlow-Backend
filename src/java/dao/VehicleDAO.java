@@ -233,6 +233,31 @@ public class VehicleDAO {
         return list;
     }
 
+    /** Kiểm tra biển số xe đã tồn tại chưa (bỏ qua xe đã xóa mềm) — chặn trùng biển số khi tạo/sửa xe. */
+    public boolean existsByLicensePlate(String licensePlate) throws Exception {
+        String sql = "SELECT 1 FROM Vehicle WHERE LicensePlate = ? AND IsDeleted = 0";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, licensePlate);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    /** Như trên nhưng loại trừ 1 xe cụ thể — dùng khi sửa xe (biển số của chính nó không tính là trùng). */
+    public boolean existsByLicensePlateExcluding(String licensePlate, int excludeVehicleId) throws Exception {
+        String sql = "SELECT 1 FROM Vehicle WHERE LicensePlate = ? AND IsDeleted = 0 AND VehicleID <> ?";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, licensePlate);
+            ps.setInt(2, excludeVehicleId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
     public int create(int vehicleTypeId, String licensePlate, String chassisNumber, String engineNumber,
             String brand, String model, int seatCount, String status, Integer accumulatedKm,
             int createdBy, String description, String fuelType, String imageUrl) throws Exception {

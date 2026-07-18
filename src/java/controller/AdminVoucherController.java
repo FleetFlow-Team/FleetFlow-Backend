@@ -140,7 +140,9 @@ public class AdminVoucherController extends HttpServlet {
                 body.has("maxUsagePerUser") && !body.get("maxUsagePerUser").isJsonNull() ? body.get("maxUsagePerUser").getAsInt() : null,
                 Timestamp.valueOf(body.get("validFrom").getAsString().replace("T", " ")),
                 Timestamp.valueOf(body.get("validTo").getAsString().replace("T", " ")),
-                adminId
+                adminId,
+                body.has("campaignId") && !body.get("campaignId").isJsonNull() ? body.get("campaignId").getAsInt() : null,
+                body.has("totalQuantity") && !body.get("totalQuantity").isJsonNull() ? body.get("totalQuantity").getAsInt() : null
             );
             apiResponse.put("success", true);
         } catch (Exception e) {
@@ -172,7 +174,8 @@ public class AdminVoucherController extends HttpServlet {
             JsonObject body = JsonParser.parseString(sb.toString()).getAsJsonObject();
             Timestamp validTo = body.has("validTo") && !body.get("validTo").isJsonNull() ? Timestamp.valueOf(body.get("validTo").getAsString().replace("T", " ")) : null;
             String status = body.has("status") && !body.get("status").isJsonNull() ? body.get("status").getAsString() : null;
-            dao.updateVoucher(id, validTo, status);
+            Integer totalQuantity = body.has("totalQuantity") && !body.get("totalQuantity").isJsonNull() ? body.get("totalQuantity").getAsInt() : null;
+            dao.updateVoucher(id, validTo, status, totalQuantity);
             apiResponse.put("success", true);
         } catch (Exception e) {
             response.setStatus(500);

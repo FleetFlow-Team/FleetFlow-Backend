@@ -13,6 +13,7 @@ public class Voucher extends BaseEntity {
     private BigDecimal minBookingValue;
     private int applicableVehicleTypeId;
     private Integer maxUsagePerUser;
+    private Integer totalQuantity;
     private Timestamp validFrom;
     private Timestamp validTo;
     private String status;
@@ -62,7 +63,10 @@ public class Voucher extends BaseEntity {
  
     public Integer getMaxUsagePerUser() { return maxUsagePerUser; }
     public void setMaxUsagePerUser(Integer maxUsagePerUser) { this.maxUsagePerUser = maxUsagePerUser; }
- 
+
+    public Integer getTotalQuantity() { return totalQuantity; }
+    public void setTotalQuantity(Integer totalQuantity) { this.totalQuantity = totalQuantity; }
+
     public Timestamp getValidFrom() { return validFrom; }
     public void setValidFrom(Timestamp validFrom) { this.validFrom = validFrom; }
  

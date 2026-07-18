@@ -293,6 +293,14 @@ public class CustomerBookingService {
             }
         }
 
+        // Check tổng số lượng voucher available (toàn hệ thống, không phân biệt khách hàng)
+        if (voucher.getTotalQuantity() != null) {
+            int totalUsed = dao.countVoucherUsageTotal(voucher.getId());
+            if (totalUsed >= voucher.getTotalQuantity()) {
+                throw new IllegalArgumentException("Voucher đã hết lượt sử dụng");
+            }
+        }
+
         // Tính discount
         BigDecimal discount;
         if ("PERCENT".equals(voucher.getDiscountType())) {
