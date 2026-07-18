@@ -7,17 +7,21 @@ import dao.ComplaintDAO;
 import dao.DriverDAO;
 import dao.DriverJobBroadcastDAO;
 import dao.ExtensionDAO;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Workflow xử lý khiếu nại — rút gọn theo quyết định của PO so với
- * Report_Flow_Complaint.md: chỉ 2 loại LOST_LUGGAGE/OTHER, OTHER không còn
- * lớp phân loại issueType (khách tự mô tả tự do), cả 2 loại đều bắt buộc gắn
- * booking đã hoàn thành (không còn khách vãng lai).
+ * Report_Flow_Complaint.md: chỉ 2 loại LOST_LUGGAGE/OTHER, cả 2 loại đều bắt
+ * buộc gắn booking đã hoàn thành (không còn khách vãng lai).
  *
- * Giữ nguyên từ spec gốc: bộ hành động cố định cho từng loại, nguyên tắc
- * dispatcher KHÔNG gõ text tự do (nội dung khách nhận đều tự sinh), và state
- * machine PENDING -(assign)-> IN_PROGRESS -(resolve)-> RESOLVED / CLOSED_UNRESOLVED.
+ * Giữ nguyên từ spec gốc: OTHER dùng mô hình 2 lớp (Dispatcher gắn nhãn
+ * issueType — 6 loại cố định — rồi mới xử lý bằng 1 trong 4 hành động dùng
+ * chung), bộ hành động cố định cho từng loại, nguyên tắc dispatcher KHÔNG gõ
+ * text tự do (nội dung khách nhận đều tự sinh), và state machine
+ * PENDING -(assign)-> IN_PROGRESS -(resolve)-> RESOLVED / CLOSED_UNRESOLVED.
  *
  * Lỗi nghiệp vụ ném IllegalStateException / IllegalArgumentException với message
  * tiếng Việt — controller map thẳng ra body JSON.
@@ -27,6 +31,11 @@ public class ComplaintWorkflowService {
     /** Rule chống lối tắt "gọi hụt 1 cuộc rồi đóng đơn": phải ghi nhận tối thiểu
      *  N lần CONTACT_DRIVER_NO_RESPONSE mới được chốt DRIVER_UNREACHABLE. */
     private static final int MIN_NO_RESPONSE_BEFORE_UNREACHABLE = 3;
+
+    /** 6 issueType cố định cho OTHER (spec mục 3.2). */
+    private static final Set<String> VALID_ISSUE_TYPES = new HashSet<>(Arrays.asList(
+            "VEHICLE_VIOLATION", "APP_ISSUE", "BILLING_DISPUTE",
+            "STAFF_ATTITUDE", "SAFETY_CONCERN", "OTHER_UNCATEGORIZED"));
 
     private final ComplaintActionDAO actionDAO = new ComplaintActionDAO();
     private final ComplaintDAO complaintDAO = new ComplaintDAO();
@@ -102,9 +111,35 @@ public class ComplaintWorkflowService {
     }
 
     // =====================================================================
-    // Bước xử lý OTHER: bộ 4 hành động cố định dùng chung, không phân loại
-    // issueType (đã bỏ theo quyết định rút gọn) — ESCALATED dùng 1 nội dung
-    // chung "bộ phận liên quan" thay vì tra theo issueType.
+    // Bước 2 (OTHER) — Dispatcher gắn nhãn issueType (6 loại cố định, spec
+    // mục 3.2) trước khi xử lý. Đây là bước phân loại, KHÔNG sinh nội dung
+    // gửi khách (customer timeline không hiển thị bước này) — chỉ ghi audit.
+    // =====================================================================
+    public void tag(int complaintId, String issueType, int dispatcherAccountId, String ip) throws Exception {
+        Map<String, Object> core = requireComplaint(complaintId);
+        if (!"OTHER".equals(core.get("type"))) {
+            throw new IllegalStateException("Gắn nhãn issueType chỉ áp dụng cho đơn OTHER");
+        }
+        String status = (String) core.get("status");
+        if ("RESOLVED".equals(status) || "CLOSED_UNRESOLVED".equals(status)) {
+            throw new IllegalStateException("Đơn đã đóng, không thể gắn nhãn lại");
+        }
+        if (issueType == null || !VALID_ISSUE_TYPES.contains(issueType.toUpperCase())) {
+            throw new IllegalArgumentException("issueType không hợp lệ. Chấp nhận: VEHICLE_VIOLATION, "
+                    + "APP_ISSUE, BILLING_DISPUTE, STAFF_ATTITUDE, SAFETY_CONCERN, OTHER_UNCATEGORIZED");
+        }
+        issueType = issueType.toUpperCase();
+        boolean ok = actionDAO.setIssueType(complaintId, issueType);
+        if (!ok) {
+            throw new IllegalStateException("Không gắn được nhãn — đơn có thể đã đóng hoặc không còn tồn tại");
+        }
+        audit(dispatcherAccountId, "COMPLAINT_TAG", complaintId, (String) core.get("issueType"), issueType, ip);
+    }
+
+    // =====================================================================
+    // Bước xử lý OTHER: bộ 4 hành động cố định dùng chung mọi issueType (rule
+    // 6: bắt buộc đã gắn nhãn issueType trước khi gọi hành động này).
+    // ESCALATED tự điền {target_department} theo issueType (spec mục 6.2).
     // =====================================================================
     public String handle(int complaintId, String action, int dispatcherAccountId, String ip) throws Exception {
         Map<String, Object> core = requireComplaint(complaintId);
@@ -113,6 +148,10 @@ public class ComplaintWorkflowService {
         }
         if (!"IN_PROGRESS".equals(core.get("status"))) {
             throw new IllegalStateException("Phải bấm \"Nhận xử lý\" trước khi thao tác (đơn chưa ở IN_PROGRESS)");
+        }
+        if (core.get("issueType") == null) {
+            throw new IllegalStateException(
+                    "Chưa gắn nhãn issueType — phải gắn nhãn (PUT /tag) trước khi thực hiện hành động xử lý");
         }
         if (action == null) {
             throw new IllegalArgumentException(
@@ -129,7 +168,8 @@ public class ComplaintWorkflowService {
                 msg = "Chúng tôi không đủ căn cứ để xác minh vấn đề bạn phản ánh.";
                 break;
             case "ESCALATED":
-                msg = "Vấn đề của bạn đã được chuyển đến bộ phận liên quan để xử lý.";
+                msg = "Vấn đề của bạn đã được chuyển đến " + targetDepartment((String) core.get("issueType"))
+                        + " để xử lý.";
                 break;
             case "REJECTED":
                 msg = "Khiếu nại không thuộc phạm vi xử lý hoặc không đủ thông tin hợp lệ.";
@@ -143,6 +183,27 @@ public class ComplaintWorkflowService {
         notifyOwner(complaintId, "Cập nhật khiếu nại #" + complaintId, msg);
         audit(dispatcherAccountId, "COMPLAINT_" + action, complaintId, null, action, ip);
         return msg;
+    }
+
+    /** {target_department} theo issueType khi ESCALATED (spec mục 6.2). */
+    private String targetDepartment(String issueType) {
+        if (issueType == null) {
+            return "bộ phận liên quan";
+        }
+        switch (issueType) {
+            case "APP_ISSUE":
+                return "bộ phận kỹ thuật";
+            case "BILLING_DISPUTE":
+                return "bộ phận kế toán";
+            case "STAFF_ATTITUDE":
+                return "bộ phận nhân sự";
+            case "SAFETY_CONCERN":
+                return "bộ phận an toàn (ưu tiên xử lý)";
+            case "VEHICLE_VIOLATION":
+            case "OTHER_UNCATEGORIZED":
+            default:
+                return "bộ phận liên quan";
+        }
     }
 
     // =====================================================================

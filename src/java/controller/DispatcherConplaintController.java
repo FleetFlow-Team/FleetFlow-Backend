@@ -27,6 +27,9 @@ import utils.JwtUtils;
  *          body { "result": "HAS_ITEM" | "NO_ITEM" | "NO_RESPONSE" }   (chỉ LOST_LUGGAGE)
  *   POST   /api/v1/dispatcher/complaints/{id}/actions/handle
  *          body { "action": "VERIFIED_HANDLED" | "CANNOT_VERIFY" | "ESCALATED" | "REJECTED" }   (chỉ OTHER)
+ *   PUT    /api/v1/dispatcher/complaints/{id}/tag
+ *          body { "issueType": "VEHICLE_VIOLATION" | "APP_ISSUE" | "BILLING_DISPUTE" |
+ *                 "STAFF_ATTITUDE" | "SAFETY_CONCERN" | "OTHER_UNCATEGORIZED" }   (chỉ OTHER, bắt buộc trước /actions/handle)
  *   PUT    /api/v1/dispatcher/complaints/{id}/resolve
  *          body { "outcome": "RESOLVED" | "CLOSED_UNRESOLVED", "reason_code"?: "..." }
  *   DELETE /api/v1/dispatcher/complaints/{id}                     — ẩn đơn (soft delete = cờ hidden)
@@ -179,8 +182,15 @@ public class DispatcherConplaintController extends HttpServlet {
                         currentAccountId(request), request.getRemoteAddr());
                 res.put("success", true);
                 res.put("customerMessage", msg);
+            } else if (pathInfo != null && pathInfo.endsWith("/tag")) {
+                int complaintId = Integer.parseInt(pathInfo.split("/")[1]);
+                JsonObject body = readBody(request);
+                String issueType = body.has("issueType") ? body.get("issueType").getAsString() : null;
+                workflow.tag(complaintId, issueType, currentAccountId(request), request.getRemoteAddr());
+                res.put("success", true);
+                res.put("message", "Đã gắn nhãn issueType cho đơn #" + complaintId);
             } else {
-                badRequest(response, res, "Path không hợp lệ. Dùng /{complaintId}/resolve");
+                badRequest(response, res, "Path không hợp lệ. Dùng /{complaintId}/resolve hoặc /{complaintId}/tag");
             }
         } catch (IllegalArgumentException e) {
             response.setStatus(400);

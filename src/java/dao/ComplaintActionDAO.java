@@ -113,7 +113,7 @@ public class ComplaintActionDAO {
 
     /** Thông tin cốt lõi của đơn để service check guard trước khi thao tác. */
     public Map<String, Object> getComplaintCore(int complaintId) throws Exception {
-        String sql = "SELECT ComplaintID, ComplaintType, Status, BookingID, CustomerID, CreatedAt "
+        String sql = "SELECT ComplaintID, ComplaintType, Status, BookingID, CustomerID, IssueType, CreatedAt "
                 + "FROM Complaint WHERE ComplaintID = ? AND IsDeleted = 0";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -130,10 +130,27 @@ public class ComplaintActionDAO {
                 m.put("bookingId", rs.wasNull() ? null : bookingId);
                 int customerId = rs.getInt("CustomerID");
                 m.put("customerId", rs.wasNull() ? null : customerId);
+                m.put("issueType", rs.getString("IssueType"));
                 Timestamp c = rs.getTimestamp("CreatedAt");
                 m.put("createdAt", c != null ? c.toString() : null);
                 return m;
             }
+        }
+    }
+
+    /**
+     * Dispatcher gắn nhãn issueType cho đơn OTHER (spec mục 5.2 bước 2) —
+     * chỉ cho phép khi đơn còn mở (chưa RESOLVED/CLOSED_UNRESOLVED).
+     */
+    public boolean setIssueType(int complaintId, String issueType) throws Exception {
+        String sql = "UPDATE Complaint SET IssueType = ? "
+                + "WHERE ComplaintID = ? AND IsDeleted = 0 AND ComplaintType = 'OTHER' "
+                + "AND Status NOT IN ('RESOLVED', 'CLOSED_UNRESOLVED')";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, issueType);
+            ps.setInt(2, complaintId);
+            return ps.executeUpdate() > 0;
         }
     }
 
