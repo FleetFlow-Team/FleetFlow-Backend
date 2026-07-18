@@ -4795,3 +4795,94 @@ output:
     "customerMessage": "Rất tiếc, tài xế xác nhận không có đồ thất lạc của bạn.",
     "success": true
 }
+--------------------------------------------------------------------
+CAP NHAT: Complaint rut gon lai chi con 2 loai LOST_LUGGAGE/OTHER (bo SERVICE_FEEDBACK
+va khach vang lai). Moi don gio bat buoc Bearer token Customer + bookingId phai la
+booking DA COMPLETED cua chinh khach do. Gui thanh cong se bao ngay (notification)
+cho toan bo Admin + Dispatcher dang ACTIVE de tiep nhan.
+
+Khach gui khieu nai OTHER (yeu cau dang nhap, khong con nhan issueType/fullName/phone/email tu client)
+path: POST http://localhost:8080/FleetFlow/api/v1/complaints
+input:
+{
+  "type": "OTHER",
+  "bookingId": 50,
+  "content": "Tài xế chạy quá tốc độ trong suốt chuyến đi"
+}
+output (thanh cong):
+{
+    "success": true,
+    "complaintId": 6,
+    "message": "Đã gửi khiếu nại thành công. Chúng tôi sẽ xử lý sớm."
+}
+
+Case booking chua hoan thanh / khong thuoc ve khach dang gui (bad case) — HTTP 400
+output:
+{
+    "success": false,
+    "message": "Chuyến đi không tồn tại, chưa hoàn thành, hoặc không thuộc tài khoản của bạn."
+}
+
+Case gui khong dung "type" (bad case) — HTTP 400
+output:
+{
+    "success": false,
+    "message": "type không hợp lệ. Chấp nhận: LOST_LUGGAGE, OTHER."
+}
+
+Dispatcher xu ly don OTHER — 4 hanh dong co dinh dung chung, khong con phan loai issueType
+path: POST http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/6/actions/handle
+input:
+{ "action": "VERIFIED_HANDLED" }
+output:
+{
+    "customerMessage": "Chúng tôi đã xác minh và xử lý vấn đề bạn phản ánh.",
+    "success": true
+}
+
+Case action = ESCALATED (khong con tra {target_department} theo issueType nhu spec goc, dung 1 noi dung chung)
+path: POST http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/6/actions/handle
+input:
+{ "action": "ESCALATED" }
+output:
+{
+    "customerMessage": "Vấn đề của bạn đã được chuyển đến bộ phận liên quan để xử lý.",
+    "success": true
+}
+
+Case action = CANNOT_VERIFY
+input:
+{ "action": "CANNOT_VERIFY" }
+output:
+{
+    "customerMessage": "Chúng tôi không đủ căn cứ để xác minh vấn đề bạn phản ánh.",
+    "success": true
+}
+
+Case action = REJECTED
+input:
+{ "action": "REJECTED" }
+output:
+{
+    "customerMessage": "Khiếu nại không thuộc phạm vi xử lý hoặc không đủ thông tin hợp lệ.",
+    "success": true
+}
+
+Hoan thanh va dong don OTHER — dung chung endpoint /resolve voi LOST_LUGGAGE, nhung
+reason_code rieng cho OTHER: CUSTOMER_UNREACHABLE, VIOLATION_NOT_CONFIRMED
+(reason_code cua LOST_LUGGAGE: NO_ITEM_FOUND, CUSTOMER_UNREACHABLE, DRIVER_UNREACHABLE — khong doi)
+path: PUT http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/6/resolve
+input:
+{ "outcome": "CLOSED_UNRESOLVED", "reason_code": "VIOLATION_NOT_CONFIRMED" }
+output:
+{
+    "customerMessage": "Không đủ căn cứ xác nhận vi phạm.",
+    "success": true
+}
+
+Case resolve OTHER khi chua co hanh dong xu ly nao (bad case)
+output:
+{
+    "success": false,
+    "message": "Chưa ghi nhận hành động xử lý nào — không thể chốt đơn"
+}
