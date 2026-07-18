@@ -4830,7 +4830,27 @@ output:
     "message": "type không hợp lệ. Chấp nhận: LOST_LUGGAGE, OTHER."
 }
 
-Dispatcher xu ly don OTHER — 4 hanh dong co dinh dung chung, khong con phan loai issueType
+Dispatcher gan nhan issueType cho don OTHER — BAT BUOC lam truoc /actions/handle (rule 6)
+path: PUT http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/6/tag
+input:
+{ "issueType": "VEHICLE_VIOLATION" }
+output:
+{
+    "success": true,
+    "message": "Đã gắn nhãn issueType cho đơn #6"
+}
+
+Case goi /actions/handle ma chua gan nhan issueType (bad case) — HTTP 409
+path: POST http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/6/actions/handle
+input:
+{ "action": "VERIFIED_HANDLED" }
+output:
+{
+    "success": false,
+    "message": "Chưa gắn nhãn issueType — phải gắn nhãn (PUT /tag) trước khi thực hiện hành động xử lý"
+}
+
+Dispatcher xu ly don OTHER (sau khi da gan nhan issueType) — 4 hanh dong co dinh dung chung moi issueType
 path: POST http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/6/actions/handle
 input:
 { "action": "VERIFIED_HANDLED" }
@@ -4840,15 +4860,28 @@ output:
     "success": true
 }
 
-Case action = ESCALATED (khong con tra {target_department} theo issueType nhu spec goc, dung 1 noi dung chung)
+Case action = ESCALATED — {target_department} tu dong dien theo issueType da gan (spec muc 6.2)
 path: POST http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/6/actions/handle
 input:
 { "action": "ESCALATED" }
-output:
+output (voi issueType = VEHICLE_VIOLATION):
 {
     "customerMessage": "Vấn đề của bạn đã được chuyển đến bộ phận liên quan để xử lý.",
     "success": true
 }
+output (voi issueType = BILLING_DISPUTE):
+{
+    "customerMessage": "Vấn đề của bạn đã được chuyển đến bộ phận kế toán để xử lý.",
+    "success": true
+}
+output (voi issueType = SAFETY_CONCERN):
+{
+    "customerMessage": "Vấn đề của bạn đã được chuyển đến bộ phận an toàn (ưu tiên xử lý) để xử lý.",
+    "success": true
+}
+Bang anh xa day du: APP_ISSUE -> bo phan ky thuat; BILLING_DISPUTE -> bo phan ke toan;
+STAFF_ATTITUDE -> bo phan nhan su; SAFETY_CONCERN -> bo phan an toan (uu tien xu ly);
+VEHICLE_VIOLATION / OTHER_UNCATEGORIZED -> bo phan lien quan.
 
 Case action = CANNOT_VERIFY
 input:
