@@ -124,6 +124,13 @@ public class ComplaintWorkflowService {
         if ("RESOLVED".equals(status) || "CLOSED_UNRESOLVED".equals(status)) {
             throw new IllegalStateException("Đơn đã đóng, không thể gắn nhãn lại");
         }
+        // P1-2: khoá đổi nhãn sau khi đã có kết luận xử lý — tránh nội dung đã
+        // gửi khách (vd ESCALATED trỏ phòng ban theo nhãn cũ) bị sai lệch với
+        // nhãn mới mà không thể thu hồi.
+        if (actionDAO.countHandleActions(complaintId) > 0) {
+            throw new IllegalStateException(
+                    "Đơn đã có kết luận xử lý — không thể đổi nhãn issueType nữa");
+        }
         if (issueType == null || !VALID_ISSUE_TYPES.contains(issueType.toUpperCase())) {
             throw new IllegalArgumentException("issueType không hợp lệ. Chấp nhận: VEHICLE_VIOLATION, "
                     + "APP_ISSUE, BILLING_DISPUTE, STAFF_ATTITUDE, SAFETY_CONCERN, OTHER_UNCATEGORIZED");
@@ -153,6 +160,12 @@ public class ComplaintWorkflowService {
             throw new IllegalStateException(
                     "Chưa gắn nhãn issueType — phải gắn nhãn (PUT /tag) trước khi thực hiện hành động xử lý");
         }
+        // P1-1: mỗi đơn chỉ cho 1 kết luận xử lý — chặn bấm lại/đổi kết luận
+        // để tránh tạo nhiều action + spam notify khách cho cùng 1 đơn.
+        if (actionDAO.countHandleActions(complaintId) > 0) {
+            throw new IllegalStateException(
+                    "Đơn đã có kết luận xử lý — không thể xử lý lại");
+        }
         if (action == null) {
             throw new IllegalArgumentException(
                     "Thiếu 'action'. Chấp nhận: VERIFIED_HANDLED, CANNOT_VERIFY, ESCALATED, REJECTED");
@@ -181,7 +194,8 @@ public class ComplaintWorkflowService {
 
         actionDAO.insertAction(complaintId, dispatcherAccountId, action, null, msg);
         notifyOwner(complaintId, "Cập nhật khiếu nại #" + complaintId, msg);
-        audit(dispatcherAccountId, "COMPLAINT_" + action, complaintId, null, action, ip);
+        audit(dispatcherAccountId, "COMPLAINT_" + action, complaintId,
+                (String) core.get("issueType"), action, ip);
         return msg;
     }
 
