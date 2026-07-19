@@ -4796,12 +4796,7 @@ output:
     "success": true
 }
 --------------------------------------------------------------------
-CAP NHAT: Complaint rut gon lai chi con 2 loai LOST_LUGGAGE/OTHER (bo SERVICE_FEEDBACK
-va khach vang lai). Moi don gio bat buoc Bearer token Customer + bookingId phai la
-booking DA COMPLETED cua chinh khach do. Gui thanh cong se bao ngay (notification)
-cho toan bo Admin + Dispatcher dang ACTIVE de tiep nhan.
-
-Khach gui khieu nai OTHER (yeu cau dang nhap, khong con nhan issueType/fullName/phone/email tu client)
+Khach gui khieu nai OTHER (bat buoc dang nhap, bookingId phai la booking DA COMPLETED cua chinh khach do, khong con khach vang lai, khong con nhan issueType/fullName/phone/email tu client) — gui thanh cong se notify Admin + Dispatcher
 path: POST http://localhost:8080/FleetFlow/api/v1/complaints
 input:
 {
@@ -4850,7 +4845,7 @@ output:
     "message": "Chưa gắn nhãn issueType — phải gắn nhãn (PUT /tag) trước khi thực hiện hành động xử lý"
 }
 
-Dispatcher xu ly don OTHER (sau khi da gan nhan issueType) — 4 hanh dong co dinh dung chung moi issueType
+Dispatcher xu ly don OTHER (sau khi da gan nhan issueType) — VERIFIED_HANDLED TU DONG dong don Status=RESOLVED, khong can goi /resolve rieng
 path: POST http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/6/actions/handle
 input:
 { "action": "VERIFIED_HANDLED" }
@@ -4859,8 +4854,9 @@ output:
     "customerMessage": "Chúng tôi đã xác minh và xử lý vấn đề bạn phản ánh.",
     "success": true
 }
+(sau goi nay: don #6 co Status = RESOLVED ngay, KHONG can goi /resolve nua)
 
-Case action = ESCALATED — {target_department} tu dong dien theo issueType da gan (spec muc 6.2)
+Case action = ESCALATED — don CHUYEN SANG Status=ESCALATED (chua dong, cho phong ban ngoai), {target_department} tu dong dien theo issueType da gan (spec muc 6.2)
 path: POST http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/6/actions/handle
 input:
 { "action": "ESCALATED" }
@@ -4879,11 +4875,9 @@ output (voi issueType = SAFETY_CONCERN):
     "customerMessage": "Vấn đề của bạn đã được chuyển đến bộ phận an toàn (ưu tiên xử lý) để xử lý.",
     "success": true
 }
-Bang anh xa day du: APP_ISSUE -> bo phan ky thuat; BILLING_DISPUTE -> bo phan ke toan;
-STAFF_ATTITUDE -> bo phan nhan su; SAFETY_CONCERN -> bo phan an toan (uu tien xu ly);
-VEHICLE_VIOLATION / OTHER_UNCATEGORIZED -> bo phan lien quan.
+Bang anh xa day du: APP_ISSUE -> bo phan ky thuat; BILLING_DISPUTE -> bo phan ke toan; STAFF_ATTITUDE -> bo phan nhan su; SAFETY_CONCERN -> bo phan an toan (uu tien xu ly); VEHICLE_VIOLATION / OTHER_UNCATEGORIZED -> bo phan lien quan.
 
-Case action = CANNOT_VERIFY
+Case action = CANNOT_VERIFY — TU DONG dong don CLOSED_UNRESOLVED, reason_code = VIOLATION_NOT_CONFIRMED
 input:
 { "action": "CANNOT_VERIFY" }
 output:
@@ -4892,7 +4886,7 @@ output:
     "success": true
 }
 
-Case action = REJECTED
+Case action = REJECTED — TU DONG dong don CLOSED_UNRESOLVED, reason_code = OUT_OF_SCOPE
 input:
 { "action": "REJECTED" }
 output:
@@ -4901,9 +4895,7 @@ output:
     "success": true
 }
 
-Hoan thanh va dong don OTHER — dung chung endpoint /resolve voi LOST_LUGGAGE, nhung
-reason_code rieng cho OTHER: CUSTOMER_UNREACHABLE, VIOLATION_NOT_CONFIRMED
-(reason_code cua LOST_LUGGAGE: NO_ITEM_FOUND, CUSTOMER_UNREACHABLE, DRIVER_UNREACHABLE — khong doi)
+Dong don OTHER da ESCALATED sau khi phong ban ngoai tra ket qua — dung chung endpoint /resolve voi LOST_LUGGAGE nhung chi dung khi Status dang ESCALATED, reason_code rieng: CUSTOMER_UNREACHABLE, VIOLATION_NOT_CONFIRMED
 path: PUT http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/6/resolve
 input:
 { "outcome": "CLOSED_UNRESOLVED", "reason_code": "VIOLATION_NOT_CONFIRMED" }

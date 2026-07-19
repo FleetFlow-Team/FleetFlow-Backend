@@ -146,6 +146,12 @@ public class ComplaintWorkflowService {
     // =====================================================================
     // Bước xử lý OTHER: bộ 4 hành động cố định dùng chung mọi issueType (rule
     // 6: bắt buộc đã gắn nhãn issueType trước khi gọi hành động này).
+    //
+    // Quyết định nghiệp vụ (REPORT_Complaint_OTHER_ThieuSot.md mục 3): 3 hành
+    // động kết luận (VERIFIED_HANDLED/CANNOT_VERIFY/REJECTED) TỰ ĐÓNG đơn luôn
+    // (gộp bước xử lý + đóng đơn). Riêng ESCALATED chuyển sang trạng thái
+    // ESCALATED riêng (KHÔNG đóng) vì phòng ban ngoài chưa trả kết quả — đơn
+    // này đóng sau qua resolve() khi dispatcher có kết quả từ phòng ban ngoài.
     // ESCALATED tự điền {target_department} theo issueType (spec mục 6.2).
     // =====================================================================
     public String handle(int complaintId, String action, int dispatcherAccountId, String ip) throws Exception {
@@ -173,29 +179,44 @@ public class ComplaintWorkflowService {
         action = action.toUpperCase();
 
         String msg;
+        String newStatus;
+        String reasonCode = null;
         switch (action) {
             case "VERIFIED_HANDLED":
                 msg = "Chúng tôi đã xác minh và xử lý vấn đề bạn phản ánh.";
+                newStatus = "RESOLVED";
                 break;
             case "CANNOT_VERIFY":
                 msg = "Chúng tôi không đủ căn cứ để xác minh vấn đề bạn phản ánh.";
+                newStatus = "CLOSED_UNRESOLVED";
+                reasonCode = "VIOLATION_NOT_CONFIRMED";
                 break;
             case "ESCALATED":
                 msg = "Vấn đề của bạn đã được chuyển đến " + targetDepartment((String) core.get("issueType"))
                         + " để xử lý.";
+                newStatus = "ESCALATED";
                 break;
             case "REJECTED":
                 msg = "Khiếu nại không thuộc phạm vi xử lý hoặc không đủ thông tin hợp lệ.";
+                newStatus = "CLOSED_UNRESOLVED";
+                reasonCode = "OUT_OF_SCOPE";
                 break;
             default:
                 throw new IllegalArgumentException(
                         "action không hợp lệ. Chấp nhận: VERIFIED_HANDLED, CANNOT_VERIFY, ESCALATED, REJECTED");
         }
 
-        actionDAO.insertAction(complaintId, dispatcherAccountId, action, null, msg);
+        actionDAO.insertAction(complaintId, dispatcherAccountId, action, reasonCode, msg);
+
+        boolean ok = "ESCALATED".equals(newStatus)
+                ? actionDAO.escalateComplaint(complaintId)
+                : actionDAO.closeComplaint(complaintId, newStatus, reasonCode, msg);
+        if (!ok) {
+            throw new IllegalStateException("Đơn vừa bị thao tác bởi người khác, tải lại và thử lại");
+        }
+
         notifyOwner(complaintId, "Cập nhật khiếu nại #" + complaintId, msg);
-        audit(dispatcherAccountId, "COMPLAINT_" + action, complaintId,
-                (String) core.get("issueType"), action, ip);
+        audit(dispatcherAccountId, "COMPLAINT_" + action, complaintId, "IN_PROGRESS", newStatus, ip);
         return msg;
     }
 
@@ -309,8 +330,13 @@ public class ComplaintWorkflowService {
     private String resolveOther(int complaintId, String outcome, String reasonCode,
             int dispatcherAccountId, String ip) throws Exception {
         Map<String, Object> core = requireComplaint(complaintId);
-        if (!"IN_PROGRESS".equals(core.get("status"))) {
-            throw new IllegalStateException("Chỉ chốt được đơn đang IN_PROGRESS");
+        String statusBefore = (String) core.get("status");
+        // Sau quyết định "handle tự đóng đơn" (REPORT...ThieuSot.md mục 3), đơn
+        // OTHER chỉ còn tới được /resolve khi đang ESCALATED (chờ phòng ban
+        // ngoài trả kết quả) — vẫn giữ IN_PROGRESS trong điều kiện cho phòng
+        // hờ/tương thích ngược, nhưng luồng bình thường sẽ luôn là ESCALATED.
+        if (!"IN_PROGRESS".equals(statusBefore) && !"ESCALATED".equals(statusBefore)) {
+            throw new IllegalStateException("Chỉ chốt được đơn đang IN_PROGRESS hoặc ESCALATED");
         }
         if (outcome == null) {
             throw new IllegalArgumentException("Thiếu 'outcome'. Chấp nhận: RESOLVED, CLOSED_UNRESOLVED");
@@ -356,7 +382,7 @@ public class ComplaintWorkflowService {
         actionDAO.insertAction(complaintId, dispatcherAccountId,
                 "RESOLVED".equals(outcome) ? "RESOLVE" : "CLOSE_UNRESOLVED", reasonCode, msg);
         notifyOwner(complaintId, "Khiếu nại #" + complaintId + " đã đóng", msg);
-        audit(dispatcherAccountId, "COMPLAINT_CLOSE", complaintId, "IN_PROGRESS", outcome, ip);
+        audit(dispatcherAccountId, "COMPLAINT_CLOSE", complaintId, statusBefore, outcome, ip);
         return msg;
     }
 
