@@ -4795,3 +4795,119 @@ output:
     "customerMessage": "Rất tiếc, tài xế xác nhận không có đồ thất lạc của bạn.",
     "success": true
 }
+--------------------------------------------------------------------
+Khach gui khieu nai OTHER (bat buoc dang nhap, bookingId phai la booking DA COMPLETED cua chinh khach do, khong con khach vang lai, khong con nhan issueType/fullName/phone/email tu client) — gui thanh cong se notify Admin + Dispatcher
+path: POST http://localhost:8080/FleetFlow/api/v1/complaints
+input:
+{
+  "type": "OTHER",
+  "bookingId": 50,
+  "content": "Tài xế chạy quá tốc độ trong suốt chuyến đi"
+}
+output (thanh cong):
+{
+    "success": true,
+    "complaintId": 6,
+    "message": "Đã gửi khiếu nại thành công. Chúng tôi sẽ xử lý sớm."
+}
+
+Case booking chua hoan thanh / khong thuoc ve khach dang gui (bad case) — HTTP 400
+output:
+{
+    "success": false,
+    "message": "Chuyến đi không tồn tại, chưa hoàn thành, hoặc không thuộc tài khoản của bạn."
+}
+
+Case gui khong dung "type" (bad case) — HTTP 400
+output:
+{
+    "success": false,
+    "message": "type không hợp lệ. Chấp nhận: LOST_LUGGAGE, OTHER."
+}
+
+Dispatcher gan nhan issueType cho don OTHER — BAT BUOC lam truoc /actions/handle (rule 6)
+path: PUT http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/6/tag
+input:
+{ "issueType": "VEHICLE_VIOLATION" }
+output:
+{
+    "success": true,
+    "message": "Đã gắn nhãn issueType cho đơn #6"
+}
+
+Case goi /actions/handle ma chua gan nhan issueType (bad case) — HTTP 409
+path: POST http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/6/actions/handle
+input:
+{ "action": "VERIFIED_HANDLED" }
+output:
+{
+    "success": false,
+    "message": "Chưa gắn nhãn issueType — phải gắn nhãn (PUT /tag) trước khi thực hiện hành động xử lý"
+}
+
+Dispatcher xu ly don OTHER (sau khi da gan nhan issueType) — VERIFIED_HANDLED TU DONG dong don Status=RESOLVED, khong can goi /resolve rieng
+path: POST http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/6/actions/handle
+input:
+{ "action": "VERIFIED_HANDLED" }
+output:
+{
+    "customerMessage": "Chúng tôi đã xác minh và xử lý vấn đề bạn phản ánh.",
+    "success": true
+}
+(sau goi nay: don #6 co Status = RESOLVED ngay, KHONG can goi /resolve nua)
+
+Case action = ESCALATED — don CHUYEN SANG Status=ESCALATED (chua dong, cho phong ban ngoai), {target_department} tu dong dien theo issueType da gan (spec muc 6.2)
+path: POST http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/6/actions/handle
+input:
+{ "action": "ESCALATED" }
+output (voi issueType = VEHICLE_VIOLATION):
+{
+    "customerMessage": "Vấn đề của bạn đã được chuyển đến bộ phận liên quan để xử lý.",
+    "success": true
+}
+output (voi issueType = BILLING_DISPUTE):
+{
+    "customerMessage": "Vấn đề của bạn đã được chuyển đến bộ phận kế toán để xử lý.",
+    "success": true
+}
+output (voi issueType = SAFETY_CONCERN):
+{
+    "customerMessage": "Vấn đề của bạn đã được chuyển đến bộ phận an toàn (ưu tiên xử lý) để xử lý.",
+    "success": true
+}
+Bang anh xa day du: APP_ISSUE -> bo phan ky thuat; BILLING_DISPUTE -> bo phan ke toan; STAFF_ATTITUDE -> bo phan nhan su; SAFETY_CONCERN -> bo phan an toan (uu tien xu ly); VEHICLE_VIOLATION / OTHER_UNCATEGORIZED -> bo phan lien quan.
+
+Case action = CANNOT_VERIFY — TU DONG dong don CLOSED_UNRESOLVED, reason_code = VIOLATION_NOT_CONFIRMED
+input:
+{ "action": "CANNOT_VERIFY" }
+output:
+{
+    "customerMessage": "Chúng tôi không đủ căn cứ để xác minh vấn đề bạn phản ánh.",
+    "success": true
+}
+
+Case action = REJECTED — TU DONG dong don CLOSED_UNRESOLVED, reason_code = OUT_OF_SCOPE
+input:
+{ "action": "REJECTED" }
+output:
+{
+    "customerMessage": "Khiếu nại không thuộc phạm vi xử lý hoặc không đủ thông tin hợp lệ.",
+    "success": true
+}
+
+Dong don OTHER da ESCALATED sau khi phong ban ngoai tra ket qua — dung chung endpoint /resolve voi LOST_LUGGAGE nhung chi dung khi Status dang ESCALATED, reason_code rieng: CUSTOMER_UNREACHABLE, VIOLATION_NOT_CONFIRMED
+path: PUT http://localhost:8080/FleetFlow/api/v1/dispatcher/complaints/6/resolve
+input:
+{ "outcome": "CLOSED_UNRESOLVED", "reason_code": "VIOLATION_NOT_CONFIRMED" }
+output:
+{
+    "customerMessage": "Không đủ căn cứ xác nhận vi phạm.",
+    "success": true
+}
+
+Case resolve OTHER khi chua co hanh dong xu ly nao (bad case)
+output:
+{
+    "success": false,
+    "message": "Chưa ghi nhận hành động xử lý nào — không thể chốt đơn"
+}

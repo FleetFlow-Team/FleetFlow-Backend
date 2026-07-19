@@ -81,6 +81,22 @@ public class ComplaintActionDAO {
         }
     }
 
+    /** Đếm số action thuộc bộ 4 hành động xử lý OTHER (VERIFIED_HANDLED/
+     *  CANNOT_VERIFY/ESCALATED/REJECTED) — dùng để check rule "không được
+     *  chốt đơn khi chưa có hành động xử lý nào" (tương đương rule 5 của
+     *  LOST_LUGGAGE nhưng áp dụng cho OTHER). */
+    public int countHandleActions(int complaintId) throws Exception {
+        String sql = "SELECT COUNT(*) FROM ComplaintAction WHERE ComplaintID = ? "
+                + "AND ActionCode IN ('VERIFIED_HANDLED', 'CANNOT_VERIFY', 'ESCALATED', 'REJECTED')";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, complaintId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
     /** Đếm chính xác 1 action code — vd CONTACT_DRIVER_NO_RESPONSE để check
      *  rule "gọi hụt tối thiểu 3 lần mới được chốt DRIVER_UNREACHABLE". */
     public int countActionsByCode(int complaintId, String actionCode) throws Exception {
@@ -97,7 +113,7 @@ public class ComplaintActionDAO {
 
     /** Thông tin cốt lõi của đơn để service check guard trước khi thao tác. */
     public Map<String, Object> getComplaintCore(int complaintId) throws Exception {
-        String sql = "SELECT ComplaintID, ComplaintType, Status, BookingID, CustomerID, CreatedAt "
+        String sql = "SELECT ComplaintID, ComplaintType, Status, BookingID, CustomerID, IssueType, CreatedAt "
                 + "FROM Complaint WHERE ComplaintID = ? AND IsDeleted = 0";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -114,10 +130,27 @@ public class ComplaintActionDAO {
                 m.put("bookingId", rs.wasNull() ? null : bookingId);
                 int customerId = rs.getInt("CustomerID");
                 m.put("customerId", rs.wasNull() ? null : customerId);
+                m.put("issueType", rs.getString("IssueType"));
                 Timestamp c = rs.getTimestamp("CreatedAt");
                 m.put("createdAt", c != null ? c.toString() : null);
                 return m;
             }
+        }
+    }
+
+    /**
+     * Dispatcher gắn nhãn issueType cho đơn OTHER (spec mục 5.2 bước 2) —
+     * chỉ cho phép khi đơn còn mở (chưa RESOLVED/CLOSED_UNRESOLVED).
+     */
+    public boolean setIssueType(int complaintId, String issueType) throws Exception {
+        String sql = "UPDATE Complaint SET IssueType = ? "
+                + "WHERE ComplaintID = ? AND IsDeleted = 0 AND ComplaintType = 'OTHER' "
+                + "AND Status NOT IN ('RESOLVED', 'CLOSED_UNRESOLVED')";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, issueType);
+            ps.setInt(2, complaintId);
+            return ps.executeUpdate() > 0;
         }
     }
 
@@ -134,12 +167,14 @@ public class ComplaintActionDAO {
         }
     }
 
-    /** IN_PROGRESS -> RESOLVED / CLOSED_UNRESOLVED. Resolution lưu đúng nội
-     *  dung tự sinh khách nhìn thấy (không có text tự do). */
+    /** IN_PROGRESS / ESCALATED -> RESOLVED / CLOSED_UNRESOLVED. Resolution lưu
+     *  đúng nội dung tự sinh khách nhìn thấy (không có text tự do). Cho phép
+     *  nguồn ESCALATED để đơn OTHER đã chuyển bộ phận ngoài vẫn đóng được sau
+     *  khi có kết quả (không riêng IN_PROGRESS như trước). */
     public boolean closeComplaint(int complaintId, String outcome, String reasonCode,
             String customerMessage) throws Exception {
         String sql = "UPDATE Complaint SET Status = ?, ReasonCode = ?, Resolution = ?, ResolvedAt = GETDATE() "
-                + "WHERE ComplaintID = ? AND IsDeleted = 0 AND Status = 'IN_PROGRESS'";
+                + "WHERE ComplaintID = ? AND IsDeleted = 0 AND Status IN ('IN_PROGRESS', 'ESCALATED')";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, outcome);
@@ -150,6 +185,18 @@ public class ComplaintActionDAO {
             }
             ps.setString(3, customerMessage);
             ps.setInt(4, complaintId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /** IN_PROGRESS -> ESCALATED (chỉ OTHER) — đơn đã chuyển cho bộ phận ngoài
+     *  xử lý, CHƯA đóng. Đóng thật sự sau đó đi qua closeComplaint(). */
+    public boolean escalateComplaint(int complaintId) throws Exception {
+        String sql = "UPDATE Complaint SET Status = 'ESCALATED' "
+                + "WHERE ComplaintID = ? AND IsDeleted = 0 AND Status = 'IN_PROGRESS'";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, complaintId);
             return ps.executeUpdate() > 0;
         }
     }

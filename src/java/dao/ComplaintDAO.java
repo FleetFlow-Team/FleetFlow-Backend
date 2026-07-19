@@ -43,26 +43,28 @@ public class ComplaintDAO {
         }
     }
 
+    /**
+     * Xác nhận booking thuộc đúng customer đang gửi khiếu nại VÀ đã hoàn thành
+     * — chặn khách gửi khiếu nại lên booking của người khác hoặc chuyến chưa
+     * kết thúc.
+     */
+    public boolean isBookingOwnedByAndCompleted(int bookingId, int customerId) throws Exception {
+        String sql = "SELECT 1 FROM Booking WHERE BookingID = ? AND CustomerID = ? AND Status = 'COMPLETED'";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            ps.setInt(2, customerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
     public int countComplaintsByBooking(int bookingId) throws Exception {
         String sql = "SELECT COUNT(*) FROM Complaint WHERE IsDeleted = 0 AND BookingID = ?";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, bookingId);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? rs.getInt(1) : 0;
-            }
-        }
-    }
-
-    public int countComplaintsByContact(String phone, String email) throws Exception {
-        String sql = "SELECT COUNT(*) FROM Complaint WHERE IsDeleted = 0 "
-                + "AND ((? IS NOT NULL AND Phone = ?) OR (? IS NOT NULL AND Email = ?))";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, phone);
-            ps.setString(2, phone);
-            ps.setString(3, email);
-            ps.setString(4, email);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getInt(1) : 0;
             }
@@ -172,17 +174,6 @@ public class ComplaintDAO {
         Timestamp createdAt = rs.getTimestamp("CreatedAt");
         m.put("createdAt", createdAt != null ? createdAt.toString() : null);
         return m;
-    }
-
-    public boolean resolveComplaint(int complaintId, String resolution) throws Exception {
-        String sql = "UPDATE Complaint SET Status = 'RESOLVED', Resolution = ?, ResolvedAt = GETDATE() "
-                + "WHERE ComplaintID = ? AND IsDeleted = 0";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, resolution);
-            ps.setInt(2, complaintId);
-            return ps.executeUpdate() > 0;
-        }
     }
 
     public boolean softDeleteComplaint(int complaintId) throws Exception {
