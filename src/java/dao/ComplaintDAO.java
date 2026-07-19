@@ -121,12 +121,17 @@ public class ComplaintDAO {
 
     public List<Map<String, Object>> getComplaints() throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
-        String sql = "SELECT * FROM Complaint WHERE IsDeleted = 0 ORDER BY CreatedAt DESC";
+        String sql = "SELECT cp.*, "
+                + "a.FullName AS AccFullName, a.Email AS AccEmail, a.PhoneNumber AS AccPhone "
+                + "FROM Complaint cp "
+                + "LEFT JOIN Customer c ON c.CustomerID = cp.CustomerID "
+                + "LEFT JOIN Account a ON a.AccountID = c.AccountID "
+                + "WHERE cp.IsDeleted = 0 ORDER BY cp.CreatedAt DESC";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                list.add(mapRow(rs));
+                list.add(mapRowWithAccount(rs));
             }
         }
         return list;
@@ -145,6 +150,30 @@ public class ComplaintDAO {
             }
         }
         return list;
+    }
+
+    /**
+     * Như mapRow nhưng ưu tiên thông tin khách từ Account (JOIN) — dùng cho
+     * danh sách dispatcher. Sau khi bỏ nhận fullName/phone/email từ client,
+     * 3 cột đó trên bảng Complaint thường NULL với đơn tạo theo luồng mới, nên
+     * phải lấy từ Account của customer đăng nhập. Fallback về cột cũ nếu đơn
+     * không gắn customer.
+     */
+    private Map<String, Object> mapRowWithAccount(ResultSet rs) throws java.sql.SQLException {
+        Map<String, Object> m = mapRow(rs);
+        String accFullName = rs.getString("AccFullName");
+        String accEmail = rs.getString("AccEmail");
+        String accPhone = rs.getString("AccPhone");
+        if (accFullName != null) {
+            m.put("fullName", accFullName);
+        }
+        if (accEmail != null) {
+            m.put("email", accEmail);
+        }
+        if (accPhone != null) {
+            m.put("phone", accPhone);
+        }
+        return m;
     }
 
     private Map<String, Object> mapRow(ResultSet rs) throws java.sql.SQLException {
