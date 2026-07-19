@@ -698,10 +698,16 @@ public class DriverDAO {
      * != AccountID nên phải convert trước khi log.
      */
     public int getAccountIdByDriverId(int driverId) throws Exception {
+        try ( java.sql.Connection conn = utils.DbUtils.getConnection() ) {
+            return getAccountIdByDriverId(conn, driverId);
+        }
+    }
+
+    public int getAccountIdByDriverId(java.sql.Connection conn, int driverId) throws Exception {
         String sql = "SELECT AccountID FROM Driver WHERE DriverID = ?";
-        try ( java.sql.Connection conn = utils.DbUtils.getConnection();  java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+        try ( java.sql.PreparedStatement ps = conn.prepareStatement(sql) ) {
             ps.setInt(1, driverId);
-            try ( java.sql.ResultSet rs = ps.executeQuery()) {
+            try ( java.sql.ResultSet rs = ps.executeQuery() ) {
                 return rs.next() ? rs.getInt("AccountID") : driverId; // fallback driverId nếu không tìm thấy
             }
         }

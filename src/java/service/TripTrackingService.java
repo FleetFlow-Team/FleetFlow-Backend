@@ -56,7 +56,7 @@ public class TripTrackingService {
             try {
                 bookingDAO.updateStatus(conn, bookingId, "ONGOING");
                 trackingDAO.insertEvent(conn, bookingId, "TRIP_STARTED", "Driver bắt đầu chuyến đi");
-                int driverAccId = new dao.DriverDAO().getAccountIdByDriverId(driverId);
+                int driverAccId = new dao.DriverDAO().getAccountIdByDriverId(conn, driverId);
                 auditLogDAO.log(conn, driverAccId, "START_TRIP", "Booking",
                         String.valueOf(bookingId), booking.getStatus(), "ONGOING", ipAddress);
                 conn.commit();
@@ -112,7 +112,7 @@ public class TripTrackingService {
                 new dao.DriverDAO().updateAvailabilityStatus(conn, driverId, "AVAILABLE");
                 trackingDAO.insertEvent(conn, bookingId, "TRIP_COMPLETED",
                         "Driver hoàn thành chuyến đi, kèm ảnh xác nhận điểm đến: " + completionPhotoUrl);
-                int driverAccId2 = new dao.DriverDAO().getAccountIdByDriverId(driverId);
+                int driverAccId2 = new dao.DriverDAO().getAccountIdByDriverId(conn, driverId);
                 auditLogDAO.log(conn, driverAccId2, "COMPLETE_TRIP", "Booking",
                         String.valueOf(bookingId), booking.getStatus(), "COMPLETED", ipAddress);
                 conn.commit();
