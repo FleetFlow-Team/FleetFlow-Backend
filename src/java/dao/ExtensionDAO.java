@@ -235,8 +235,12 @@ public class ExtensionDAO {
      */
     public List<Map<String, Object>> getWalletHistory(int customerId) throws Exception {
         List<Map<String, Object>> list = new ArrayList<>();
+        // PaymentSubType giữ nguyên giá trị gốc (DEPOSIT/FINAL/REFUND...) để FE phân
+        // loại chi tiết hơn "Thanh toán cước xe" chung chung — TransactionType giữ
+        // nguyên 2 giá trị PAYMENT/REFUND cũ để không phá vỡ chỗ đang dùng.
         String sql = "SELECT p.PaymentID AS TransactionID, "
                 + "CASE WHEN p.PaymentType = 'REFUND' THEN 'REFUND' ELSE 'PAYMENT' END AS TransactionType, "
+                + "p.PaymentType AS PaymentSubType, "
                 + "p.Amount AS Amount, p.BookingID AS BookingID, p.PaidAt AS CreatedAt "
                 + "FROM Payment p JOIN Booking bk ON bk.BookingID = p.BookingID "
                 + "WHERE bk.CustomerID = ? AND p.Status = 'COMPLETED' "
