@@ -3834,6 +3834,7 @@ Header: Authorization: Bearer <token Customer>
         {
             "TransactionID": 15,
             "TransactionType": "PAYMENT",
+            "PaymentSubType": "DEPOSIT",
             "Amount": 78000.00,
             "BookingID": 1,
             "CreatedAt": "2026-07-17 10:00:00.0"
@@ -3841,6 +3842,7 @@ Header: Authorization: Bearer <token Customer>
         {
             "TransactionID": 9,
             "TransactionType": "REFUND",
+            "PaymentSubType": "REFUND",
             "Amount": 78000.00,
             "BookingID": 2,
             "CreatedAt": "2026-07-10 09:00:00.0"
@@ -3848,6 +3850,12 @@ Header: Authorization: Bearer <token Customer>
     ]
 }
 ```
+
+CAP NHAT (fix BE cho bao loi "Chua phan loai tien tru trong vi Customer"): them field
+`PaymentSubType` giu nguyen gia tri goc tu Payment.PaymentType (DEPOSIT / FINAL / REFUND...),
+de FE phan biet duoc "Dat coc" vs "Thanh toan cuoi" thay vi hien thi chung chung "Thanh toan
+cuoc xe" cho moi giao dich. `TransactionType` giu nguyen 2 gia tri PAYMENT/REFUND cu, khong
+doi, de khong pha vo cho FE dang dung.
 
 ---
 
