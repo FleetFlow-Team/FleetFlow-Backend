@@ -42,7 +42,7 @@ public class CustomerComplaintController extends HttpServlet {
     private final ComplaintWorkflowService workflow = new ComplaintWorkflowService();
     private final Gson gson = new Gson();
 
-    private static final int MAX_COMPLAINTS_PER_BOOKING = 1;
+    private static final int MAX_COMPLAINTS_PER_BOOKING_PER_TYPE = 1;
 
     private void prepare(HttpServletResponse response) {
         response.setContentType("application/json; charset=UTF-8");
@@ -129,9 +129,13 @@ public class CustomerComplaintController extends HttpServlet {
                 return;
             }
 
-            if (dao.countComplaintsByBooking(bookingId) >= MAX_COMPLAINTS_PER_BOOKING) {
-                fail(response, res, 429, "Bạn đã gửi khiếu nại đủ số lần cho phép cho chuyến đi này (tối đa "
-                        + MAX_COMPLAINTS_PER_BOOKING + " lần).");
+            // Giới hạn theo (booking + loại đơn): mỗi chuyến tối đa 1 đơn mỗi
+            // loại. Mất đồ (LOST_LUGGAGE) và phàn nàn khác (OTHER) là 2 vấn đề
+            // độc lập nên không loại trừ nhau — nhưng cùng 1 loại thì chỉ 1 đơn.
+            if (dao.countComplaintsByBookingAndType(bookingId, type) >= MAX_COMPLAINTS_PER_BOOKING_PER_TYPE) {
+                String loaiLabel = "LOST_LUGGAGE".equals(type) ? "thất lạc hành lý" : "vấn đề khác";
+                fail(response, res, 429, "Bạn đã gửi khiếu nại loại '" + loaiLabel
+                        + "' cho chuyến đi này rồi. Mỗi chuyến chỉ được gửi 1 đơn mỗi loại.");
                 return;
             }
 

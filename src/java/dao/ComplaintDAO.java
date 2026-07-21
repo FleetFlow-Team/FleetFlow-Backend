@@ -71,6 +71,25 @@ public class ComplaintDAO {
         }
     }
 
+    /**
+     * Đếm đơn theo BOOKING + LOẠI đơn. Dùng cho giới hạn "mỗi booking tối đa 1
+     * đơn mỗi loại": khách mất đồ (LOST_LUGGAGE) và phàn nàn khác (OTHER) trên
+     * cùng chuyến là 2 vấn đề độc lập, không loại trừ nhau — nên đếm riêng
+     * từng loại thay vì gộp chung.
+     */
+    public int countComplaintsByBookingAndType(int bookingId, String type) throws Exception {
+        String sql = "SELECT COUNT(*) FROM Complaint "
+                + "WHERE IsDeleted = 0 AND BookingID = ? AND ComplaintType = ?";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            ps.setString(2, type);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
     public int createComplaint(ComplaintForm f) throws Exception {
         String sql = "INSERT INTO Complaint "
                 + "(ComplaintType, Region, FullName, Email, Phone, Province, IssueType, "
