@@ -167,14 +167,12 @@ public class ComplaintActionDAO {
         }
     }
 
-    /** IN_PROGRESS / ESCALATED -> RESOLVED / CLOSED_UNRESOLVED. Resolution lưu
-     *  đúng nội dung tự sinh khách nhìn thấy (không có text tự do). Cho phép
-     *  nguồn ESCALATED để đơn OTHER đã chuyển bộ phận ngoài vẫn đóng được sau
-     *  khi có kết quả (không riêng IN_PROGRESS như trước). */
+    /** IN_PROGRESS -> RESOLVED / CLOSED_UNRESOLVED. Resolution lưu
+     *  đúng nội dung tự sinh khách nhìn thấy (không có text tự do). */
     public boolean closeComplaint(int complaintId, String outcome, String reasonCode,
             String customerMessage) throws Exception {
         String sql = "UPDATE Complaint SET Status = ?, ReasonCode = ?, Resolution = ?, ResolvedAt = GETDATE() "
-                + "WHERE ComplaintID = ? AND IsDeleted = 0 AND Status IN ('IN_PROGRESS', 'ESCALATED')";
+                + "WHERE ComplaintID = ? AND IsDeleted = 0 AND Status = 'IN_PROGRESS'";
         try (Connection conn = DbUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, outcome);
@@ -185,18 +183,6 @@ public class ComplaintActionDAO {
             }
             ps.setString(3, customerMessage);
             ps.setInt(4, complaintId);
-            return ps.executeUpdate() > 0;
-        }
-    }
-
-    /** IN_PROGRESS -> ESCALATED (chỉ OTHER) — đơn đã chuyển cho bộ phận ngoài
-     *  xử lý, CHƯA đóng. Đóng thật sự sau đó đi qua closeComplaint(). */
-    public boolean escalateComplaint(int complaintId) throws Exception {
-        String sql = "UPDATE Complaint SET Status = 'ESCALATED' "
-                + "WHERE ComplaintID = ? AND IsDeleted = 0 AND Status = 'IN_PROGRESS'";
-        try (Connection conn = DbUtils.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, complaintId);
             return ps.executeUpdate() > 0;
         }
     }
