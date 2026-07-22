@@ -167,8 +167,11 @@ public class ComplaintActionDAO {
         }
     }
 
-    /** IN_PROGRESS -> RESOLVED / CLOSED_UNRESOLVED. Resolution lưu
-     *  đúng nội dung tự sinh khách nhìn thấy (không có text tự do). */
+    /** IN_PROGRESS -> RESOLVED / CLOSED_UNRESOLVED. Resolution lưu đúng nội
+     *  dung tự sinh khách nhìn thấy (không có text tự do).
+     *  Sau cách B, đơn OTHER escalate cũng đóng thẳng từ IN_PROGRESS bằng hàm
+     *  này (outcome RESOLVED + reasonCode ESCALATED_EXTERNAL) — không còn
+     *  trạng thái trung gian ESCALATED. */
     public boolean closeComplaint(int complaintId, String outcome, String reasonCode,
             String customerMessage) throws Exception {
         String sql = "UPDATE Complaint SET Status = ?, ReasonCode = ?, Resolution = ?, ResolvedAt = GETDATE() "

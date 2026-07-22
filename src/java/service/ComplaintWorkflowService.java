@@ -147,9 +147,19 @@ public class ComplaintWorkflowService {
     // Bước xử lý OTHER: bộ 4 hành động cố định dùng chung mọi issueType (rule
     // 6: bắt buộc đã gắn nhãn issueType trước khi gọi hành động này).
     //
-    // Quyết định nghiệp vụ: 4 hành động kết luận (VERIFIED_HANDLED/CANNOT_VERIFY/REJECTED/ESCALATED) 
-    // TỰ ĐÓNG đơn luôn (gộp bước xử lý + đóng đơn). 
-    // ESCALATED tự điền {target_department} theo issueType và đóng với ESCALATED_EXTERNAL.
+    // Quyết định nghiệp vụ (HUONG_SUA_ESCALATED_CachB.md): CẢ 4 hành động đều
+    // TỰ ĐÓNG đơn — gộp bước xử lý + đóng đơn, không còn bước resolve riêng.
+    //
+    // Riêng ESCALATED: đóng đơn với reasonCode ESCALATED_EXTERNAL, nghĩa là
+    // "vụ việc vượt thẩm quyền tuyến đầu, đã định tuyến sang bộ phận chuyên môn;
+    // bộ phận đó làm việc trực tiếp với khách qua kênh riêng". Hệ thống KHÔNG
+    // giữ đơn ở trạng thái mở để chờ phòng ban ngoài — vì quá trình đó xảy ra
+    // hoàn toàn bên ngoài hệ thống, không thể theo dõi được. Giữ đơn mở chỉ đẻ
+    // ra đơn treo + đóng "chay" không kiểm chứng được.
+    //
+    // Business rule kèm theo (ngoài code): dispatcher có trách nhiệm chuyển
+    // thông tin đơn sang bộ phận liên quan qua kênh nội bộ sau khi bấm.
+    // ESCALATED tự điền {target_department} theo issueType (spec mục 6.2).
     // =====================================================================
     public String handle(int complaintId, String action, int dispatcherAccountId, String ip) throws Exception {
         Map<String, Object> core = requireComplaint(complaintId);
@@ -190,7 +200,8 @@ public class ComplaintWorkflowService {
                 break;
             case "ESCALATED":
                 msg = "Khiếu nại của bạn đã được chuyển đến " + targetDepartment((String) core.get("issueType"))
-                        + " để xử lý chuyên sâu. Bộ phận này sẽ liên hệ với bạn qua thông tin liên lạc trong tài khoản. Vui lòng để ý điện thoại và hộp thư trong thời gian tới.";
+                        + " để xử lý chuyên sâu. Bộ phận này sẽ liên hệ với bạn qua thông tin liên lạc "
+                        + "trong tài khoản. Vui lòng để ý điện thoại và hộp thư trong thời gian tới.";
                 newStatus = "RESOLVED";
                 reasonCode = "ESCALATED_EXTERNAL";
                 break;
@@ -327,7 +338,9 @@ public class ComplaintWorkflowService {
             int dispatcherAccountId, String ip) throws Exception {
         Map<String, Object> core = requireComplaint(complaintId);
         String statusBefore = (String) core.get("status");
-        
+        // Sau cách B, CẢ 4 action trong handle() đều tự đóng đơn — kể cả
+        // ESCALATED. Nên luồng OTHER bình thường không còn đi qua /resolve nữa.
+        // Giữ hàm này cho các đơn OTHER cũ/ngoại lệ vẫn đang IN_PROGRESS.
         if (!"IN_PROGRESS".equals(statusBefore)) {
             throw new IllegalStateException("Chỉ chốt được đơn đang IN_PROGRESS");
         }
