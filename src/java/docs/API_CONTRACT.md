@@ -4919,3 +4919,58 @@ output:
     "success": false,
     "message": "Chưa ghi nhận hành động xử lý nào — không thể chốt đơn"
 }
+
+1. Nhận xử lý đơn khiếu nại (Assign)
+Chuyển trạng thái đơn từ PENDING sang IN_PROGRESS và gán cho Dispatcher.
+
+-path: POST /api/complaints/{complaintId}/assign
+-input: (Không có Request Body)
+-output:
+Thành công (200 OK):
+json { "success": true, "message": "Đơn đang được xử lý" } 
+Thất bại (409 Conflict): Trả về lỗi nếu đơn không còn ở PENDING hoặc đã bị người khác nhận.
+
+2. Ghi nhận liên hệ tài xế (Contact Driver - Chỉ cho LOST_LUGGAGE)
+Bắt buộc thực hiện trước khi chốt đơn thất lạc hành lý.
+
+-path: POST /api/complaints/{complaintId}/contact-driver
+-input:
+json { "result": "HAS_ITEM" // Chấp nhận: HAS_ITEM, NO_ITEM, NO_RESPONSE } 
+-output:
+Thành công (200 OK):
+json { "success": true, "message": "Tài xế xác nhận đang giữ đồ của bạn. Vui lòng liên hệ SĐT..."  } 
+Thất bại (400 Bad Request): Trả về lỗi nếu gửi sai result hoặc dùng cho loại khiếu nại khác.
+
+3. Gắn nhãn phân loại (Tag - Chỉ cho OTHER)
+Bước phân loại bắt buộc trước khi thực hiện các hành động xử lý đơn.
+
+-path: PUT /api/complaints/{complaintId}/tag
+-input:
+json { "issueType": "APP_ISSUE"  // Chấp nhận: VEHICLE_VIOLATION, APP_ISSUE, BILLING_DISPUTE, STAFF_ATTITUDE, SAFETY_CONCERN, OTHER_UNCATEGORIZED } 
+-output:
+Thành công (200 OK):
+json { "success": true, "message": "Gắn nhãn thành công" } 
+Thất bại (400/409): Lỗi nếu sai issueType hoặc đơn đã được kết luận xử lý.
+
+4. Xử lý khiếu nại (Handle - Chỉ cho OTHER)
+Thực thi kết luận xử lý. Đơn sẽ tự động ĐÓNG (ngay cả với ESCALATED).
+
+-path: POST /api/complaints/{complaintId}/handle
+-input:
+json { "action": "ESCALATED"  // Chấp nhận: VERIFIED_HANDLED, CANNOT_VERIFY, ESCALATED, REJECTED } 
+-output:
+Thành công (200 OK):
+json { "success": true, "message": "Khiếu nại của bạn đã được chuyển đến bộ phận kỹ thuật để xử lý chuyên sâu..."  } 
+Thất bại (400/409): Lỗi nếu chưa gắn nhãn issueType hoặc đơn đã xử lý trước đó.
+
+5. Chốt đơn khiếu nại (Resolve)
+Dùng để đóng đơn LOST_LUGGAGE (hoặc OTHER nếu chưa qua hàm handle).
+
+-path: POST /api/complaints/{complaintId}/resolve
+-input:
+json { "outcome": "CLOSED_UNRESOLVED", // Chấp nhận: RESOLVED, CLOSED_UNRESOLVED "reasonCode": "DRIVER_UNREACHABLE" // Bắt buộc truyền nếu outcome = CLOSED_UNRESOLVED } 
+(Các reasonCode hợp lệ: NO_ITEM_FOUND, CUSTOMER_UNREACHABLE, DRIVER_UNREACHABLE, VIOLATION_NOT_CONFIRMED tùy theo loại đơn)
+-output:
+Thành công (200 OK):
+json { "success": true, "message": "Không thể liên hệ được với tài xế để xác minh." } 
+Thất bại (400/409): Lỗi nếu thiếu reasonCode khi đóng đơn không thành công, hoặc chốt DRIVER_UNREACHABLE khi chưa đủ 3 lần gọi hụt.
