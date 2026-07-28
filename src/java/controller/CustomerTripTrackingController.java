@@ -3,6 +3,7 @@ package controller;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dao.TripTrackingDAO;
+import service.BookingExtensionService;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
@@ -36,6 +37,7 @@ import utils.JwtUtils;
 public class CustomerTripTrackingController extends HttpServlet {
 
     private final TripTrackingDAO trackingDAO = new TripTrackingDAO();
+    private final BookingExtensionService extensionService = new BookingExtensionService();
     private final Gson gson = new GsonBuilder().serializeNulls().create();
 
     private void prepare(HttpServletResponse response) {
@@ -79,12 +81,14 @@ public class CustomerTripTrackingController extends HttpServlet {
                 return;
             }
 
-            // 2) Lấy bookingId từ path /{bookingId}/location
-            String pathInfo = request.getPathInfo(); // "/54/location"
-            if (pathInfo == null || !pathInfo.endsWith("/location")) {
+            // 2) Lấy bookingId + action từ path: /{bookingId}/location hoặc /{bookingId}/overtime-preview
+            String pathInfo = request.getPathInfo(); // "/54/location" | "/54/overtime-preview"
+            boolean isLocation = pathInfo != null && pathInfo.endsWith("/location");
+            boolean isOvertimePreview = pathInfo != null && pathInfo.endsWith("/overtime-preview");
+            if (!isLocation && !isOvertimePreview) {
                 response.setStatus(400);
                 res.put("success", false);
-                res.put("message", "Path không hợp lệ. Dùng /{bookingId}/location");
+                res.put("message", "Path không hợp lệ. Dùng /{bookingId}/location hoặc /{bookingId}/overtime-preview");
                 out.print(gson.toJson(res));
                 return;
             }
@@ -102,7 +106,6 @@ public class CustomerTripTrackingController extends HttpServlet {
             // 3) Verify: booking thuộc chính khách này VÀ đang ONGOING
             String email = JwtUtils.getEmailFromToken(token);
             if (!trackingDAO.isOngoingBookingOfCustomer(bookingId, email)) {
-                // Gộp 2 lý do vào 1 message chung để không lộ booking có tồn tại hay không
                 response.setStatus(403);
                 res.put("success", false);
                 res.put("message", "Chuyến đi không thuộc tài khoản của bạn hoặc không trong trạng thái đang di chuyển");
@@ -110,7 +113,16 @@ public class CustomerTripTrackingController extends HttpServlet {
                 return;
             }
 
-            // 4) Trả vị trí mới nhất
+            // 4a) Tạm tính phí quá giờ — cho FE hiện lên bill nhảy dần
+            if (isOvertimePreview) {
+                Map<String, Object> preview = extensionService.previewOvertime(bookingId);
+                res.put("success", true);
+                res.putAll(preview);
+                out.print(gson.toJson(res));
+                return;
+            }
+
+            // 4b) Vị trí GPS mới nhất
             TripGpsLog latest = trackingDAO.getLatestGpsLog(bookingId);
             if (latest == null) {
                 // Đang ONGOING nhưng chưa có điểm GPS nào (tài xế chưa đẩy vị trí)

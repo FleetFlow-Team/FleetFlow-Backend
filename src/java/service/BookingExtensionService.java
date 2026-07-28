@@ -7,6 +7,8 @@ import dao.ExtensionDAO;
 import dao.TripTrackingDAO;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.sql.Connection;
 import java.sql.Timestamp;
 import java.util.List;
@@ -290,6 +292,83 @@ public class BookingExtensionService {
             trackingDAO.insertEvent(bookingId, "OVERTIME_CAP_REACHED", returnTimeKey);
             notifyOvertimeCapReached(bookingId, booking, dynamicCapMinutes);
         }
+    }
+
+    /**
+     * TẠM TÍNH phí quá giờ tại thời điểm hiện tại — KHÔNG ghi DB, KHÔNG đụng
+     * EstimatedTotal. Dùng cho FE poll (chung nhịp GPS 15-30s) để hiện lên bill
+     * dòng "Phí quá giờ (tạm tính): ~X đ" nhảy dần, tránh việc khách bị cả cục
+     * tiền lố bất ngờ lúc kết thúc. Số THẬT vẫn chốt ở settleOvertimeOnComplete
+     * — công thức ở đây giống hệt để tạm tính khớp số cuối.
+     *
+     * Trả về Map để controller serialize thẳng ra JSON.
+     */
+    public Map<String, Object> previewOvertime(int bookingId) throws Exception {
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("bookingId", bookingId);
+
+        Booking booking = bookingDAO.findById(bookingId);
+        if (booking == null || !"ONGOING".equalsIgnoreCase(booking.getStatus())) {
+            res.put("isOvertime", false);
+            res.put("reason", "Chuyến không ở trạng thái đang di chuyển");
+            return res;
+        }
+        boolean isHourly = "HOURLY".equalsIgnoreCase(booking.getBookingType());
+        boolean isDaily = "DAILY".equalsIgnoreCase(booking.getBookingType());
+        if (!isHourly && !isDaily) {
+            // Loại DISTANCE... không có khái niệm quá giờ
+            res.put("isOvertime", false);
+            res.put("reason", "Loại thuê này không tính phí quá giờ");
+            return res;
+        }
+
+        BookingDetail detail = bookingDAO.findDetailByBookingId(bookingId);
+        Timestamp returnTime = detail != null ? detail.getReturnTime() : null;
+        if (returnTime == null) {
+            res.put("isOvertime", false);
+            res.put("reason", "Chưa có giờ trả xe dự kiến");
+            return res;
+        }
+
+        long now = System.currentTimeMillis();
+        long elapsedMinutes = (now - returnTime.getTime()) / 60_000L;
+
+        // Chưa tới giờ trả xe
+        if (elapsedMinutes < 0) {
+            res.put("isOvertime", false);
+            res.put("minutesUntilReturn", -elapsedMinutes);
+            return res;
+        }
+
+        // Trong grace 15 phút: chưa tính tiền, nhưng báo còn bao nhiêu phút miễn phí
+        if (elapsedMinutes <= GRACE_MINUTES) {
+            res.put("isOvertime", false);
+            res.put("inGrace", true);
+            res.put("graceMinutesLeft", GRACE_MINUTES - elapsedMinutes);
+            return res;
+        }
+
+        // Đã quá giờ: tính tạm bằng đúng công thức chốt sổ
+        long billedHours = (long) Math.ceil(elapsedMinutes / 60.0);
+        BookingPricing pricing = bookingDAO.findPricingByBookingId(bookingId);
+        BigDecimal pricePerHour = pricing != null ? pricing.getPricePerHourSnapshot() : null;
+
+        res.put("isOvertime", true);
+        res.put("overtimeMinutes", elapsedMinutes);
+        res.put("billedHours", billedHours);
+        res.put("graceMinutesLeft", 0);
+
+        if (pricePerHour == null) {
+            // Thiếu snapshot giá — không tạm tính được số tiền, nhưng vẫn báo đang lố
+            res.put("estimatedOvertimeFee", null);
+            res.put("note", "Chưa có đơn giá snapshot để tạm tính, phí sẽ được xác định khi kết thúc");
+            return res;
+        }
+        BigDecimal fee = pricePerHour.multiply(BigDecimal.valueOf(billedHours))
+                .setScale(2, RoundingMode.HALF_UP);
+        res.put("pricePerHour", pricePerHour);
+        res.put("estimatedOvertimeFee", fee);
+        return res;
     }
 
     public void settleOvertimeOnComplete(int bookingId) throws Exception {

@@ -4989,3 +4989,20 @@ output:
     "hasLocation": true,
     "bookingId": 54
 }
+
+Hiện tạm tính tiền phí quá giờ nhảy dần trong lúc chuyến đang chạy.
+Giải quyết vấn đề UI xấu: trước đây tiền lố chỉ hiện 1 cục lúc kết thúc (khách bị bất ngờ "sao tự nhiên +400k"),
+giờ khách thấy đồng hồ tiền tăng dần từ phút bị tính, không sốc.
+path: http://localhost:8080/FleetFlow/api/v1/customer/trips/54/overtime-preview
+Bearer Token: Customer_Token
+output:
+{
+    "isOvertime": true,
+    "success": true,
+    "billedHours": 5,
+    "overtimeMinutes": 289,
+    "pricePerHour": 80000.00,
+    "estimatedOvertimeFee": 400000.00,
+    "bookingId": 54,
+    "graceMinutesLeft": 0
+}
