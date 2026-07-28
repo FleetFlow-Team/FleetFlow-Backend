@@ -75,6 +75,19 @@ public class FinalPaymentController extends HttpServlet {
 
             service.PaymentService paymentService = new service.PaymentService();
             BigDecimal amountToPay = paymentService.remainingOf(bookingId);
+
+            // Chuyến còn ONGOING (chưa completeTrip -> chưa settleOvertimeOnComplete
+            // cộng phạt vào EstimatedTotal) mà đã quá giờ trả xe: cộng thêm phí quá
+            // giờ ước tính vào số tiền phải trả NGAY, tránh khách trả thiếu rồi bị
+            // báo nợ lại sau khi tài xế bấm hoàn thành chuyến.
+            if ("ONGOING".equals(booking.getStatus())) {
+                Map<String, Object> overtime = new service.BookingExtensionService().previewOvertime(bookingId);
+                Object feeObj = overtime.get("estimatedOvertimeFee");
+                if (Boolean.TRUE.equals(overtime.get("isOvertime")) && feeObj instanceof BigDecimal) {
+                    amountToPay = amountToPay.add((BigDecimal) feeObj);
+                }
+            }
+
             if (amountToPay.compareTo(BigDecimal.ZERO) <= 0) {
                 response.setStatus(400);
                 res.put("success", false);

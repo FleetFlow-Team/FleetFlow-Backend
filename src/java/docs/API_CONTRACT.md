@@ -5006,3 +5006,42 @@ output:
     "bookingId": 54,
     "graceMinutesLeft": 0
 }
+
+CAP NHAT: sua loi tra thieu tien khi thanh toan luc dang qua gio (ONGOING). Truoc day
+/payments/final va /payments/vnpay/create chi tinh remainingOf() (dua tren EstimatedTotal
+CHUA cong phat qua gio - phi nay chi duoc cong luc tai xe bam hoan thanh chuyen qua
+settleOvertimeOnComplete), nen khach tra thieu roi bi bao no lai ngay sau khi tai xe hoan
+thanh. Gio ca 2 endpoint deu goi lai dung BookingExtensionService.previewOvertime() (ham
+da dung cho GET .../overtime-preview o tren) va cong estimatedOvertimeFee vao so tien phai
+tra NEU booking dang ONGOING - dam bao so tien khop 100% voi so FE dang hien thi tam tinh.
+
+Thanh toan tien mat luc dang qua gio (ONGOING) - da cong phi qua gio tam tinh vao finalAmount
+path: POST http://localhost:8080/FleetFlow/api/v1/payments/final
+input:
+{
+  "bookingId": 3,
+  "paymentMethod": "CASH"
+}
+output:
+{
+    "success": true,
+    "finalAmount": 315500.00,
+    "message": "Đã ghi nhận thanh toán tiền mặt 315500.00đ."
+}
+(vi du: remainingOf = 115500, dang qua gio 90 phut = 2h x 100000đ/h = 200000 phi qua gio
+tam tinh -> finalAmount = 115500 + 200000 = 315500, khop dung estimatedOvertimeFee tra ve
+tu GET .../overtime-preview cho cung booking nay)
+
+Tao link VNPay cho phan con lai luc dang qua gio (ONGOING) - da cong phi qua gio tam tinh vao payAmount
+path: POST http://localhost:8080/FleetFlow/api/v1/payments/vnpay/create
+input:
+{
+  "bookingId": 3
+}
+output:
+{
+    "success": true,
+    "paymentUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_Amount=31550000&..."
+}
+(vnp_Amount = so tien x 100 theo quy dinh VNPay -> 31550000 = 315500đ, khop voi vi du CASH o tren)
+}
