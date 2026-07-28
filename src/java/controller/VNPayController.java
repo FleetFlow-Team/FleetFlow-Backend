@@ -133,6 +133,18 @@ public class VNPayController extends HttpServlet {
                 }
                 paymentType = "FINAL";
                 payAmount = paymentService.remainingOf(bookingId);
+
+                // Chuyến còn ONGOING (chưa completeTrip -> chưa settleOvertimeOnComplete
+                // cộng phạt vào EstimatedTotal) mà đã quá giờ trả xe: cộng thêm phí quá
+                // giờ ước tính vào link thanh toán, tránh tạo link thiếu tiền rồi khách
+                // bị báo nợ lại sau khi tài xế bấm hoàn thành chuyến.
+                if ("ONGOING".equals(booking.getStatus())) {
+                    Map<String, Object> overtime = new service.BookingExtensionService().previewOvertime(bookingId);
+                    Object feeObj = overtime.get("estimatedOvertimeFee");
+                    if (Boolean.TRUE.equals(overtime.get("isOvertime")) && feeObj instanceof BigDecimal) {
+                        payAmount = payAmount.add((BigDecimal) feeObj);
+                    }
+                }
             }
             if (payAmount.compareTo(BigDecimal.ZERO) <= 0) {
                 response.setStatus(400);
