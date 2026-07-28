@@ -4974,3 +4974,18 @@ json { "outcome": "CLOSED_UNRESOLVED", // Chấp nhận: RESOLVED, CLOSED_UNRESO
 Thành công (200 OK):
 json { "success": true, "message": "Không thể liên hệ được với tài xế để xác minh." } 
 Thất bại (400/409): Lỗi nếu thiếu reasonCode khi đóng đơn không thành công, hoặc chốt DRIVER_UNREACHABLE khi chưa đủ 3 lần gọi hụt.
+
+Customer coi vi tri hien tai cua minh khi ongoing 
+path: http://localhost:8080/FleetFlow/api/v1/customer/trips/bookingId/location
+Bearer Token: Customer_Token
+output:
+{
+    "success": true,
+    "location": {
+        "latitude": 10.7626220,
+        "longitude": 106.6601720,
+        "recordedAt": "2026-07-28 17:17:34.2866667"
+    },
+    "hasLocation": true,
+    "bookingId": 54
+}

@@ -50,6 +50,27 @@ public class TripTrackingDAO {
     }
 
     /**
+     * Xác minh: booking này có thuộc về customer (theo email) VÀ đang ONGOING không?
+     * Dùng để cổng endpoint khách xem vị trí xe của CHÍNH chuyến mình — chống việc
+     * khách A dò vị trí xe của chuyến khách B, và chỉ cho xem khi xe đang chạy.
+     * Trả về true nếu hợp lệ.
+     */
+    public boolean isOngoingBookingOfCustomer(int bookingId, String customerEmail) throws Exception {
+        String sql = "SELECT 1 FROM Booking b "
+                + "JOIN Customer c ON c.CustomerID = b.CustomerID "
+                + "JOIN Account a ON a.AccountID = c.AccountID "
+                + "WHERE b.BookingID = ? AND a.Email = ? AND b.Status = 'ONGOING'";
+        try (Connection conn = DbUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, bookingId);
+            ps.setString(2, customerEmail);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    /**
      * Lấy vị trí mới nhất của TẤT CẢ booking đang ONGOING — dùng cho Dispatcher map tổng quan.
      * Mỗi booking chỉ trả về 1 điểm GPS gần nhất (không phải toàn bộ lịch sử).
      */
